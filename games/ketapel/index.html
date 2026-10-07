@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ketapel Mangga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<style>
+  /* Ketapel Mangga: game-specific styles only */
+  .gs-stage { cursor: default; }
+  .kt-dragzone { cursor: grab; }
+  .kt-dragzone:active { cursor: grabbing; }
+  .kt-patok-hit { cursor: pointer; outline: none; }
+  .kt-patok-hit:focus-visible + .kt-ring, .kt-patok-hit:focus-visible { stroke: #1F6FD1; stroke-width: 5; }
+  .kt-plate-pulse { animation: kt-plate 1100ms cubic-bezier(0.37, 0, 0.63, 1) infinite; transform-box: fill-box; transform-origin: 50% 50%; }
+  @keyframes kt-plate { 50% { transform: translateY(-6px) scale(1.12); } }
+  .kt-sway { animation: kt-sway 3.2s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; transform-box: view-box; }
+  @keyframes kt-sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+  .kt-leaf { animation: kt-leaf 4.4s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; transform-box: fill-box; transform-origin: 50% 100%; }
+  @keyframes kt-leaf { from { transform: skewX(-1.2deg); } to { transform: skewX(1.2deg); } }
+  .kt-rustle { animation: kt-rustle 420ms ease-in-out; transform-box: fill-box; transform-origin: 50% 100%; }
+  @keyframes kt-rustle { 20% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } 80% { transform: rotate(-1deg); } }
+  .kt-hint { animation: kt-hint 1600ms cubic-bezier(0.33, 1, 0.68, 1) infinite; }
+  @keyframes kt-hint { 0% { transform: translate(0, 0); opacity: 0; } 15% { opacity: 1; } 70% { transform: translate(-70px, 70px); opacity: 1; } 100% { transform: translate(-70px, 70px); opacity: 0; } }
+  .kt-hint-open { animation-name: kt-hint-open; }
+  @keyframes kt-hint-open { 0% { transform: translate(0, 0); opacity: 0; } 15% { opacity: 1; } 70% { transform: translate(-60px, 85px); opacity: 1; } 100% { transform: translate(-60px, 85px); opacity: 0; } }
+  .kt-bob { animation: kt-bob 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
+  @keyframes kt-bob { from { transform: translateY(-3px); } to { transform: translateY(3px); } }
+  .kt-next { animation: kt-bob 700ms cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
+  .kt-pop { animation: kt-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both; transform-box: fill-box; transform-origin: 50% 100%; }
+  @keyframes kt-pop { from { transform: scale(0.2); opacity: 0; } to { transform: none; opacity: 1; } }
+  .kt-fade { transition: opacity 500ms ease-out; }
+  #dock .gs-action[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .kt-plate-pulse, .kt-sway, .kt-leaf, .kt-rustle, .kt-hint, .kt-bob, .kt-next, .kt-pop { animation: none; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Kebun dengan ketapel dan patok 1 sampai 10 meter"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

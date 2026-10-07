@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rakit Terapung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<style>
+  /* Rakit Terapung: game-specific styles only. */
+  .pr-wave { animation: pr-wave 3.6s linear infinite; }
+  .pr-wave.slow { animation-duration: 6s; }
+  @keyframes pr-wave { to { transform: translateX(-120px); } }
+  .pr-flag { animation: pr-flag 2.6s cubic-bezier(0.37, 0, 0.63, 1) infinite; transform-box: fill-box; transform-origin: 0% 50%; }
+  @keyframes pr-flag { 50% { transform: skewY(-4deg) scaleX(0.96); } }
+  .pr-bob { animation: pr-bob 3s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes pr-bob { 50% { transform: translateY(2.5px); } }
+  .pr-drag { cursor: grab; }
+  .pr-drag:active { cursor: grabbing; }
+  .pr-tap { cursor: pointer; }
+  .pr-ring { opacity: 0; transition: opacity 120ms; }
+  .pr-focus:focus { outline: none; }
+  .pr-focus:focus-visible .pr-ring { opacity: 1; }
+  .pr-hot { opacity: 1 !important; }
+  .gs-stage text { font-variant-numeric: tabular-nums; }
+  /* Short landscape phones: keep the caption from covering the play area. */
+  @media (max-height: 500px) {
+    .gs-caption { max-width: min(330px, 42vw); }
+    .gs-caption-text { font-size: 15px; padding: 8px 12px; }
+    .gs-caption-face, .gs-caption-face svg { width: 48px; height: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pr-wave, .pr-flag, .pr-bob { animation: none; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Area permainan"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

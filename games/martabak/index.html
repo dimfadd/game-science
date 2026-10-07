@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bagi Martabak</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<style>
+  /* Bagi Martabak: game-specific styles only. */
+  .mk-steam path { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; animation: mk-steam 3.4s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  .mk-steam path:nth-child(2) { animation-delay: -1.1s; }
+  .mk-steam path:nth-child(3) { animation-delay: -2.2s; }
+  @keyframes mk-steam {
+    0% { opacity: 0; transform: translateY(14px) scaleX(0.85); }
+    30% { opacity: 0.6; }
+    100% { opacity: 0; transform: translateY(-70px) scaleX(1.2); }
+  }
+  .mk-breathe { animation: mk-breathe 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  .mk-breathe.d1 { animation-delay: -0.6s; } .mk-breathe.d2 { animation-delay: -1.2s; } .mk-breathe.d3 { animation-delay: -1.8s; }
+  @keyframes mk-breathe { 50% { transform: translateY(-3px); } }
+  .mk-card-swing { transform-box: fill-box; transform-origin: 50% 0; animation: mk-swing 3s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes mk-swing { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+  .mk-plate .mk-ring { transition: stroke 120ms ease-out, stroke-width 120ms ease-out; }
+  .mk-plate.hot .mk-ring { stroke: #0F8C7A; stroke-width: 7; }
+  .mk-diff { animation: mk-diff 700ms ease-in-out infinite; }
+  @keyframes mk-diff { 50% { stroke-opacity: 0.35; } }
+  .mk-snapdot { animation: mk-snap 600ms ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes mk-snap { 50% { transform: scale(1.35); } }
+  .gs-stage .mk-name { font-family: var(--font-body); font-weight: 700; }
+  .gs-action[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .mk-steam path { animation: none; opacity: 0.35; }
+    .mk-breathe, .mk-card-swing, .mk-diff, .mk-snapdot { animation: none; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Warung martabak: potong makanan lalu bagikan ke teman"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

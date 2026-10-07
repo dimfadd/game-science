@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Galeri Aset Kampung Sains</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="shared/core.css">
+<style>
+  :root { --bg: #FFF8EC; --ink: #2B1D14; --line: #3B2A20; --card: #FFFFFF; --soft: #F3E6CF; --blue: #1F6FD1; --orange: #F28C28; --teal: #0F8C7A; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font-family: Andika, 'Trebuchet MS', system-ui, sans-serif; font-size: 16px; line-height: 1.45; overflow-x: hidden;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); }
+  main { max-width: 1180px; margin: 0 auto; }
+  h1, h2 { font-family: 'Baloo 2', 'Trebuchet MS', system-ui, sans-serif; font-weight: 800; line-height: 1.1; margin: 0; }
+  h1 { font-size: clamp(28px, 6vw, 44px); }
+  h2 { font-size: clamp(22px, 4.5vw, 30px); margin: 40px 0 6px; }
+  .lead { margin: 6px 0 0; max-width: 60ch; }
+  .note { margin: 0 0 14px; color: #6B5443; font-size: 15px; }
+  header.top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 8px 0 4px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .grid.wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 16px; }
+  .grid.mid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+  .card { background: var(--card); border: 2px solid var(--soft); border-radius: 18px; padding: 10px 10px 12px; text-align: center; min-width: 0; }
+  .card svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .card h3 { font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 800; font-size: 18px; margin: 4px 0 2px; }
+  .card code { font-size: 12px; color: #8A7358; }
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 6px; }
+  .chip { font-size: 12.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--soft); white-space: nowrap; }
+  .chip.light { background: #E3F0FB; color: #1B4F8F; }
+  .chip.medium { background: #F6EBD6; color: #6B4A20; }
+  .chip.heavy { background: #4A3A30; color: #FFF8EC; }
+  .chip.float { background: #DDF2EE; color: #0B6B5D; }
+  .chip.sink { background: #EDE3D6; color: #4A3A30; }
+  .chip.rho { font-family: Fredoka, system-ui, sans-serif; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .scene svg { width: 100%; height: auto; border-radius: 12px; }
+  .sizes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; background: var(--card); border: 2px solid var(--soft); border-radius: 18px; padding: 12px; }
+  .sizes figure { margin: 0; text-align: center; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div id="hero"></div>
+    <div>
+      <h1>Galeri Aset Kampung Sains</h1>
+      <p class="lead">Semua gambar dibuat langsung dengan SVG di <code>shared/art.js</code>. Gaya "Kampung Chunky": garis cokelat hangat, tiga warna untuk tiap bentuk, cahaya dari kiri atas.</p>
+    </div>
+  </header>
+
+  <h2>Si Cil, si kancil</h2>
+  <p class="note">Tujuh ekspresi. Kedip, napas, telinga, dan pita ikat kepala bergerak pelan.</p>
+  <div class="grid mid" id="moods"></div>
+  <div class="sizes" id="sizes" style="margin-top:12px"></div>
+
+  <h2>Benda</h2>
+  <p class="note">Ukuran gambar tidak menunjukkan berat. Kapas dan balon besar tapi ringan; batu dan gembok kecil tapi berat.</p>
+  <div class="grid" id="items"></div>
+
+  <h2>Anak timbangan</h2>
+  <p class="note">Angka ditambah pola titik untuk 10 ke bawah.</p>
+  <div class="grid" id="weights"></div>
+
+  <h2>Penumpang dan teman</h2>
+  <div class="grid" id="people"></div>
+
+  <h2>Latar</h2>
+  <p class="note">Tiga lapis (jauh, tengah, dekat) untuk efek parallax. Bagian tengah sengaja lapang untuk permainan.</p>
+  <div class="grid wide" id="scenes"></div>
+
+  <h2>Landmark peta</h2>
+  <div class="grid mid" id="landmarks"></div>
+</main>
+
+<script src="shared/core.js"></script>
+<script src="shared/art.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = GS.art;
+  function card(svg, title, sub, chips) {
+    var d = document.createElement('div');
+    d.className = 'card';
+    d.innerHTML = svg + '<h3></h3>' + (sub ? '<code></code>' : '') + (chips ? '<div class="chips">' + chips + '</div>' : '');
+    d.querySelector('h3').textContent = title;
+    if (sub) d.querySelector('code').textContent = sub;
+    return d;
+  }
+  function wrap(markup, vb, w, h, label) {
+    return '<svg viewBox="' + vb + '" width="' + w + '" height="' + h + '" role="img" aria-label="' + label + '">' + markup + '</svg>';
+  }
+  var MOODNAME = { idle: 'Diam', happy: 'Senang', cheer: 'Bersorak', think: 'Berpikir', surprise: 'Kaget', oops: 'Ups', point: 'Menunjuk' };
+
+  document.getElementById('hero').innerHTML = A.mascot({ mood: 'happy', size: 96 });
+
+  var moods = document.getElementById('moods');
+  Object.keys(MOODNAME).forEach(function (m) { moods.appendChild(card(A.mascot({ mood: m, size: 160 }), MOODNAME[m], "mood: '" + m + "'")); });
+  var sizes = document.getElementById('sizes');
+  [48, 64, 96, 200].forEach(function (s) {
+    var f = document.createElement('figure');
+    f.innerHTML = A.mascot({ mood: s === 64 ? 'happy' : 'idle', size: s }) + '<figcaption>' + s + ' px</figcaption>';
+    sizes.appendChild(f);
+  });
+
+  var HEAVY = { light: 'ringan', medium: 'sedang', heavy: 'berat' };
+  var items = document.getElementById('items');
+  A.names().forEach(function (n) {
+    var m = A.meta(n);
+    var chips = '<span class="chip ' + m.heavy + '">' + HEAVY[m.heavy] + '</span>';
+    if (m.floats === true) chips += '<span class="chip float">terapung</span>';
+    if (m.floats === false) chips += '<span class="chip sink">tenggelam</span>';
+    if (m.density != null) chips += '<span class="chip rho">' + String(m.density).replace('.', ',') + ' g/cm³</span>';
+    items.appendChild(card(A.svg(n, 120, { float: m.heavy === 'light' }), m.label, n, chips));
+  });
+
+  var weights = document.getElementById('weights');
+  [1, 2, 5, 10, 12].forEach(function (n) { weights.appendChild(card(wrap(A.weight(n), '-55 -105 110 110', 120, 120, 'Anak timbangan ' + n), 'Timbangan ' + n, 'weight(' + n + ')')); });
+
+  var people = document.getElementById('people');
+  for (var i = 0; i < 8; i++) people.appendChild(card(wrap(A.person(i), '-40 -106 80 110', 110, 150, 'Orang ' + i), 'Orang ' + (i + 1), 'person(' + i + ')'));
+
+  var NAMES = { kampung: 'Kampung', sawah: 'Sawah', pasar: 'Pasar', pantai: 'Pantai', sungai: 'Sungai', kebun: 'Kebun', terminal: 'Terminal', warung: 'Warung' };
+  var scenes = document.getElementById('scenes');
+  Object.keys(NAMES).forEach(function (n) {
+    var c = card(wrap(A.scene(n, 640, 360), '0 0 640 360', 640, 360, 'Latar ' + NAMES[n]), NAMES[n], "scene('" + n + "', 640, 360)");
+    c.classList.add('scene');
+    scenes.appendChild(c);
+  });
+
+  var LMN = { pasar: 'Pasar', terminal: 'Terminal', sawah: 'Sawah', kebun: 'Kebun', sungai: 'Sungai', warung: 'Warung', rumah: 'Rumah panggung' };
+  var lms = document.getElementById('landmarks');
+  Object.keys(LMN).forEach(function (n) { lms.appendChild(card(wrap(A.landmark(n), '-96 -176 192 182', 220, 208, LMN[n]), LMN[n], "landmark('" + n + "')")); });
+})();
+</script>
+</body>
+</html>

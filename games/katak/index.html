@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lompat Katak</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<style>
+  /* ---- Lompat Katak: game-specific styles ---- */
+  /* A hidden caption should not swallow taps meant for the game. */
+  .gs-caption:not(.show) { pointer-events: none; }
+
+  /* The planning panel lives in the dock, stacked above the Lompat! button. */
+  #dock { flex-direction: column; align-items: flex-end; gap: 12px; }
+  .kt-plan {
+    --b: clamp(46px, 8.6vh, 72px);
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    column-gap: clamp(10px, 1.6vh, 18px);
+    row-gap: 4px;
+    align-items: center;
+    padding: 8px clamp(10px, 1.6vh, 16px) 10px;
+    background: var(--panel);
+    border: 4px solid var(--line);
+    border-radius: 26px;
+    box-shadow: 0 6px 0 rgba(59, 42, 32, 0.3);
+    transition: opacity 200ms ease-out;
+  }
+  .kt-plan.locked { opacity: 0.55; }
+  .kt-plan.locked * { pointer-events: none; }
+  .kt-row { display: contents; }
+  .kt-cap {
+    font-family: var(--font-body); font-weight: 700; font-size: clamp(12px, 1.9vh, 16px);
+    color: #6B5444; text-align: center; line-height: 1;
+  }
+  .kt-lead {
+    font-family: var(--font-display); font-weight: 800; font-size: calc(var(--b) * 0.36);
+    color: var(--ink); min-width: 0; text-align: center;
+  }
+  .kt-lead.chip {
+    background: var(--sun); border: 3px solid var(--line); border-radius: 999px;
+    padding: 2px 10px; box-shadow: 0 3px 0 var(--line);
+  }
+  .kt-group { display: flex; gap: clamp(5px, 1vh, 8px); align-items: center; justify-content: center; }
+
+  /* Lily-pad hop-size buttons */
+  .kt-pad {
+    width: var(--b); height: var(--b); padding: 0; border: 0; background: none;
+    border-radius: 50%; cursor: pointer; position: relative;
+    transition: transform 140ms var(--ease-pop);
+  }
+  .kt-pad svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .kt-pad .ring { opacity: 0; }
+  .kt-pad[aria-pressed="true"] { transform: translateY(-3px) scale(1.06); }
+  .kt-pad[aria-pressed="true"] .ring { opacity: 1; }
+  .kt-pad:active { transform: scale(0.92); }
+
+  /* Direction buttons */
+  .kt-dirbtn {
+    width: calc(var(--b) * 1.06); height: var(--b); padding: 2px 0 0;
+    border: 3px solid var(--line); border-radius: 18px; background: var(--card); color: var(--ink);
+    box-shadow: 0 4px 0 var(--line); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  }
+  .kt-dirbtn svg { width: 62%; height: 52%; }
+  .kt-dirbtn span { font-family: var(--font-body); font-weight: 700; font-size: calc(var(--b) * 0.2); line-height: 1; }
+  .kt-dirbtn[aria-pressed="true"] { background: var(--primary); color: #fff; }
+  .kt-dirbtn[aria-pressed="false"] { opacity: 0.85; }
+  .kt-dirbtn:active { transform: translateY(3px) scale(0.94); box-shadow: 0 1px 0 var(--line); }
+
+  /* Count: big − number + */
+  .kt-step {
+    width: calc(var(--b) * 0.86); height: calc(var(--b) * 0.86); min-width: 0;
+    border-radius: 999px; background: var(--secondary);
+  }
+  .kt-step svg { width: 56%; height: 56%; }
+  .kt-num {
+    min-width: calc(var(--b) * 0.95); height: var(--b);
+    display: grid; place-items: center;
+    background: var(--card); border: 3px solid var(--line); border-radius: 18px;
+    font-family: var(--font-num); font-weight: 600; font-variant-numeric: tabular-nums;
+    font-size: calc(var(--b) * 0.64); line-height: 1; color: var(--ink);
+  }
+  .kt-num.bump { animation: kt-bump 260ms var(--ease-pop); }
+  @keyframes kt-bump { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
+
+  .gs-action .kt-hop-ico { width: 40px; height: 34px; }
+
+  /* SVG idle motion (CSS only, so no rAF runs while the scene is still) */
+  .kt-breathe { animation: kt-breathe 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+  @keyframes kt-breathe { 50% { transform: scale(1.025, 0.97); } }
+  .kt-lid { transform-box: fill-box; transform-origin: 50% 0%; transform: scaleY(0); animation: kt-blink 4.2s linear infinite; }
+  .kt-friend .kt-lid { animation-duration: 3.3s; animation-delay: 0.8s; }
+  @keyframes kt-blink { 0%, 93%, 100% { transform: scaleY(0); } 95.5% { transform: scaleY(1); } }
+  .kt-wave { transform-box: fill-box; transform-origin: 20% 90%; animation: kt-wave 1.6s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes kt-wave { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(18deg); } }
+  .kt-bob { animation: kt-bob 2.6s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes kt-bob { 50% { transform: translateY(2.5px); } }
+  .kt-shimmer { animation: kt-shimmer 5s linear infinite; }
+  @keyframes kt-shimmer { from { transform: translateX(0); } to { transform: translateX(-160px); } }
+  .kt-pulse { transform-box: fill-box; transform-origin: center; animation: kt-pulse 1.4s ease-in-out infinite; }
+  @keyframes kt-pulse { 50% { transform: scale(1.12); opacity: 0.45; } }
+  .kt-wink .kt-lid.w { animation: none; transform: scaleY(1); }
+  .kt-happy .kt-eye-open { display: none; }
+  .kt-eye-shut { display: none; }
+  .kt-happy .kt-eye-shut { display: inline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kt-breathe, .kt-wave, .kt-bob, .kt-shimmer, .kt-pulse { animation: none; }
+  }
+  @media (max-height: 500px) {
+    #dock { gap: 8px; }
+    .kt-plan { border-width: 3px; border-radius: 20px; padding: 5px 10px 7px; row-gap: 2px; }
+    .kt-cap { font-size: 11px; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Area permainan: Kodi si katak melompat di batu pijakan"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
