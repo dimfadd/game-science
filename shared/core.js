@@ -112,6 +112,17 @@
     idVoice = vs.find(v => /^id([-_]|$)/i.test(v.lang)) || vs.find(v => /indones/i.test(v.name)) || null;
   }
   if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  /** Math symbols read aloud as Indonesian words; the caption keeps the symbols. */
+  GS.speakable = function (text) {
+    return String(text)
+      .replace(/½/g, ' setengah ').replace(/⅓/g, ' sepertiga ').replace(/¼/g, ' seperempat ').replace(/¾/g, ' tiga perempat ')
+      .replace(/(\d)\s*\/\s*(\d)/g, '$1 per $2')
+      .replace(/\s*×\s*/g, ' kali ').replace(/\s*÷\s*/g, ' bagi ')
+      .replace(/\s*\+\s*/g, ' tambah ').replace(/(\d|\?)\s*[−–-]\s*(?=\d|\?)/g, '$1 kurang ')
+      .replace(/\s*=\s*/g, ' sama dengan ').replace(/\s*<\s*/g, ' kurang dari ').replace(/\s*>\s*/g, ' lebih dari ')
+      .replace(/\?/g, (m, i, str) => /[\d\s]/.test(str[i - 1] || '') && /\s|$/.test(str[i + 1] || '') && /\d|dengan|tambah|kurang|kali/.test(str.slice(Math.max(0, i - 14), i)) ? ' berapa ' : m)
+      .replace(/\s{2,}/g, ' ').trim();
+  };
   GS.lastSay = '';
   /** Speak and show a caption. Captions always appear even when muted or without TTS. */
   GS.say = function (text, opts) {
@@ -120,7 +131,7 @@
     if (GS.muted || !('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(GS.speakable(text));
       u.lang = 'id-ID';
       if (idVoice) u.voice = idVoice;
       u.rate = (opts && opts.rate) || 0.92;

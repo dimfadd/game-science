@@ -333,8 +333,8 @@
     GS.markup(bg, mk);
     if (mode === 'seesaw') {
       const G = SS.GROUND;
-      el('path', { d: `M-20 ${G - 6}Q320 ${G - 16} 640 ${G - 8}T1300 ${G - 6}V820H-20Z`, fill: C.grass }, bg);
-      el('path', { d: `M-20 ${G + 40}Q320 ${G + 30} 640 ${G + 40}T1300 ${G + 38}V820H-20Z`, fill: '#71B862' }, bg);
+      el('path', { d: `M-220 ${G - 6}Q320 ${G - 16} 640 ${G - 8}T1500 ${G - 6}V820H-220Z`, fill: C.grass }, bg);
+      el('path', { d: `M-220 ${G + 40}Q320 ${G + 30} 640 ${G + 40}T1500 ${G + 38}V820H-220Z`, fill: '#71B862' }, bg);
       el('ellipse', { cx: SS.PX, cy: G + 8, rx: 470, ry: 22, fill: '#D4A062', opacity: 0.55 }, bg);
       for (let i = 0; i < 26; i++) {
         const x = 30 + i * 49 + (i % 3) * 7, y = G + 60 + (i * 37 % 150);
@@ -753,7 +753,7 @@
     await simRun(r.params);
     if (g !== S.gen) return;
     if (r.balanced) await balanceMoment();
-    else if (r.near) { GS.floatText('Dikit lagi!', clientOf(D.PX, D.PY - 150).x, clientOf(D.PX, D.PY - 150).y); }
+    else if (r.near) { const fp = clientOf(D.PX, D.PY + 120); GS.floatText('Dikit lagi!', fp.x, fp.y); }
     if (g !== S.gen) return;
     renderStripNow(); renderGrid();
     await lv.result(r);
@@ -1036,7 +1036,7 @@
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'gs-action';
     b.innerHTML = PEG_ICON + '<span>Lepas!</span>';
-    b.disabled = !S.locked || S.busy || S.relocking || !!(lv.canRelease && !lv.canRelease());
+    b.disabled = !S.locked || S.busy || S.relocking;
     b.addEventListener('click', () => { GS.sfx.click(); release(); });
     dock.appendChild(b);
   }
@@ -1085,7 +1085,7 @@
     if (!lv || !lv.strip) { if (S.strip) S.strip.g.innerHTML = ''; return; }
     if (!S.strip) {
       const y = S.mode === 'dacing' ? 742 : 66;
-      S.strip = { g: el('g', { transform: `translate(640 ${y})` }, S.layers.ui), prev: [] };
+      S.strip = { g: el('g', { transform: `translate(${S.mode === 'dacing' ? 700 : 640} ${y})` }, S.layers.ui), prev: [] };
     }
     const tokens = lv.strip();
     const st = S.strip;
@@ -1115,8 +1115,14 @@
           else if (v === '=') { fill = C.tealTint; stroke = C.teal; }
           else { fill = C.amberTint; stroke = C.amber; }
         }
-        el('path', { d: rr(x, -32, w, 64, 18), fill, stroke, 'stroke-width': 3.5, 'stroke-dasharray': v === '?' ? '7 6' : null }, g);
-        txt(g, cx, 1, v, { size: 42, fill: v === '?' ? C.muted : C.ink });
+        if (v === '?') {
+          el('circle', { cx, cy: 0, r: 27, fill: C.amberTint, stroke: C.brassSh, 'stroke-width': 3.5 }, g);
+          [-1, 1].forEach(k => el('path', { d: `M${cx - 13} ${k * 5}H${cx + 13}`, stroke: C.brassSh, 'stroke-width': 4, 'stroke-linecap': 'round', opacity: 0.35 }, g));
+          txt(g, cx, 1, '?', { size: 30, fill: C.brassDk });
+        } else {
+          el('path', { d: rr(x, -32, w, 64, 18), fill, stroke, 'stroke-width': 3.5 }, g);
+          txt(g, cx, 1, v, { size: 42, fill: C.ink });
+        }
       } else {
         const empty = t.v == null;
         const tint = side < 0 ? C.blueTint : side > 0 ? C.orangeTint : '#FFFFFF';
@@ -1144,7 +1150,7 @@
     [-1, 1].forEach(side => {
       const objs = S.notches.filter(c => c.side === side && c.count()).map(c => ({ w: c.sum(), d: c.d })).sort((a, b) => a.d - b.d);
       const rows = objs.reduce((a, o) => a + o.w, 0);
-      const x0 = side < 0 ? PX - 3 * STEP - 40 : PX + STEP - 40, x1 = x0 + 2 * STEP + 80;
+      const x0 = side < 0 ? PX - 3 * STEP - 40 : PX + 28, x1 = side < 0 ? PX - 28 : PX + 3 * STEP + 40;
       const h = 40 + Math.max(1, rows) * rowH;
       el('path', { d: rr(x0, y0 - 18, x1 - x0, h, 16), fill: C.cream, stroke: OL, 'stroke-width': 3, opacity: 0.94 }, g);
       for (let d = 1; d <= 3; d++) txt(g, PX + side * d * STEP, y0, String(d), { size: 17, fill: C.muted });
@@ -1161,7 +1167,7 @@
             else el('rect', { x: x - 8.5, y: yy - 8.5, width: 17, height: 17, rx: 4, fill: C.orange, stroke: OL, 'stroke-width': 2 }, g);
           }
         }
-        txt(g, PX + side * 64, top + (o.w - 1) * rowH / 2, `${o.w} × ${o.d}`, { size: 18, fill: C.ink });
+        txt(g, PX + side * 64, top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: 19, fill: C.ink });
         r += o.w;
       });
       const tot = objs.reduce((a, o) => a + o.w * o.d, 0);
@@ -1226,11 +1232,11 @@
     const p = S.pans[i];
     p.baskets = centers.map(cx => {
       const bk = el('g', { transform: `translate(${cx} 12)` }, p.back);
-      el('ellipse', { cx: 0, cy: -24, rx: 46, ry: 9, fill: '#8A5E2E', stroke: OL, 'stroke-width': 3 }, bk);
+      el('ellipse', { cx: 0, cy: -34, rx: 46, ry: 10, fill: '#8A5E2E', stroke: OL, 'stroke-width': 3 }, bk);
       const fr = el('g', { transform: `translate(${cx} 12)` }, p.front);
-      shape3(fr, 'M-47 -24L47 -24L40 -2Q38 3 32 3L-32 3Q-38 3 -40 -2Z', { base: C.bamboo, sh: C.bambooSh, hl: C.bambooHl, hlb: [-30, -20, 14, 3], off: [-5, -4], sw: 3.5,
-        extra: g => { for (let y = -18; y < 2; y += 6) el('path', { d: `M-46 ${y}H46`, stroke: '#9A6E36', 'stroke-width': 1.4, opacity: 0.6 }, g); } });
-      el('path', { d: rr(-49, -29, 98, 9, 4.5), fill: C.bambooSh, stroke: OL, 'stroke-width': 3 }, fr);
+      shape3(fr, 'M-47 -34L47 -34L40 -3Q38 3 32 3L-32 3Q-38 3 -40 -3Z', { base: C.bamboo, sh: C.bambooSh, hl: C.bambooHl, hlb: [-30, -28, 14, 3], off: [-5, -4], sw: 3.5,
+        extra: g => { for (let y = -28; y < 2; y += 7) el('path', { d: `M-46 ${y}H46`, stroke: '#9A6E36', 'stroke-width': 1.4, opacity: 0.6 }, g); } });
+      el('path', { d: rr(-49, -39, 98, 10, 5), fill: C.bambooSh, stroke: OL, 'stroke-width': 3 }, fr);
       const lab = el('g', null, fr);
       return { lab };
     });
@@ -1403,20 +1409,20 @@
       n = r === 0 ? 6 : 10; found = [];
       setPanBins(0, [{ x0: -100, x1: 100, y: 14 }]);
       if (r === 0) {
-        setPanBins(1, [{ x0: -96, x1: -14, y: 2, cap: 10, stack: 0.5 }, { x0: 14, x1: 96, y: 2, cap: 10, stack: 0.5 }]);
+        setPanBins(1, [{ x0: -100, x1: -10, y: -6, cap: 10, stack: 0.5, pack: 0.78 }, { x0: 10, x1: 100, y: -6, cap: 10, stack: 0.5, pack: 0.78 }]);
         S.pans[1].back.innerHTML = ''; S.pans[1].front.innerHTML = '';
         basketDecor(1, [-55, 55]);
       }
       kar = spawn([karung(n)], pan(0))[0];
-      spawn(Array.from({ length: r === 0 ? 6 : 4 }, () => ramb({ keep: true })), S.tray, { delay: 250 });
+      spawn(Array.from({ length: r === 0 ? 6 : 4 }, () => ramb({ keep: true, h: 38 })), S.tray, { delay: 250 });
       say(r === 0 ? 'Isi dua keranjang sampai seimbang.' : 'Karungnya sekarang 10. Cari 3 pasangan!');
     };
     o.changed = () => {
       const bs = S.pans[1].baskets; if (!bs) return;
       pan(1).bins.forEach((b, i) => {
         const g = bs[i].lab; g.innerHTML = '';
-        el('path', { d: rr(-16, -21, 32, 22, 6), fill: C.cream, stroke: OL, 'stroke-width': 2.4 }, g);
-        txt(g, 0, -9.5, String(b.items.length), { size: 18 });
+        el('path', { d: rr(-18, -27, 36, 26, 7), fill: C.cream, stroke: OL, 'stroke-width': 2.6 }, g);
+        txt(g, 0, -13.5, String(b.items.length), { size: 21 });
       });
     };
     o.accept = (it, c) => !(c.isPan && c.side < 0);
@@ -1663,7 +1669,7 @@
   function L10() {
     const o = { rounds: 1, predictNow: true, near: false };
     let kids = [];
-    const idx = GS.shuffle([0, 2, 3, 4, 6, 7]);
+    const idx = GS.shuffle([0, 1, 3, 4, 6, 7]);
     o.setup = () => {
       kids = [spawn([person(idx[0], 1, 112, { fixed: true, home: S.homes[0] })], notch(-1, 3))[0],
         spawn([person(idx[1], 1, 112, { fixed: true, home: S.homes[1] })], notch(1, 1), { delay: 150 })[0]];
@@ -1699,7 +1705,7 @@
   function L11() {
     const o = { rounds: 2 };
     let fixedP, mover;
-    const kIdx = rand(0, 1) ? 1 : 5, aIdx = rand(0, 1) ? 3 : 6;
+    const kIdx = rand(0, 1) ? 0 : 7, aIdx = rand(0, 1) ? 3 : 4;
     o.setup = r => {
       if (r === 0) {
         fixedP = spawn([person(kIdx, 2, 134, { fixed: true, keep: false })], notch(1, 1))[0];
