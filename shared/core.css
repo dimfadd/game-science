@@ -239,3 +239,27 @@ button { font: inherit; color: inherit; }
   .gs-wobble, .gs-shake, .gs-pulse { animation: none; }
   .gs-card { transition: none; }
 }
+
+/* ---------- short / phone-landscape screens ---------- */
+/* Fill the letterbox strips beside the stage with sky and ground, matching the scenes (ground at 78%). */
+.gs-stage { background: linear-gradient(#9ED8EC 0%, #E6F5F0 76%, #7CC26B 76.5%, #6BB45C 100%); }
+@media (max-height: 500px) {
+  /* Caption: compact and tucked into the corner so it doesn't cover the play area. */
+  .gs-caption { max-width: min(330px, 38vw); gap: 4px; }
+  .gs-caption-face, .gs-caption-face svg { width: 44px; height: 44px; }
+  .gs-caption-text { font-size: 15px; padding: 8px 12px; margin-bottom: 6px; border-width: 2px; border-radius: 16px 16px 16px 4px; }
+  /* Win card: side-by-side so the mascot is never clipped on a 390px tall screen. */
+  .gs-win .gs-card {
+    width: min(620px, 100%); padding: 14px 18px;
+    display: grid; grid-template-columns: 120px 1fr; grid-template-rows: auto auto auto; column-gap: 12px; align-items: center;
+  }
+  .gs-win-mascot { grid-row: 1 / span 3; height: 120px; margin: 0; }
+  .gs-win-mascot svg { width: 120px; height: 120px; }
+  .gs-star { width: 52px; height: 52px; }
+  .gs-star:nth-child(2) { width: 62px; height: 62px; margin-top: -8px; }
+  .gs-win-text { font-size: 24px; margin-bottom: 10px; }
+  .gs-win-actions .gs-btn-round { width: 60px; height: 60px; }
+  .gs-win-actions .gs-big { width: 72px; height: 72px; }
+  .gs-picker-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px; }
+  .gs-level { height: 72px; }
+}

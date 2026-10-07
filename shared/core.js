@@ -338,7 +338,8 @@
       txt.textContent = text;
       cap.classList.add('show');
       clearTimeout(hideT);
-      hideT = setTimeout(() => cap.classList.remove('show'), Math.max(3500, text.length * 85));
+      const short = window.innerHeight <= 500;
+      hideT = setTimeout(() => cap.classList.remove('show'), short ? Math.max(2500, text.length * 60) : Math.max(3500, text.length * 85));
     };
     cap.addEventListener('click', () => { if (GS.lastSay) GS.say(GS.lastSay); });
     GS.setMuted(GS.muted);
