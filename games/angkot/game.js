@@ -119,7 +119,7 @@
 
   /* ------------------------------------------------------------------ static background */
   const defs = el('defs', null, svg);
-  defs.innerHTML = '<filter id="akBlur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.4"/></filter>';
+  defs.innerHTML = '<filter id="akBlur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>';
   const bg = G(svg, { class: 'bg' });
   try {
     if (GS.art && GS.art.scene) GS.markup(bg, GS.art.scene('terminal', 1280, 800));
@@ -703,7 +703,7 @@
     R(B, -W / 2 - 52, -154, W + 92, 176, 22, '#fff', null, 0, { 'fill-opacity': 0 });
     R(B, -W / 2 - 48, -150, W + 84, 168, 22, 'none', P.ui, 4, { class: 'ak-ring' });
     gr.mat = E(B, -8, 3, W / 2 + 32, 13, gr.col[0], gr.col[1], 2.5, { opacity: 0.4, 'stroke-dasharray': '6 6' });
-    gr.peopleG = G(B, label === 'num' ? { filter: 'url(#akBlur)', opacity: 0.7 } : {});
+    gr.peopleG = G(B, label === 'num' ? { filter: 'url(#akBlur)', opacity: 0.85 } : {});
     let k = 0;
     const order = [];
     rows.forEach((m, r) => {
@@ -738,7 +738,7 @@
   function posGroup(gr) { place(gr.g, gr.x, gr.y + gr.oy, gr.s * gr.ds); }
   function setBlur(gr, on) {
     if (cfg.label !== 'num') return;
-    if (on) { gr.peopleG.setAttribute('filter', 'url(#akBlur)'); gr.peopleG.setAttribute('opacity', '0.7'); }
+    if (on) { gr.peopleG.setAttribute('filter', 'url(#akBlur)'); gr.peopleG.setAttribute('opacity', '0.85'); }
     else { gr.peopleG.removeAttribute('filter'); gr.peopleG.setAttribute('opacity', '1'); }
   }
 
@@ -747,7 +747,7 @@
     { x: 140, y: 514, s: 0.9, tier: 'b' }, { x: 298, y: 514, s: 0.9, tier: 'b' }, { x: 456, y: 514, s: 0.9, tier: 'b' }
   ];
   const SLOTS_BIG = [
-    { x: 118, y: 632, s: 1.12, tier: 'f' }, { x: 292, y: 632, s: 1.12, tier: 'f' }, { x: 466, y: 632, s: 1.12, tier: 'f' }
+    { x: 116, y: 632, s: 1.22, tier: 'f' }, { x: 302, y: 632, s: 1.22, tier: 'f' }, { x: 488, y: 632, s: 1.22, tier: 'f' }
   ];
   let slots = [];
   function freeSlot() { return slots.find(sl => !sl.occ); }
@@ -1553,7 +1553,7 @@
     if (mode.card) mode.card.remove();
     const g = G(L_.ui, { class: 'ak' });
     mode.card = g;
-    place(g, 296, 392);
+    place(g, 296, 420);
     R(g, -170, -78, 340, 166, 18, P.cream, OUT, 4);
     C(g, 0, -70, 8, P.red, OUT, 3);
     T(g, 0, -42, 'Kirim ke pasar:', 26, P.ink, { class: 't-body', 'font-weight': 700 });
@@ -1729,7 +1729,8 @@
           await until(() => mode.round > rr || finished, 30000);
         }
       }
-      return { finished, tries };
+      await until(() => mode.won || !alive(t), 60000).catch(() => {});
+      return { finished, won: !!mode.won, tries };
     }
   };
 

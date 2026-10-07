@@ -52,9 +52,10 @@
   /* ---------------- helpers ---------------- */
   const clamp = GS.clamp, lerp = GS.lerp;
   const sgn = v => (v > 0 ? 1 : v < 0 ? -1 : 0);
-  const frogScale = z => clamp(0.42 + 0.58 * z, 0.56, 1);
+  let uiK = 1;                // >1 on small screens so sprites and numbers stay readable
+  const frogScale = z => clamp(0.42 + 0.58 * z, 0.56, 1) * Math.min(uiK, 1.3);
   const stoneScale = z => Math.min(1, 1.05 * z);
-  const labelScale = z => (z < 0.45 ? 0.84 : 1);
+  const labelScale = z => (z < 0.45 ? 0.84 : 1) * uiK;
   function hopSound() { if (GS.tone) GS.tone({ f: 330, f2: 560, t: 0.09, type: 'triangle', vol: 0.07 }); }
   function sprite(parent, n, ys, k, cls) {
     const g = GS.el('g', { class: cls || null }, parent);
@@ -192,7 +193,13 @@
     // sky + hills fallback extends into letterbox bands
     GS.el('rect', { x: -1400, y: -1200, width: 4080, height: top + 1300, fill: '#9ED8EC' }, bgL);
     if (art.scene) {
-      try { GS.markup(GS.el('g', { transform: 'translate(0 ' + (top + 8 - 624) + ')' }, bgL), art.scene('sawah', 1280, 800)); } catch (e) { /* art not ready */ }
+      try {
+        const sc = art.scene('sawah', 1280, 800), dy = top + 8 - 624;
+        // mirrored copies (behind) fill the letterbox bands on phones and wide screens
+        GS.markup(GS.el('g', { transform: 'translate(0 ' + dy + ') scale(-1 1)' }, bgL), sc);
+        GS.markup(GS.el('g', { transform: 'translate(2560 ' + dy + ') scale(-1 1)' }, bgL), sc);
+        GS.markup(GS.el('g', { transform: 'translate(0 ' + dy + ')' }, bgL), sc);
+      } catch (e) { /* art not ready */ }
     } else {
       GS.el('rect', { x: -1400, y: top - 260, width: 4080, height: 260, fill: '#E6F5F0', opacity: 0.6 }, bgL);
       GS.el('path', { d: 'M-1400 ' + (top - 20) + ' Q-200 ' + (top - 210) + ' 360 ' + (top - 90) + ' T1400 ' + (top - 120) + ' T2680 ' + (top - 60) + ' V' + (top + 40) + ' H-1400Z', fill: '#A9D3A0' }, bgL);
@@ -236,12 +243,15 @@
   /** Put the number line just above the planning panel; recompute on resize. */
   function layout() {
     if (!L) return;
+    const ctm = svg.getScreenCTM();
+    if (ctm) uiK = clamp(0.62 / ctm.a, 1, 1.45);
     const r = plan.getBoundingClientRect();
     let panelTop = 800;
     if (r.height > 0) panelTop = GS.svgPoint(svg, r.left + r.width / 2, r.top).y;
     const y = Math.round(clamp(panelTop - 84, 178, 470));
     if (y !== Y0 || !bgL.firstChild) { Y0 = y; drawBackground(); }
     applyCamera();
+    updateLabels();
   }
   let rzT = 0;
   window.addEventListener('resize', () => { cancelAnimationFrame(rzT); rzT = requestAnimationFrame(layout); });
@@ -473,7 +483,7 @@
     const emph = L.labels !== 'ends';
     for (let n = L.lo; n <= L.hi; n++) {
       if (L.crocs.has(n)) {
-        const s = sprite(stonesL, n, 4, z => Math.min(1, 1.12 * z));
+        const s = sprite(stonesL, n, 4, z => Math.min(uiK, 1.12 * z * Math.min(uiK, 1.25)));
         const bob = GS.el('g', { class: 'kt-bob', style: 'animation-delay:' + (-(n * 0.37) % 2.6).toFixed(2) + 's' }, s.el);
         GS.markup(bob, crocArt());
         crocEls[n] = s;
@@ -527,7 +537,7 @@
   function labelVisible(n) {
     const z = overview().z;
     if (Math.min(Math.abs(n - L.start), Math.abs(n - L.target)) * SP * z < 50 * labelScale(z)) return false;
-    if (restored) return z * SP >= 34 || n % 5 === 0;
+    if (restored) return z * SP >= 34 * uiK || n % 5 === 0;
     if (L.labels === 'all') return true;
     if (L.labels === 'five') return n % 5 === 0;
     return false;
@@ -557,7 +567,7 @@
     }
     return GS.tween(T(650), (e, p) => {
       const t = p * 1.1;
-      drops.forEach(d => { d.el.setAttribute('cx', (d.vx * t).toFixed(1)); d.el.setAttribute('cy', (d.vy * t + 380 * t * t).toFixed(1)); d.el.setAttribute('opacity', (1 - p * 0.8).toFixed(2)); });
+      drops.forEach(d => { d.el.setAttribute('cx', (d.vx * t).toFixed(1)); d.el.setAttribute('cy', (d.vy * t - d.vy / 1.1 * t * t).toFixed(1)); d.el.setAttribute('opacity', (1 - p * 0.8).toFixed(2)); });
     }, 'linear').then(() => { s.el.remove(); unreg(s.place); });
   }
 
@@ -597,11 +607,11 @@
     trail.push(path);
     // hop counter badge at the top of the arc
     const bk = clamp(Math.abs(dz) * SP * cam.z / 36, 0.5, 1);
-    const b = sprite(arcsL, (n0 + n1) / 2, frogBase() - H * 0.92 - 18 - 22 * bk, () => bk);
+    const b = sprite(arcsL, (n0 + n1) / 2, frogBase() - H * 0.92 - 18 - 22 * bk * uiK, () => bk * uiK);
     GS.el('circle', { r: 17, fill: stageIdx ? '#FFE08A' : '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, b.el);
     GS.el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 1, 'font-size': 21, fill: '#2B1D14', class: 'gs-num' }, b.el).textContent = badge;
     trail.push(b.el);
-    GS.tween(T(220), e => { b.k = () => bk * GS.ease.outBack(e); b.place(); });
+    GS.tween(T(220), e => { b.k = () => bk * uiK * GS.ease.outBack(e); b.place(); });
     ripple(n1);
     await GS.tween(T(160), (e, p) => {
       const q = p < 0.5 ? p * 2 : (1 - p) * 2;

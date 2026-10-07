@@ -18,22 +18,22 @@
   /* ---------------- materials ---------------- */
   // rho: density relative to water. s: drawn scale (size never encodes weight). air: air drag for light, wide things.
   const MAT = {
-    gabus: { rho: 0.05, label: 'gabus', s: 0.85 },
-    bulu: { rho: 0.1, label: 'bulu', s: 0.8, air: 5 },
-    botol: { rho: 0.3, label: 'botol tertutup', s: 0.85 },
-    daun: { rho: 0.5, label: 'daun', s: 0.8, air: 2.5 },
-    kayu: { rho: 0.6, label: 'kayu', s: 1.15 },
-    apel: { rho: 0.8, label: 'apel', s: 0.7 },
-    kelapa: { rho: 0.9, label: 'kelapa', s: 1.0 },
-    es: { rho: 0.92, label: 'es batu', s: 0.75 },
-    plastisin: { rho: 1.5, label: 'plastisin', s: 0.6 },
-    kelereng: { rho: 2.5, label: 'kelereng', s: 0.42 },
-    batu: { rho: 2.6, label: 'batu', s: 0.72 },
-    gembok: { rho: 7.5, label: 'gembok', s: 0.6 },
-    koin: { rho: 7.1, label: 'koin', s: 0.45 },
-    sendok: { rho: 7.8, label: 'sendok', s: 0.8 },
-    paku: { rho: 7.8, label: 'paku', s: 0.5 },
-    baut: { rho: 7.8, label: 'baut', s: 0.5 }
+    gabus: { rho: 0.05, label: 'gabus', size: 95 },
+    bulu: { rho: 0.1, label: 'bulu', size: 85, air: 5 },
+    botol: { rho: 0.3, label: 'botol tertutup', size: 95 },
+    daun: { rho: 0.5, label: 'daun', size: 80, air: 2.5 },
+    kayu: { rho: 0.6, label: 'kayu', size: 150 },
+    apel: { rho: 0.8, label: 'apel', size: 72 },
+    kelapa: { rho: 0.9, label: 'kelapa', size: 108 },
+    es: { rho: 0.92, label: 'es batu', size: 74 },
+    plastisin: { rho: 1.5, label: 'plastisin', size: 62 },
+    kelereng: { rho: 2.5, label: 'kelereng', size: 36 },
+    batu: { rho: 2.6, label: 'batu', size: 72 },
+    gembok: { rho: 7.5, label: 'gembok', size: 62 },
+    koin: { rho: 7.1, label: 'koin', size: 44 },
+    sendok: { rho: 7.8, label: 'sendok', size: 92 },
+    paku: { rho: 7.8, label: 'paku', size: 62 },
+    baut: { rho: 7.8, label: 'baut', size: 52 }
   };
   const WHY = {
     kayu: 'Kayu ringan untuk ukurannya, jadi terapung.',
@@ -56,11 +56,11 @@
   const PAIRS = [['kayu', 'paku'], ['kelapa', 'koin'], ['apel', 'kelereng'], ['es', 'sendok'], ['gabus', 'batu']];
   const EXTRA = ['botol', 'daun', 'bulu', 'gembok', 'baut', 'plastisin'];
   const CARGO = {
-    karung: { rho: 1.6, label: 'karung pasir', k: 0.74 },
-    keranjang: { rho: 0.6, label: 'keranjang buah', k: 0.74 },
-    kantong: { rho: 2.0, label: 'kantong paku', k: 0.72 },
-    semangka: { rho: 0.95, label: 'semangka', k: 0.7 },
-    kelapa: { rho: 0.9, label: 'kelapa', k: 0.62 }
+    karung: { rho: 1.6, label: 'karung pasir', size: 100 },
+    keranjang: { rho: 0.6, label: 'keranjang buah', size: 100 },
+    kantong: { rho: 2.0, label: 'kantong paku', size: 92 },
+    semangka: { rho: 0.95, label: 'semangka', size: 96 },
+    kelapa: { rho: 0.9, label: 'kelapa', size: 84 }
   };
 
   /* ---------------- art wrappers (never throw) ---------------- */
@@ -85,6 +85,22 @@
     if (d > 0 && Math.abs(d - 1) > 0.03) return d;
     return mine;
   }
+  // Centres for a row of widths inside [x0, x1]: even gaps, compressed (slight overlap) when too wide.
+  function layoutRow(ws, x0, x1) {
+    const sum = ws.reduce((a, b) => a + b, 0), n = ws.length;
+    const gap = n > 1 ? (x1 - x0 - sum) / (n - 1) : 0;
+    const out = []; let x = n > 1 ? x0 : (x0 + x1 - sum) / 2;
+    if (gap < 0 || n === 1) {
+      const sc = n > 1 ? (x1 - x0) / sum : 1;
+      for (const w of ws) { out.push(x + w * sc / 2); x += w * sc; }
+      return out;
+    }
+    const g = Math.min(gap, 60), start = x0 + (x1 - x0 - sum - g * (n - 1)) / 2;
+    x = start;
+    for (const w of ws) { out.push(x + w / 2); x += w + g; }
+    return out;
+  }
+  function fitScale(n, size) { const bb = measure(artItem(n), 'item:' + n); return size / Math.max(bb.w, bb.h, 1); }
   function labelOf(n) { return (MAT[n] && MAT[n].label) || String(artMeta(n).label || n).toLowerCase(); }
 
   // Plastisin lump drawn here (not in the shared library). Bottom-centre origin.
@@ -554,25 +570,27 @@
     const names = pickA(i);
     const n = names.length;
     const items = names.map((name, j) => {
-      const m = MAT[name] || { s: 0.7 };
-      const t = makeThing(jetty, name, artItem(name), m.s, { drag: true, aria: labelOf(name) });
+      const m = MAT[name] || { size: 70 };
+      const t = makeThing(jetty, name, artItem(name), fitScale(name, m.size), { drag: true, aria: labelOf(name) });
       t.rho = density(name);
       t.floats = t.rho < RHO_W;
       t.label = labelOf(name);
       t.air = m.air || 0;
-      t.home = { x: 70 + (j + 0.5) * (560 / n), y: 392 };
+      t.home = { x: 0, y: 392 };
       t.tag = nameTag(t.g, t.label);
       t.where = null;
       place(t, t.home.x, t.home.y);
       return t;
     });
     S.items = items;
+    layoutRow(items.map(t => t.bb.w * t.base), 40, 630).forEach((x, j) => { items[j].home.x = x; place(items[j], x, 392); });
+    const tankX = layoutRow(items.map(t => t.bb.w * t.base), TK.ix0 + 14, TK.ix1 - 14);
 
     function relayout(bk) {
       bk.items.forEach((t, j) => {
         const s = basketSlot(bk, j);
         if (t.parentNode !== bk.content) bk.content.appendChild(t.g);
-        if (Math.abs(t.x - s.x) > 0.5 || Math.abs(t.y - s.y) > 0.5) flyTo(t, s.x, s.y, t.base * 0.78, 200);
+        if (Math.abs(t.x - s.x) > 0.5 || Math.abs(t.y - s.y) > 0.5) flyTo(t, s.x, s.y, t.base * 0.72, 200);
       });
       // back row first so the front row draws on top
       bk.items.slice().sort((a, b) => basketSlot(bk, bk.items.indexOf(a)).y - basketSlot(bk, bk.items.indexOf(b)).y).forEach(t => bk.content.appendChild(t.g));
@@ -587,7 +605,7 @@
         t.shadow.setAttribute('display', 'none');
         const s = basketSlot(bk, bk.items.length - 1);
         bk.content.appendChild(t.g);
-        flyTo(t, s.x, s.y, t.base * 0.78, 150).then(() => squash(t, false));
+        flyTo(t, s.x, s.y, t.base * 0.72, 150).then(() => squash(t, false));
         relayout(bk);
         GS.sfx.drop();
       } else {
@@ -637,7 +655,7 @@
       let wrong = 0;
       for (let j = 0; j < n; j++) {
         const t = items[j];
-        const tx = TK.ix0 + (j + 0.5) * (TK.ix1 - TK.ix0) / n, ty = TK.top + 52;
+        const tx = tankX[j], ty = TK.top + 52;
         tank.items.appendChild(t.g);
         t.shadow.setAttribute('display', 'none');
         GS.sfx.whoosh();
@@ -837,12 +855,12 @@
       let name = pool[j];
       if (kg <= 3 && Math.random() < 0.4) name = 'kelapa';
       const C = CARGO[name];
-      const t = makeThing(jettyL, name, artItem(name), C.k, { drag: true, aria: C.label + ' ' + kg + ' kilo' });
+      const t = makeThing(jettyL, name, artItem(name), fitScale(name, C.size), { drag: true, aria: C.label + ' ' + kg + ' kilo' });
       t.kg = kg; t.rho = C.rho; t.label = C.label; t.idx = j;
       const h = homes[order.indexOf(j)];
       t.home = { x: h[0], y: h[1] };
       t.slot = null;
-      t.tagG = kgTag(t.g, kg, dots, -t.bb.h * C.k * 0.42);
+      t.tagG = kgTag(t.g, kg, dots, -t.bb.h * t.base * 0.42);
       place(t, t.home.x, t.home.y);
       return t;
     });

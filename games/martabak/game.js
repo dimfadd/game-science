@@ -301,18 +301,17 @@
   const world = GS.el('g', { class: 'world' }, svg);
 
   function drawCounter(g) {
-    let s = '<rect x="-20" y="300" width="1320" height="520" fill="#C68A55"/>' +
-      '<rect x="-20" y="306" width="1320" height="30" fill="#D9A270" opacity=".7"/>';
-    [470, 640].forEach(y => { s += '<path d="M-20 ' + y + 'H1300" stroke="#8E5530" stroke-width="3" opacity=".45"/><path d="M-20 ' + (y + 3) + 'H1300" stroke="#E3B07D" stroke-width="2" opacity=".5"/>'; });
+    let s = '<rect x="-420" y="300" width="2120" height="620" fill="#C68A55"/>' +
+      '<rect x="-420" y="306" width="2120" height="30" fill="#D9A270" opacity=".7"/>';
+    [470, 640].forEach(y => { s += '<path d="M-420 ' + y + 'H1700" stroke="#8E5530" stroke-width="3" opacity=".45"/><path d="M-420 ' + (y + 3) + 'H1700" stroke="#E3B07D" stroke-width="2" opacity=".5"/>'; });
     const R = rng(7);
     for (let k = 0; k < 16; k++) {
       const x = R() * 1280, y = 340 + R() * 440, w = 60 + R() * 120;
       s += '<path d="M' + x.toFixed(0) + ' ' + y.toFixed(0) + 'q' + (w / 2).toFixed(0) + ' -8 ' + w.toFixed(0) + ' 0" fill="none" stroke="#A8673A" stroke-width="2.5" stroke-linecap="round" opacity=".35"/>';
     }
-    s += '<rect x="-20" y="290" width="1320" height="16" fill="#7E4A27"/>' +
-      '<path d="M-20 290H1300" stroke="' + OUT + '" stroke-width="3"/>' +
-      '<path d="M-20 296H1300" stroke="#A8673A" stroke-width="3" opacity=".8"/>' +
-      '<rect x="-20" y="770" width="1320" height="40" fill="' + OUT + '" opacity=".08"/>';
+    s += '<rect x="-420" y="290" width="2120" height="16" fill="#7E4A27"/>' +
+      '<path d="M-420 290H1700" stroke="' + OUT + '" stroke-width="3"/>' +
+      '<path d="M-420 296H1700" stroke="#A8673A" stroke-width="3" opacity=".8"/>';
     GS.markup(g, s);
   }
 
@@ -409,7 +408,7 @@
       f.el = GS.el('g', { transform: 'translate(' + f.x + ' ' + FRIEND_Y + ')' }, friendsG);
       f.tilt = GS.el('g', null, f.el);
       const br = GS.el('g', { class: 'mk-breathe d' + (k % 4) }, f.tilt);
-      const body = GS.el('g', { transform: 'scale(1.5)' }, br);
+      const body = GS.el('g', { transform: 'scale(1.7)' }, br);
       let art = '';
       try { art = hasArt('person') ? GS.art.person(pp.person) : ''; } catch (e) { art = ''; }
       GS.markup(body, art || fallbackPerson(pp.person));
@@ -591,7 +590,8 @@
     const s = p.s * p.lift;
     p.el.setAttribute('transform', 'translate(' + p.pos.x.toFixed(2) + ' ' + p.pos.y.toFixed(2) + ') rotate(' + p.rot.toFixed(2) + ') scale(' + (s * p.sx).toFixed(4) + ' ' + (s * p.sy).toFixed(4) + ') translate(' + (-p.c.x).toFixed(2) + ' ' + (-p.c.y).toFixed(2) + ')');
     if (p.tag) {
-      const k = (p.plate ? 0.85 : 1) / Math.max(0.2, s);
+      const thin = Math.min(p.bb.w, p.bb.h) * s;
+      const k = (p.plate ? 0.85 : 1) * GS.clamp(thin / 62, 0.62, 1) / Math.max(0.2, s);
       p.tag.setAttribute('transform', 'translate(' + p.c.x.toFixed(2) + ' ' + p.c.y.toFixed(2) + ') rotate(' + (-p.rot).toFixed(2) + ') scale(' + k.toFixed(3) + ')');
     }
   }
@@ -838,7 +838,7 @@
       '<path d="M' + (-w / 2 + 8) + ' 18H' + (w / 2 - 8) + 'M' + (-w / 2 + 8) + ' 132H' + (w / 2 - 8) + '" stroke="#E2453C" stroke-width="5" stroke-dasharray="10 8" opacity=".75"/>');
     for (let k = 0; k < n; k++) {
       const x = -w / 2 + 37 + k * 40, used = k >= knives;
-      GS.markup(GS.el('g', { transform: 'translate(' + x + ' 26) rotate(90) scale(.55)', opacity: used ? 0.22 : 1 }, knifeRack), knifeMarkup());
+      GS.markup(GS.el('g', { transform: 'translate(' + x + ' 128) rotate(-90) scale(.6)', opacity: used ? 0.22 : 1 }, knifeRack), knifeMarkup());
     }
     const b = GS.el('g', { transform: 'translate(' + (w / 2 - 4) + ' 2)' }, knifeRack);
     GS.markup(b, '<circle r="22" fill="#1F6FD1" stroke="' + OUT + '" stroke-width="3.5"/>');
@@ -933,16 +933,16 @@
     // "besar -> kecil" sign between the plates and the board
     const xs = seatXs(3);
     let s = '<rect x="' + (xs[0] - 70) + '" y="424" width="' + (xs[2] - xs[0] + 140) + '" height="40" rx="20" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
-      '<path d="M' + (xs[0] + 30) + ' 444H' + (xs[2] - 40) + '" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round"/>' +
-      '<path d="M' + (xs[2] - 50) + ' 432L' + (xs[2] - 30) + ' 444L' + (xs[2] - 50) + ' 456" fill="none" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<circle cx="' + (xs[0] - 42) + '" cy="444" r="14" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>' +
-      '<circle cx="' + (xs[2] + 46) + '" cy="444" r="6" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>';
+      '<path d="M' + (xs[0] + 60) + ' 444H' + (xs[2] - 60) + '" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round"/>' +
+      '<path d="M' + (xs[2] - 74) + ' 432L' + (xs[2] - 58) + ' 444L' + (xs[2] - 74) + ' 456" fill="none" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + (xs[0] - 46) + '" cy="444" r="14" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>' +
+      '<circle cx="' + (xs[2] + 52) + '" cy="444" r="6" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>';
     GS.markup(layers.signs, s);
-    const lbl = (x, t) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': 'middle', 'font-size': 22, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
-    lbl(xs[0] + 6, 'besar'); lbl(xs[2] - 4, 'kecil');
+    const lbl = (x, t, a) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': a, 'font-size': 22, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
+    lbl(xs[0] - 26, 'besar', 'start'); lbl(xs[2] + 40, 'kecil', 'end');
     const cxs = [310, 560, 810];
     const ds = GS.shuffle([2, 3, 4]);
-    const opts = { 2: [[V(0)], [Hz(0)]], 3: [[V(-100 / 3), V(100 / 3)], [Hz(-20), Hz(20)]], 4: [[V(-50), V(0), V(50)], [V(0), Hz(0)], [Hz(-30), Hz(0), Hz(30)]] };
+    const opts = { 2: [[V(0)], [Hz(0)]], 3: [[V(-100 / 3), V(100 / 3)], [Hz(-20), Hz(20)]], 4: [[V(-50), V(0), V(50)], [V(0), Hz(0)]] };
     const given = [];
     ds.forEach((d, i) => {
       const food = makeFood('lapisKecil', cxs[i], c.y + 4);
