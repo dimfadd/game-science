@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kampung Sains</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="shared/core.css">
+<style>
+  /* Layout: the illustrated kampung map is the whole first screen (the hub);
+     the parent guide sits below it on a cream panel. Single sunny theme by choice. */
+  body { overflow-x: hidden; background: var(--panel); }
+  .map-wrap { position: relative; background: var(--sky); border-bottom: 4px solid var(--line); }
+  .map-head {
+    position: absolute; z-index: 2; top: calc(14px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; pointer-events: none;
+  }
+  .brand { pointer-events: auto; display: flex; flex-direction: column; }
+  .brand h1 {
+    margin: 0; font-family: var(--font-display); font-weight: 800; line-height: 0.9;
+    font-size: clamp(38px, 6.5vw, 76px); color: var(--ink);
+    -webkit-text-stroke: 0; text-shadow: 0 4px 0 #fff;
+  }
+  .brand p { margin: 6px 0 0; font-weight: 700; font-size: clamp(15px, 1.8vw, 20px); max-width: 32ch; }
+  .head-tools { pointer-events: auto; display: flex; gap: 10px; align-items: center; }
+  .total {
+    display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 16px 0 10px;
+    background: var(--card); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
+    font-family: var(--font-num); font-size: 26px; font-variant-numeric: tabular-nums;
+  }
+  .total svg { width: 34px; height: 34px; color: var(--sun); }
+  .total svg path { stroke: var(--line); stroke-width: 1.3; }
+
+  .map-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .map-scroll::-webkit-scrollbar { display: none; }
+  #map { display: block; width: 100%; min-width: 980px; height: auto; max-height: calc(100vh - 20px); }
+  @media (max-width: 760px) { #map { width: 980px; } }
+
+  .node { cursor: pointer; outline: none; }
+  .node .lm { transition: transform 200ms var(--ease-pop); transform-box: fill-box; transform-origin: 50% 100%; }
+  .node:hover .lm, .node:focus-visible .lm { transform: scale(1.06); }
+  .node:active .lm { transform: scale(0.96); }
+  .node:focus-visible .sign rect { stroke: var(--primary); stroke-width: 6; }
+  .sign text { font-family: var(--font-display); font-weight: 800; }
+  .sign .stars { font-family: var(--font-num); font-weight: 600; }
+  .node.fresh .lm { filter: saturate(0.75); }
+  .cloud { animation: drift 60s linear infinite; }
+  .cloud.c2 { animation-duration: 85s; animation-delay: -30s; }
+  .cloud.c3 { animation-duration: 70s; animation-delay: -50s; }
+  @keyframes drift { from { transform: translateX(-300px); } to { transform: translateX(1900px); } }
+  .kite { animation: kite 4s ease-in-out infinite; transform-origin: 1340px 140px; }
+  @keyframes kite { 50% { transform: rotate(6deg) translateY(-8px); } }
+  #cil { transition: transform 900ms var(--ease-in); }
+  @media (prefers-reduced-motion: reduce) { .cloud, .kite { animation: none; } #cil { transition: none; } }
+
+  .swipe-hint { display: none; }
+  @media (max-width: 760px) {
+    .swipe-hint {
+      display: flex; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 2;
+      gap: 8px; align-items: center; padding: 6px 14px; background: var(--card); border: 3px solid var(--line); border-radius: 999px;
+      font-weight: 700; font-size: 15px; pointer-events: none;
+    }
+  }
+
+  /* Parent guide */
+  .guide { max-width: 1120px; margin: 0 auto; padding-block: 40px 56px; padding-inline: 16px; }
+  .guide h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 4vw, 40px); text-wrap: balance; }
+  .guide > p { margin: 0 0 24px; max-width: 64ch; font-size: 18px; line-height: 1.55; }
+  .games { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .g {
+    display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: start; min-width: 0;
+    background: var(--card); border: 3px solid var(--line); border-radius: 24px; padding: 16px;
+  }
+  .g-art { width: 88px; height: 88px; border-radius: 18px; background: var(--sky-low); display: grid; place-items: center; overflow: hidden; }
+  .g-art svg { width: 100px; height: 100px; margin-top: 10px; }
+  .g h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.1; }
+  .g .kind { display: inline-block; margin: 6px 0 8px; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+  .kind.mat { background: #DCEAFB; color: #134C93; }
+  .kind.fis { background: #FDE3C8; color: #7A3E06; }
+  .kind.mix { background: #D6F0EB; color: #0A5E52; }
+  .g p { margin: 0 0 10px; font-size: 16px; line-height: 1.5; }
+  .g .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .g .prog { font-family: var(--font-num); font-size: 18px; font-variant-numeric: tabular-nums; color: #5C4636; }
+  .play {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 0 20px;
+    background: var(--primary); color: #fff; border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
+    font-family: var(--font-display); font-weight: 800; font-size: 20px; text-decoration: none;
+  }
+  .play:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+  .principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 36px; }
+  .principles div { border-top: 4px solid var(--line); padding-top: 12px; }
+  .principles h4 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+  .principles p { margin: 0; font-size: 16px; line-height: 1.5; }
+  .foot { margin-top: 36px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 16px; }
+  .foot a { color: var(--primary-dark); font-weight: 700; }
+  .reset { min-height: 44px; padding: 0 16px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); font-weight: 700; cursor: pointer; }
+  .confirm { display: inline-flex; gap: 10px; align-items: center; }
+</style>
+</head>
+<body>
+<main>
+  <section class="map-wrap" aria-label="Peta Kampung">
+    <div class="map-head">
+      <div class="brand">
+        <h1>Kampung Sains</h1>
+        <p>Pilih tempat di peta, lalu main bersama Si Cil.</p>
+      </div>
+      <div class="head-tools">
+        <div class="total" aria-label="Total bintang"><span id="totalStar"></span><span id="totalN">0</span></div>
+        <button type="button" class="gs-btn" id="sound" data-gs-sound aria-label="Matikan suara"></button>
+      </div>
+    </div>
+    <div class="map-scroll" id="scroller">
+      <svg id="map" viewBox="0 0 1600 900" role="group" aria-label="Peta dengan enam tempat bermain"></svg>
+    </div>
+    <div class="swipe-hint" aria-hidden="true">Geser peta ke samping</div>
+  </section>
+
+  <section class="guide" id="orang-tua">
+    <h2>Untuk orang tua dan guru</h2>
+    <p>Setiap permainan mengajarkan satu konsep matematika atau fisika lewat mekaniknya sendiri. Anak tidak menjawab kuis. Anak menimbang, melompat, memotong, dan menembak, lalu dunia game menunjukkan hasilnya. Angka dan simbol muncul pelan-pelan di samping benda nyata, supaya saat bertemu notasi di sekolah, anak sudah punya gambarannya.</p>
+    <div class="games" id="games"></div>
+    <div class="principles">
+      <div><h4>Benda dulu, simbol kemudian</h4><p>Level awal hanya benda. Angka muncul di samping benda, lalu kalimat matematika, lalu simbol saja.</p></div>
+      <div><h4>Tebak dulu, lalu lihat</h4><p>Sebelum hasil terlihat, anak memprediksi. Prediksi yang meleset tidak dihukum, justru jadi bahan berpikir.</p></div>
+      <div><h4>Tanpa nyawa dan timer</h4><p>Tidak ada tanda salah berwarna merah. Bintang diberikan untuk ketelitian, bukan kecepatan.</p></div>
+      <div><h4>Fisika yang jujur</h4><p>Simulasi mengikuti hukum nyata: benda berat tidak jatuh lebih cepat, ukuran tidak menentukan berat.</p></div>
+    </div>
+    <div class="foot">
+      <a href="assets.html">Lihat galeri aset visual</a>
+      <span class="confirm" id="resetBox"><button type="button" class="reset" id="reset">Hapus progres</button></span>
+    </div>
+  </section>
+</main>
+
+<script src="shared/core.js"></script>
+<script src="shared/art.js"></script>
+<script>
+(function () {
+  'use strict';
+  const GAMES = [
+    { id: 'timbangan', name: 'Timbangan Pasar', lm: 'pasar', x: 330, y: 720, levels: 12, kind: 'mix', kindLabel: 'Matematika + Fisika', icon: 'rambutan',
+      say: 'Timbangan Pasar. Ayo menimbang!', desc: 'Sama dengan, lebih dari, kurang dari. Penjumlahan dan pengurangan sebagai keseimbangan. Berat tidak sama dengan ukuran, dan jarak dari titik tumpu ikut menentukan.' },
+    { id: 'angkot', name: 'Angkot Penuh!', lm: 'terminal', x: 640, y: 560, levels: 10, kind: 'mat', kindLabel: 'Matematika', icon: 'person0',
+      say: 'Angkot Penuh! Angkot berangkat kalau isinya sepuluh.', desc: 'Pasangan bilangan 10, number bond, lalu puluhan dan satuan. Angkot hanya berangkat kalau tepat 10 penumpang.' },
+    { id: 'katak', name: 'Lompat Katak', lm: 'sawah', x: 960, y: 720, levels: 10, kind: 'mat', kindLabel: 'Matematika', icon: 'katak',
+      say: 'Lompat Katak. Bantu katak menemui temannya!', desc: 'Garis bilangan, maju dan mundur, lompat 2, 5, dan 10. Perkalian sebagai lompatan berulang.' },
+    { id: 'ketapel', name: 'Ketapel Mangga', lm: 'kebun', x: 1270, y: 560, levels: 10, kind: 'fis', kindLabel: 'Fisika', icon: 'mangga',
+      say: 'Ketapel Mangga. Tarik, bidik, lepas!', desc: 'Tarikan lebih kuat membuat batu lebih cepat dan lebih jauh. Gravitasi membuat lintasan melengkung. Patok bernomor melatih garis bilangan.' },
+    { id: 'perahu', name: 'Rakit Terapung', lm: 'sungai', x: 1060, y: 330, levels: 10, kind: 'mix', kindLabel: 'Fisika + Matematika', icon: 'kayu',
+      say: 'Rakit Terapung. Mana yang terapung, mana yang tenggelam?', desc: 'Terapung atau tenggelam ditentukan bahan, bukan berat. Muatan rakit melatih penjumlahan dan kapasitas.' },
+    { id: 'martabak', name: 'Bagi Martabak', lm: 'warung', x: 470, y: 330, levels: 10, kind: 'mat', kindLabel: 'Matematika', icon: 'klepon',
+      say: 'Bagi Martabak. Bagi yang adil, ya!', desc: 'Bagian yang sama besar. Setengah, sepertiga, seperempat, dan membandingkan pecahan.' }
+  ];
+
+  const map = document.getElementById('map');
+  const art = GS.art || {};
+  const has = fn => typeof art[fn] === 'function';
+
+  // --- background: sky, hills, river, path ---
+  const bg = GS.el('g', null, map);
+  bg.innerHTML =
+    '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ED8EC"/><stop offset="1" stop-color="#E6F5F0"/></linearGradient>' +
+    '<pattern id="kawung" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="7" cy="7" r="3" fill="#3B2A20" opacity="0.06"/><circle cx="21" cy="21" r="3" fill="#3B2A20" opacity="0.06"/></pattern></defs>' +
+    '<rect width="1600" height="900" fill="url(#sky)"/>' +
+    '<circle cx="1470" cy="120" r="56" fill="#FFE08A"/><circle cx="1470" cy="120" r="40" fill="#FFC83D"/>' +
+    cloud(0, 120, 1) + cloud(0, 200, 0.7, 'c2') + cloud(0, 90, 0.85, 'c3') +
+    '<path d="M0 300 C180 220 330 260 480 230 C640 200 760 250 900 225 C1060 195 1200 240 1360 215 C1480 200 1560 230 1600 240 V900 H0Z" fill="#A9D3A0"/>' +
+    '<path d="M0 380 C200 330 420 380 640 350 C900 315 1150 370 1600 330 V900 H0Z" fill="#8FCB7E"/>' +
+    '<path d="M0 470 C300 430 600 470 900 445 C1200 420 1420 450 1600 440 V900 H0Z" fill="#7CC26B"/>' +
+    '<rect y="440" width="1600" height="460" fill="url(#kawung)"/>' +
+    // river along the top right
+    '<path d="M1600 250 C1450 280 1320 300 1200 380 C1120 430 980 420 860 400 L860 430 C990 455 1140 465 1225 410 C1340 335 1470 315 1600 290Z" fill="#3FA7C4"/>' +
+    '<path d="M1590 262 C1480 285 1380 300 1290 350" fill="none" stroke="#9FE0F0" stroke-width="5" stroke-linecap="round" opacity="0.8"/>' +
+    // winding footpath linking the six places
+    '<path id="path" d="M200 800 C260 760 300 740 330 730 C420 700 520 620 640 570 C760 520 860 690 960 730 C1080 770 1200 640 1270 570 C1330 510 1200 400 1060 340 C920 290 640 300 470 340" fill="none" stroke="#D4A062" stroke-width="34" stroke-linecap="round"/>' +
+    '<path d="M200 800 C260 760 300 740 330 730 C420 700 520 620 640 570 C760 520 860 690 960 730 C1080 770 1200 640 1270 570 C1330 510 1200 400 1060 340 C920 290 640 300 470 340" fill="none" stroke="#E5BE86" stroke-width="22" stroke-linecap="round" stroke-dasharray="2 26"/>' +
+    // a kite over the field
+    '<g class="kite"><path d="M1340 140 C1300 220 1360 280 1310 360" fill="none" stroke="#3B2A20" stroke-width="2" opacity="0.5"/>' +
+    '<path d="M1340 92 L1372 140 L1340 190 L1308 140Z" fill="#E2453C" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/><path d="M1340 92 V190 M1308 140 H1372" stroke="#3B2A20" stroke-width="3"/><path d="M1340 92 L1372 140 L1340 140Z" fill="#FFC83D"/></g>';
+
+  function cloud(x, y, s, cls) {
+    return '<g class="cloud ' + (cls || '') + '"><g transform="translate(' + x + ' ' + y + ') scale(' + s + ')"><path d="M0 40 C0 18 30 10 46 22 C56 0 100 0 110 24 C130 14 160 24 158 44 Z" fill="#fff"/></g></g>';
+  }
+
+  // --- landmarks ---
+  const stars = id => GS.store.totalStars(id);
+  let total = 0;
+  const nodes = GS.el('g', null, map);
+  GAMES.forEach((g, i) => {
+    const s = stars(g.id); total += s;
+    const a = GS.el('a', { href: 'games/' + g.id + '/index.html', class: 'node' + (s ? '' : ' fresh'), tabindex: '0', 'aria-label': g.name + ', ' + s + ' bintang' }, nodes);
+    const lm = GS.el('g', { class: 'lm', transform: 'translate(' + g.x + ' ' + g.y + ')' }, a);
+    if (has('landmark')) lm.innerHTML = art.landmark(g.lm);
+    else lm.innerHTML = '<rect x="-80" y="-150" width="160" height="150" rx="24" fill="#FFF8EC" stroke="#3B2A20" stroke-width="5"/>';
+    // signboard
+    const w = Math.max(190, g.name.length * 15 + 40);
+    const sign = GS.el('g', { class: 'sign', transform: 'translate(' + g.x + ' ' + (g.y + 18) + ')' }, a);
+    sign.innerHTML =
+      '<rect x="' + (-w / 2) + '" y="0" width="' + w + '" height="66" rx="18" fill="#FFF8EC" stroke="#3B2A20" stroke-width="4"/>' +
+      '<text x="0" y="30" text-anchor="middle" font-size="25" fill="#2B1D14">' + g.name + '</text>' +
+      '<g transform="translate(0 50)">' + [0, 1, 2].map(k => '<path transform="translate(' + (k * 26 - 46) + ' -11) scale(0.9)" d="m12 2.8 2.8 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.7 3.1 1.2-6.3-4.6-4.4 6.3-.8z" fill="' + (s >= g.levels * (k + 1) ? '#FFC83D' : '#EADFCB') + '" stroke="#3B2A20" stroke-width="1.6" stroke-linejoin="round"/>').join('') +
+      '<text class="stars" x="34" y="5" text-anchor="start" font-size="18" fill="#5C4636">' + s + '/' + g.levels * 3 + '</text></g>';
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      GS.sfx.pop();
+      walkTo(g, () => { location.href = 'games/' + g.id + '/index.html'; });
+      GS.say(g.say);
+    });
+    a.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); a.dispatchEvent(new MouseEvent('click')); } });
+  });
+
+  // --- Si Cil walks to the last place played ---
+  const last = GS.store.get('lastGame', 'timbangan');
+  const start = GAMES.find(g => g.id === last) || GAMES[0];
+  const cil = GS.el('g', { id: 'cil', transform: 'translate(' + (start.x - 120) + ' ' + (start.y + 10) + ')' }, map);
+  if (has('mascot')) {
+    const holder = GS.el('foreignObject', { x: -60, y: -125, width: 120, height: 130 }, cil);
+    holder.innerHTML = '<div xmlns="http://www.w3.org/1999/xhtml" style="width:120px;height:130px">' + art.mascot({ mood: 'point', size: 120 }) + '</div>';
+  }
+  function walkTo(g, done) {
+    GS.store.set('lastGame', g.id);
+    cil.setAttribute('transform', 'translate(' + (g.x - 120) + ' ' + (g.y + 10) + ')');
+    setTimeout(done, GS.reducedMotion ? 150 : 650);
+  }
+
+  // --- header widgets ---
+  document.getElementById('totalStar').innerHTML = GS.ICON.star;
+  document.getElementById('totalN').textContent = total;
+  document.getElementById('sound').addEventListener('click', () => { GS.sfx.click(); GS.setMuted(!GS.muted); });
+  GS.setMuted(GS.muted);
+
+  // centre the map on Si Cil for narrow screens
+  const sc = document.getElementById('scroller');
+  requestAnimationFrame(() => { const r = map.getBoundingClientRect().width / 1600; sc.scrollLeft = Math.max(0, start.x * r - sc.clientWidth / 2); });
+
+  // --- parent guide cards ---
+  const list = document.getElementById('games');
+  GAMES.forEach(g => {
+    const s = stars(g.id);
+    const done = GS.store.stars(g.id).filter(Boolean).length;
+    const c = document.createElement('article');
+    c.className = 'g';
+    const icon = g.icon.startsWith('person') && has('person') ? '<svg viewBox="-55 -105 110 110" aria-hidden="true">' + art.person(0) + '</svg>' : has('svg') ? art.svg(g.icon, 100) : '';
+    c.innerHTML = '<div class="g-art">' + icon + '</div><div><h3></h3><span class="kind ' + g.kind + '"></span><p></p><div class="row"><span class="prog"></span><a class="play" href="games/' + g.id + '/index.html">Main</a></div></div>';
+    c.querySelector('h3').textContent = g.name;
+    c.querySelector('.kind').textContent = g.kindLabel;
+    c.querySelector('p').textContent = g.desc;
+    c.querySelector('.prog').textContent = done + ' dari ' + g.levels + ' level, ' + s + ' bintang';
+    list.appendChild(c);
+  });
+
+  // --- reset progress with an in-page confirmation (no confirm() dialogs) ---
+  const box = document.getElementById('resetBox');
+  document.getElementById('reset').addEventListener('click', function ask() {
+    box.innerHTML = '<span>Yakin hapus semua bintang?</span><button type="button" class="reset" id="yes">Ya, hapus</button><button type="button" class="reset" id="no">Batal</button>';
+    document.getElementById('yes').onclick = () => { GAMES.forEach(g => GS.store.set('stars.' + g.id, [])); location.reload(); };
+    document.getElementById('no').onclick = () => location.reload();
+  });
+})();
+</script>
+</body>
+</html>

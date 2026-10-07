@@ -1,0 +1,241 @@
+/* Kampung Sains shared styles.
+ * Layout: full-screen game stage under a slim HUD; overlays centred.
+ * Single-theme by choice: the game is one sunny daytime world, so colors are set
+ * explicitly and do not follow the OS dark mode (color-scheme: light). */
+:root {
+  color-scheme: light;
+  --ink: #2B1D14;          /* text */
+  --line: #3B2A20;         /* outline */
+  --panel: #FFF8EC;        /* cream panel */
+  --card: #FFFFFF;
+  --sky: #9ED8EC;
+  --sky-low: #E6F5F0;
+  --primary: #1F6FD1;
+  --primary-dark: #1757A6;
+  --secondary: #F28C28;
+  --secondary-dark: #C76A12;
+  --success: #0F8C7A;
+  --retry: #F2A900;
+  --sun: #FFC83D;
+  --sun-dark: #E09A00;
+  --disabled: #C9C2B8;
+  --font-display: 'Baloo 2', 'Fredoka', 'Trebuchet MS', system-ui, sans-serif;
+  --font-body: 'Andika', 'Nunito', 'Segoe UI', system-ui, sans-serif;
+  --font-num: 'Fredoka', 'Baloo 2', 'Trebuchet MS', system-ui, sans-serif;
+  --ease-in: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --hud-h: 76px;
+  --tap: 64px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--sky-low);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+body.gs-game { overflow: hidden; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 4px solid var(--primary); outline-offset: 3px; border-radius: 12px; }
+
+/* ---------- game stage ---------- */
+.gs-stage {
+  position: fixed;
+  left: 0; right: 0;
+  top: calc(var(--hud-h) + env(safe-area-inset-top, 0px));
+  bottom: env(safe-area-inset-bottom, 0px);
+  display: block;
+  width: 100%;
+  height: calc(100% - var(--hud-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  touch-action: none;
+}
+.gs-stage text { font-family: var(--font-num); }
+.gs-stage .t-body { font-family: var(--font-body); }
+.gs-stage .t-display { font-family: var(--font-display); font-weight: 800; }
+.gs-num { font-family: var(--font-num); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- HUD ---------- */
+.gs-hud {
+  position: fixed; z-index: 20;
+  top: 0; left: 0; right: 0;
+  height: calc(var(--hud-h) + env(safe-area-inset-top, 0px));
+  padding: calc(env(safe-area-inset-top, 0px) + 6px) max(12px, env(safe-area-inset-right, 0px)) 6px max(12px, env(safe-area-inset-left, 0px));
+  display: flex; align-items: center; gap: 12px;
+  background: var(--panel);
+  border-bottom: 4px solid var(--line);
+}
+.gs-title { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.gs-title-name { font-family: var(--font-display); font-weight: 800; font-size: clamp(20px, 3.4vw, 30px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.gs-title-level { font-family: var(--font-num); font-weight: 600; font-size: 15px; color: #6B5444; font-variant-numeric: tabular-nums; }
+.gs-hud-right { display: flex; gap: 10px; }
+
+/* ---------- buttons ---------- */
+.gs-btn {
+  width: var(--tap); height: var(--tap);
+  min-width: var(--tap);
+  display: inline-grid; place-items: center;
+  padding: 0; border: 3px solid var(--line); border-radius: 20px;
+  background: var(--card); color: var(--ink);
+  box-shadow: 0 4px 0 var(--line);
+  cursor: pointer; text-decoration: none;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.gs-btn svg { width: 60%; height: 60%; }
+.gs-btn:active { transform: translateY(3px) scale(0.94); box-shadow: 0 1px 0 var(--line); transition-duration: 60ms; }
+.gs-btn[disabled] { background: var(--disabled); color: #8A8178; cursor: default; }
+.gs-home { background: var(--sun); }
+.gs-hud .gs-btn { width: 56px; height: 56px; min-width: 56px; border-radius: 18px; }
+@media (max-height: 500px), (max-width: 560px) {
+  :root { --hud-h: 64px; }
+  .gs-hud .gs-btn { width: 50px; height: 50px; min-width: 50px; border-radius: 16px; }
+  .gs-hud-right { gap: 8px; }
+}
+@media (max-width: 420px) { .gs-levels { display: none !important; } }
+
+.gs-btn-round { border-radius: 999px; width: 76px; height: 76px; }
+.gs-big { width: 96px; height: 96px; }
+.gs-primary { background: var(--primary); color: #fff; }
+.gs-secondary { background: var(--card); }
+
+/* Text action button (Cek!, Lepas!, Gas!) */
+.gs-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 80px; min-width: 150px; padding: 0 30px;
+  border: 4px solid var(--line); border-radius: 999px;
+  background: var(--primary); color: #fff;
+  font-family: var(--font-display); font-weight: 800; font-size: 32px; letter-spacing: 0.01em;
+  box-shadow: 0 6px 0 var(--line);
+  cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.gs-action:active { transform: translateY(4px) scale(0.95); box-shadow: 0 2px 0 var(--line); }
+.gs-action[disabled] { background: var(--disabled); color: #6E655C; box-shadow: 0 6px 0 #8A8178; border-color: #8A8178; cursor: default; }
+.gs-action.alt { background: var(--secondary); color: var(--ink); }
+.gs-action svg { width: 34px; height: 34px; }
+.gs-dock {
+  position: fixed; z-index: 15;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 14px; align-items: flex-end;
+}
+@media (max-height: 500px) { .gs-action { min-height: 64px; min-width: 120px; font-size: 26px; padding: 0 22px; } }
+
+/* ---------- mascot caption ---------- */
+.gs-caption {
+  position: fixed; z-index: 14;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  max-width: min(460px, calc(100% - 210px));
+  display: flex; align-items: flex-end; gap: 6px;
+  pointer-events: auto; cursor: pointer;
+  opacity: 0; transform: translateY(16px);
+  transition: opacity 250ms var(--ease-in), transform 250ms var(--ease-in);
+}
+.gs-caption.show { opacity: 1; transform: none; }
+.gs-caption-face { flex: none; width: 64px; height: 64px; }
+.gs-caption-face svg { width: 64px; height: 64px; display: block; }
+.gs-caption-text {
+  margin: 0 0 10px; padding: 12px 16px;
+  background: var(--card); border: 3px solid var(--line); border-radius: 20px 20px 20px 6px;
+  font-size: clamp(17px, 2.3vw, 24px); line-height: 1.3; font-weight: 700;
+  box-shadow: 0 4px 0 rgba(59, 42, 32, 0.25);
+}
+@media (max-width: 560px) { .gs-caption { max-width: calc(100% - 24px); bottom: calc(110px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ---------- overlays ---------- */
+.gs-overlay {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; place-items: center;
+  padding: 16px;
+  background: rgba(43, 29, 20, 0.45);
+  opacity: 0; transition: opacity 220ms ease-out;
+}
+.gs-overlay.show { opacity: 1; }
+.gs-card {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: calc(100% - 16px); overflow: auto;
+  background: var(--panel);
+  border: 4px solid var(--line); border-radius: 32px;
+  box-shadow: 0 10px 0 rgba(59, 42, 32, 0.35);
+  padding: 24px;
+  transform: scale(0.85); transition: transform 380ms var(--ease-pop);
+  text-align: center;
+}
+.gs-overlay.show .gs-card { transform: none; }
+
+.gs-win-mascot { height: 130px; display: grid; place-items: center; margin-top: -8px; }
+.gs-win-mascot svg { width: 150px; height: 150px; }
+.gs-win-stars { display: flex; justify-content: center; gap: 6px; margin: 4px 0 6px; }
+.gs-star { width: 76px; height: 76px; color: #E8DCC8; transform: scale(0); animation: gs-star-pop 520ms var(--ease-pop) forwards; animation-delay: calc(350ms + var(--i) * 260ms); }
+.gs-star:nth-child(2) { width: 92px; height: 92px; margin-top: -14px; }
+.gs-star svg { width: 100%; height: 100%; }
+.gs-star svg path { stroke: var(--line); stroke-width: 1.4; }
+.gs-star.on { color: var(--sun); }
+@keyframes gs-star-pop { to { transform: scale(1); } }
+.gs-win-text { margin: 0 0 18px; font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 4.5vw, 36px); line-height: 1.15; text-wrap: balance; }
+.gs-win-actions { display: flex; gap: 20px; justify-content: center; align-items: center; }
+
+.gs-picker-title { margin: 0 0 16px; font-family: var(--font-display); font-weight: 800; font-size: 30px; }
+.gs-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 14px; }
+.gs-level {
+  height: 96px; border: 3px solid var(--line); border-radius: 22px;
+  background: var(--card); box-shadow: 0 4px 0 var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  cursor: pointer;
+}
+.gs-level:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+.gs-level.done { background: #E3F4F1; }
+.gs-level.locked { background: #EFE7DA; color: #A79C8F; cursor: default; box-shadow: 0 4px 0 #C9C2B8; border-color: #C9C2B8; }
+.gs-level.locked svg { width: 34px; height: 34px; }
+.gs-level-n { font-family: var(--font-num); font-weight: 600; font-size: 34px; line-height: 1; }
+.gs-level-stars { display: flex; gap: 1px; }
+.gs-level-stars i { width: 20px; height: 20px; color: #E2D6C2; display: block; }
+.gs-level-stars i.on { color: var(--sun-dark); }
+.gs-level-stars svg { width: 100%; height: 100%; }
+.gs-picker-close { position: absolute; top: -18px; right: -14px; width: 60px; height: 60px; }
+
+/* ---------- effects ---------- */
+.gs-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; }
+.gs-float {
+  position: fixed; z-index: 30; pointer-events: none;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-num); font-weight: 600; font-size: 40px; color: var(--ink);
+  text-shadow: 0 2px 0 #fff, 2px 0 0 #fff, -2px 0 0 #fff, 0 -2px 0 #fff;
+  animation: gs-float-up 1.1s var(--ease-in) forwards;
+}
+@keyframes gs-float-up { from { opacity: 0; transform: translate(-50%, -30%) scale(0.7); } 20% { opacity: 1; transform: translate(-50%, -60%) scale(1.1); } to { opacity: 0; transform: translate(-50%, -160%) scale(1); } }
+
+/* Generic wobble for "not yet" feedback (no red, ever). */
+.gs-wobble { animation: gs-wobble 400ms ease-in-out; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes gs-wobble { 0%, 100% { transform: rotate(0); } 17% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } 83% { transform: rotate(-4deg); } }
+
+/* Screen shake for heavy landings */
+.gs-shake { animation: gs-shake 150ms linear; }
+@keyframes gs-shake { 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 1px); } }
+
+/* Pulse used for drop targets */
+.gs-pulse { animation: gs-pulse 800ms ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes gs-pulse { 50% { transform: scale(1.08); opacity: 0.75; } }
+
+/* Rotate hint for very small portrait phones */
+.gs-rotate { display: none; }
+@media (orientation: portrait) and (max-width: 560px) {
+  body.gs-game.landscape-only .gs-rotate {
+    display: grid; position: fixed; inset: 0; z-index: 80; place-items: center; padding: 24px;
+    background: var(--panel); text-align: center;
+    font-family: var(--font-display); font-weight: 800; font-size: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-star { animation-duration: 1ms; animation-delay: 0ms; }
+  .gs-wobble, .gs-shake, .gs-pulse { animation: none; }
+  .gs-card { transition: none; }
+}
