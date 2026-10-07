@@ -225,7 +225,7 @@
   }
   function binFits(b, it) { return !b.accept || b.accept(it); }
   function chooseBin(c, lx, it) {
-    const cand = c.bins.filter(b => binFits(b, it) && (b.cap == null || b.items.length < b.cap || b.swap));
+    const cand = c.bins.filter(b => binFits(b, it) && (b.cap == null || b.items.length < b.cap || (b.swap && !b.items.some(x => x.fixed))));
     if (!cand.length) return null;
     let best = null, bd = 1e9;
     for (const b of cand) {
@@ -305,7 +305,9 @@
     drawTitle(L.title);
     putMascot();
     mood('think');
-    lv = Object.assign({ rounds: 1, round: 0, predictNow: false, revealed: false, near: true, fade: false }, L.make());
+    lv = L.make();
+    const defs = { rounds: 1, round: 0, predictNow: false, revealed: false, near: true, fade: false };
+    for (const k in defs) if (!(k in lv)) lv[k] = defs[k];
     lv.round = 0;
     roundPips();
     lv.setup(0);
@@ -925,7 +927,7 @@
       if (!c.zone) continue;
       if (c.isHome && c !== it.home) continue;
       if (lv.accept && !lv.accept(it, c)) continue;
-      if (!c.bins.some(b => binFits(b, it))) continue;
+      if (!chooseBin(c, 0, it)) continue;
       const d = c.zone(q);
       if (d < bd) { bd = d; best = c; }
     }
@@ -1107,9 +1109,13 @@
       else if (t.t === 'txt') txt(g, cx, 1, t.v, { size: 26, cls: 'tp-body' });
       else if (t.t === 'sign') {
         const v = t.v || signVal;
-        const fill = v === '=' && (t.v || S.last) ? (S.last && S.last.balanced ? C.tealTint : C.cream) : v === '?' ? '#FFFFFF' : C.amberTint;
-        const stroke = v === '?' ? OL : (S.last && S.last.balanced) || t.v ? C.teal : C.amber;
-        el('path', { d: rr(x, -32, w, 64, 18), fill: t.v ? C.cream : fill, stroke: t.v ? OL : stroke, 'stroke-width': 3.5, 'stroke-dasharray': v === '?' ? '7 6' : null }, g);
+        let fill = C.cream, stroke = OL;
+        if (!t.v) {
+          if (v === '?') fill = '#FFFFFF';
+          else if (v === '=') { fill = C.tealTint; stroke = C.teal; }
+          else { fill = C.amberTint; stroke = C.amber; }
+        }
+        el('path', { d: rr(x, -32, w, 64, 18), fill, stroke, 'stroke-width': 3.5, 'stroke-dasharray': v === '?' ? '7 6' : null }, g);
         txt(g, cx, 1, v, { size: 42, fill: v === '?' ? C.muted : C.ink });
       } else {
         const empty = t.v == null;
@@ -1179,10 +1185,14 @@
     const g = it.labelG; g.innerHTML = '';
     const sc = it.sc, cy = (-36 - (it.ab.y + it.ab.height)) * sc; // art label patch centre (y -36 in art units)
     const dots = it.labelDots, n = it.labelN;
-    const w = dots ? 64 : 50, h = dots ? 68 : 40;
-    el('path', { d: rr(-w / 2, cy - (dots ? 16 : h / 2), w, h, 9), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-    txt(g, 0, cy + (dots ? 0 : 0) - (dots ? 0 : 0), String(n), { size: 28 });
-    if (dots) dotsAt(g, n, 0, cy + 22 + (n > 5 ? 0 : 0), { r: 3.4, gap: 10, fill: OL });
+    if (dots) {
+      el('path', { d: rr(-32, cy - 24, 64, 58, 10), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
+      txt(g, 0, cy - 7, String(n), { size: 26 });
+      dotsAt(g, n, 0, cy + 18, { r: 3.4, gap: 10, fill: OL });
+    } else {
+      el('path', { d: rr(-26, cy - 20, 52, 40, 10), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
+      txt(g, 0, cy + 1, String(n), { size: 28 });
+    }
   }
   function signCard(glyph) {
     const mk = `<path d="${rr(-34, -74, 68, 72, 14)}" fill="${OL}" opacity=".2" transform="translate(0 4)"/>` +
@@ -1362,8 +1372,10 @@
     o.winText = () => 'Hebat! Kamu paham tanda < = >';
     o.solve = async () => {
       const r = evaluate();
+      const wasRevealed = o.revealed;
       if (!slot.count() || MAP[slot.items()[0].glyph] !== r.dir) { S.pred = null; pickPrediction(r.dir); }
-      await waitLocked(); if (!o.revealed) await release();
+      if (wasRevealed) return;
+      await waitLocked(); await release();
     };
     return o;
   }
