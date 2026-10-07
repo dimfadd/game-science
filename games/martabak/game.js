@@ -13,7 +13,7 @@
   const FRIEND_Y = 338;             // friends' feet (hidden behind the counter edge at y=300)
   const PLATE_Y = 374;
   const GAP = 7;                    // how far each half moves away from a fresh cut
-  const NAMES = ['Siti', 'Budi', 'Ani', 'Dodi', 'Rina', 'Joko', 'Putri', 'Bayu'];
+  const NAMES = ['Budi', 'Siti', 'Dodi', 'Ani', 'Rina', 'Pak Joko', 'Bayu', 'Raka']; // matches GS.art.person(i) looks
   const FR = { 2: 'setengah', 3: 'sepertiga', 4: 'seperempat' };
   const hasArt = fn => !!(window.GS && GS.art && typeof GS.art[fn] === 'function');
 

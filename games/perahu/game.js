@@ -67,8 +67,11 @@
   const art = () => GS.art || {};
   function artMeta(n) { try { return (art().meta && art().meta(n)) || {}; } catch (e) { return {}; } }
   function artItem(n) {
+    try {
+      const has = !art().names || art().names().indexOf(n) >= 0;
+      if (art().item && has) return art().item(n, { shadow: false });
+    } catch (e) { /* fall through */ }
     if (n === 'plastisin') return lumpMarkup();
-    try { if (art().item) return art().item(n, { shadow: false }); } catch (e) { /* fall through */ }
     return '<circle cx="0" cy="-40" r="36" fill="#F3DDA6" stroke="' + OUT + '" stroke-width="4"/><text x="0" y="-28" text-anchor="middle" font-size="32" fill="#2B1D14">' + n.charAt(0).toUpperCase() + '</text>';
   }
   function artPerson(i) {

@@ -423,7 +423,7 @@
       const stem = GS.el('path', { d: `M${mx} ${by}V${my - 20}`, stroke: '#357F40', 'stroke-width': 4, 'stroke-linecap': 'round' }, sway);
       const body = GS.el('g', { transform: `translate(${mx} ${my})` }, sway);
       if (mlib.lib && mlib.m) {
-        GS.markup(GS.el('g', { transform: 'rotate(-62) scale(0.62) translate(0 25)' }, body), mlib.m);
+        GS.markup(GS.el('g', { transform: 'rotate(-62) scale(0.8) translate(0 25)' }, body), mlib.m);
       } else drawOwnMango(body);
       t.sway = sway; t.stem = stem; t.body = body;
       S.targets.push(t);
@@ -581,7 +581,7 @@
     name.textContent = P.name;
     const wi = GS.el('g', { transform: 'translate(103 64)' }, g);
     GS.markup(wi, weightIcon(P.heavy));
-    const wt = GS.el('text', { x: 122, y: 72, 'font-size': 20, 'font-weight': 700, fill: P.heavy ? '#2B1D14' : '#6B5444', class: 't-body' }, g);
+    const wt = GS.el('text', { x: 126, y: 72, 'font-size': 20, 'font-weight': 700, fill: P.heavy ? '#2B1D14' : '#6B5444', class: 't-body' }, g);
     wt.textContent = P.weight;
     if (seq.length > 1) {
       // queue of projectiles for this level, current one marked

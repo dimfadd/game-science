@@ -156,7 +156,6 @@
       PA(po, 'M18 66 Q46 40 70 58 T116 46', 'none', P.org, 4, { 'stroke-dasharray': '1 9' });
       C(po, 18, 66, 7, P.grn, OUT, 2.5); C(po, 116, 46, 7, P.red, OUT, 2.5);
       T(po, 26, 82, 'Terminal', 11, P.ink, { class: 't-body', 'font-weight': 700, 'text-anchor': 'start' });
-      T(po, 124, 30 + 2, '', 1);
       T(po, 112, 64 - 30, 'Pasar', 11, P.ink, { class: 't-body', 'font-weight': 700 });
     }
     // bench along the back wall
@@ -1072,8 +1071,8 @@
     do { d1 = pick(cands); d2 = pick(cands); } while (d1 === d2 || d1 + d2 === need);
     return { angkots: [a], groups: GS.shuffle([{ n: need }, { n: d1, d: 'decoy' }, { n: d2, d: 'decoy' }]) };
   }
-  function strayFor(waves) {
-    for (const d of GS.shuffle([9, 8, 7, 1])) {
+  function strayFor(waves, cands) {
+    for (const d of GS.shuffle(cands || [9, 8, 7, 1])) {
       const ok = waves.every(w => !w.needs.some(nd => {
         const s = w.sizes;
         if (d === nd) return true;
@@ -1116,11 +1115,11 @@
     { kind: 'pool', label: 'none', say: 'Tantangan! Lima angkot, tanpa angka.',
       make: () => {
         const a = rnd(2, 5), need = 10 - a, sp = split2(need);
-        const d = strayFor([{ needs: [need], sizes: sp }]);
+        const d = strayFor([{ needs: [need], sizes: sp }], [1, 2, 3, 4].filter(x => x !== need));
         return [
           { angkots: [0, 0], groups: GS.shuffle(G_(pair(1, 5).concat(triple(1)))) },
           { angkots: [0, 0], groups: GS.shuffle(G_(quad().concat(pair(1, 5)))) },
-          { angkots: [a], groups: GS.shuffle(G_(sp).concat([{ n: d > 4 ? Math.min(d, 4) === need ? 1 : d : d, d: 'stray' }])) }];
+          { angkots: [a], groups: GS.shuffle(G_(sp).concat([{ n: d, d: 'stray' }])) }];
       } }
   ];
 
@@ -1702,8 +1701,8 @@
             await until(() => cur && cur.state === 'ready');
             await boardGroup(gr);
           }
-          await until(() => !cur || cur.state !== 'ready' || cur.count !== 10 || finished, 5000).catch(() => {});
-          await until(() => finished || !alive(t) || (cur && cur.state === 'ready' && cur.count === 0 + (pres[0] || 0)) || false, 30000).catch(() => {});
+          const done = departed;
+          await until(() => finished || !alive(t) || departed > done, 30000);
         }
       } else if (cfg.kind === 'tens') {
         for (let r = 0; r < 2 && alive(t); r++) {

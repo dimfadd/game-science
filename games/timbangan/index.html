@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timbangan Pasar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<style>
+  /* Timbangan Pasar: game-specific styles only */
+  .tp-pred {
+    width: 104px; height: 92px; padding: 0;
+    display: inline-grid; place-items: center;
+    border: 4px solid var(--line); border-radius: 26px;
+    background: var(--card); box-shadow: 0 6px 0 var(--line);
+    cursor: pointer; transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  }
+  .tp-pred svg { width: 86px; height: 66px; display: block; }
+  .tp-pred:active { transform: translateY(4px) scale(0.94); box-shadow: 0 2px 0 var(--line); }
+  .tp-pred.chosen { width: 84px; height: 76px; background: var(--panel); box-shadow: 0 4px 0 rgba(59,42,32,.4); cursor: default; }
+  .tp-pred.chosen svg { width: 68px; height: 52px; }
+  .tp-pred.nudge { animation: tp-nudge 420ms ease-in-out; }
+  @keyframes tp-nudge { 20% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } 80% { transform: rotate(-3deg); } }
+  .tp-preds { display: flex; gap: 14px; align-items: flex-end; }
+  .gs-stage .item { cursor: grab; }
+  .gs-stage .item.fixed { cursor: default; }
+  .gs-stage .peg-hit { cursor: pointer; }
+  .tp-breathe { animation: tp-breathe 2.4s cubic-bezier(.37,0,.63,1) infinite; }
+  @keyframes tp-breathe { 50% { transform: translateY(-3px); } }
+  .tp-tw { font-family: var(--font-display); font-weight: 800; }
+  .tp-body { font-family: var(--font-body); font-weight: 700; }
+  @media (max-height: 500px) {
+    .tp-pred { width: 78px; height: 68px; border-radius: 20px; }
+    .tp-pred svg { width: 62px; height: 48px; }
+    .tp-pred.chosen { width: 64px; height: 58px; }
+    .tp-pred.chosen svg { width: 50px; height: 38px; }
+    .tp-preds { gap: 10px; }
+    .gs-caption { max-width: 330px; }
+    .gs-caption-text { font-size: 15px; padding: 8px 12px; }
+    .gs-caption-face, .gs-caption-face svg { width: 48px; height: 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .tp-breathe, .tp-pred.nudge { animation: none; } }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Area permainan"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
