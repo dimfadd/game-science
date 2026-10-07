@@ -11,6 +11,10 @@ python3 -m http.server 8000
 # lalu buka http://<ip-komputer>:8000 dari tablet
 ```
 
+## Deploy ke Vercel
+
+Ini situs statis tanpa build. Di Vercel: **Add New → Project**, import repo ini, Framework Preset **Other**, Build Command dikosongkan, Output Directory `.`. Branch selain `main` otomatis mendapat Preview URL.
+
 ## Isi
 
 | Game | Konsep |
