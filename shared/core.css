@@ -138,6 +138,7 @@ button { font: inherit; color: inherit; }
   transition: opacity 250ms var(--ease-in), transform 250ms var(--ease-in);
 }
 .gs-caption.show { opacity: 1; transform: none; }
+.gs-caption:not(.show) { pointer-events: none; }
 .gs-caption-face { flex: none; width: 64px; height: 64px; }
 .gs-caption-face svg { width: 64px; height: 64px; display: block; }
 .gs-caption-text {
