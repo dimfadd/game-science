@@ -637,7 +637,8 @@
     layers.pieces.appendChild(p.el);
     p.el.style.cursor = 'grabbing';
     GS.sfx.pick();
-    tw(120, e => { p.lift = 1 + 0.15 * e; p.shadow.setAttribute('transform', 'translate(' + (5 + 9 * e).toFixed(1) + ' ' + (8 + 14 * e).toFixed(1) + ')'); moveDrag(p, pt); }, 'outBack');
+    const r0 = p.rot;
+    tw(120, e => { p.lift = 1 + 0.15 * e; p.rot = r0 * (1 - e); p.shadow.setAttribute('transform', 'translate(' + (5 + 9 * e).toFixed(1) + ' ' + (8 + 14 * e).toFixed(1) + ')'); moveDrag(p, pt); }, 'outBack');
     moveDrag(p, pt);
   }
   function moveDrag(p, pt) {
@@ -708,11 +709,13 @@
     pl.pieces.forEach((p, i) => {
       const spread = k > 1 ? Math.min(64, 150 / (k - 1)) : 0;
       const t = { x: pl.x + (i - (k - 1) / 2) * spread, y: pl.y - 12 + (k > 1 ? (i % 2 ? 7 : -5) : 0) };
+      // tall pieces lie down on the plate (rotation never changes area)
+      const r1 = p.bb.h > p.bb.w * 1.3 ? 90 : 0;
       const s0 = p.s, r0 = p.rot, c0 = centerOf(p);
-      const end = () => { p.s = L.plateScale; p.rot = 0; p.pos = posForCenter(p, t); applyT(p); };
+      const end = () => { p.s = L.plateScale; p.rot = r1; p.pos = posForCenter(p, t); applyT(p); };
       if (!animate) { end(); return; }
       tw(170, e => {
-        p.s = GS.lerp(s0, L.plateScale, e); p.rot = GS.lerp(r0, 0, e);
+        p.s = GS.lerp(s0, L.plateScale, e); p.rot = GS.lerp(r0, r1, e);
         p.pos = posForCenter(p, { x: GS.lerp(c0.x, t.x, e), y: GS.lerp(c0.y, t.y, e) }); applyT(p);
       }).then(() => { if (p.plate === pl) end(); });
     });
@@ -838,7 +841,7 @@
       '<path d="M' + (-w / 2 + 8) + ' 18H' + (w / 2 - 8) + 'M' + (-w / 2 + 8) + ' 132H' + (w / 2 - 8) + '" stroke="#E2453C" stroke-width="5" stroke-dasharray="10 8" opacity=".75"/>');
     for (let k = 0; k < n; k++) {
       const x = -w / 2 + 37 + k * 40, used = k >= knives;
-      GS.markup(GS.el('g', { transform: 'translate(' + x + ' 128) rotate(-90) scale(.6)', opacity: used ? 0.22 : 1 }, knifeRack), knifeMarkup());
+      GS.markup(GS.el('g', { transform: 'translate(' + x + ' 24) rotate(-90) scale(.6)', opacity: used ? 0.22 : 1 }, knifeRack), knifeMarkup());
     }
     const b = GS.el('g', { transform: 'translate(' + (w / 2 - 4) + ' 2)' }, knifeRack);
     GS.markup(b, '<circle r="22" fill="#1F6FD1" stroke="' + OUT + '" stroke-width="3.5"/>');
@@ -894,9 +897,9 @@
     });
   }
   function buildPickLevel() {
-    const c = { x: 540, y: 575 };
-    drawTalenan(c, 790, 250, null);
-    const xs = GS.shuffle([290, 540, 790]);
+    const c = { x: 480, y: 560 };
+    drawTalenan(c, 760, 240, null);
+    const xs = GS.shuffle([245, 480, 715]);
     const kinds = ['grid', 'strip4', 'strip3'];
     const cakes = kinds.map((k, i) => {
       const food = makeFood('lapisKecil', xs[i], c.y);
@@ -928,8 +931,8 @@
     L.half = ps[0]; L.quarter = ps[1];
   }
   function buildOrderLevel() {
-    const c = { x: 560, y: 600 };
-    drawTalenan(c, 790, 230, null);
+    const c = { x: 480, y: 590 };
+    drawTalenan(c, 760, 220, null);
     // "besar -> kecil" sign between the plates and the board
     const xs = seatXs(3);
     let s = '<rect x="' + (xs[0] - 70) + '" y="424" width="' + (xs[2] - xs[0] + 140) + '" height="40" rx="20" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
@@ -940,7 +943,7 @@
     GS.markup(layers.signs, s);
     const lbl = (x, t, a) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': a, 'font-size': 22, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
     lbl(xs[0] - 26, 'besar', 'start'); lbl(xs[2] + 40, 'kecil', 'end');
-    const cxs = [310, 560, 810];
+    const cxs = [245, 480, 715];
     const ds = GS.shuffle([2, 3, 4]);
     const opts = { 2: [[V(0)], [Hz(0)]], 3: [[V(-100 / 3), V(100 / 3)], [Hz(-20), Hz(20)]], 4: [[V(-50), V(0), V(50)], [V(0), Hz(0)]] };
     const given = [];
@@ -1183,7 +1186,7 @@
   async function stackCompare(big, small, my) {
     if (!big.length || !small.length) { await pause(1200); return; }
     const C = { x: 640, y: 590 };
-    const dim = GS.el('rect', { x: 0, y: 306, width: 1280, height: 494, fill: '#FFF8EC', opacity: 0 }, layers.dim);
+    const dim = GS.el('rect', { x: -420, y: 306, width: 2120, height: 594, fill: '#FFF8EC', opacity: 0 }, layers.dim);
     tw(250, e => dim.setAttribute('opacity', (0.72 * e).toFixed(2)));
     // big share at its original shape, centred
     const gb = groupBox(big), gbc = { x: gb.cx, y: gb.cy };
@@ -1313,7 +1316,7 @@
     if (!strip || !box) { await pause(600); return; }
     if (!(await pause(500))) return;
     const C = { x: 640, y: 560 };
-    const dim = GS.el('rect', { x: 0, y: 306, width: 1280, height: 494, fill: '#FFF8EC', opacity: 0.72 }, layers.fx);
+    const dim = GS.el('rect', { x: -420, y: 306, width: 2120, height: 594, fill: '#FFF8EC', opacity: 0.72 }, layers.fx);
     const gs = GS.el('g', null, layers.top);
     const bw = box.bb.w * 1.6, bh = box.bb.h * 1.6;
     // the box, big, then the two halves of the strip landing on it

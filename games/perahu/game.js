@@ -458,12 +458,6 @@
     drawPosts(L.river, [60, 330, 600, 870, 1140], 624);
     drawWaterFront(L.river, 0, 1280, 652, 800, 0.5);
     drawPier(L.river, 0, 1280, 362, 600);
-    // mooring bollard and rope coil (decor)
-    const bo = el('g', { transform: 'translate(650 594)' }, L.river);
-    el('ellipse', { cx: 0, cy: 2, rx: 22, ry: 6, fill: OUT, 'fill-opacity': 0.18 }, bo);
-    el('path', { d: 'M-12 0 V-28 h24 V0 Z', fill: '#63666B', stroke: OUT, 'stroke-width': 3.5, 'stroke-linejoin': 'round' }, bo);
-    el('ellipse', { cx: 0, cy: -30, rx: 17, ry: 7, fill: '#8C8F94', stroke: OUT, 'stroke-width': 3.5 }, bo);
-    el('path', { d: 'M-12 -14 q12 7 24 0', fill: 'none', stroke: '#C9A66B', 'stroke-width': 5 }, bo);
     return L;
   }
 
@@ -550,8 +544,8 @@
     const row = j < 3 ? 0 : 1, col = j % 3;
     return { x: bk.cx + (col - 1) * 72 + (row ? 18 : 0), y: bk.rimY + (row ? 2 : 14) };
   }
-  function nameTag(parent, label) {
-    const g = el('g', null, parent);
+  function nameTag(parent, label, dy) {
+    const g = el('g', dy ? { transform: 'translate(0 ' + dy + ')' } : null, parent);
     const w = Math.max(56, label.length * 11 + 22);
     el('rect', { x: -w / 2, y: 10, width: w, height: 28, rx: 10, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, g);
     txt(g, 0, 31, label, { class: 't-body', 'font-size': 19, 'font-weight': 700 });
@@ -845,11 +839,11 @@
 
     // boatman on the jetty
     const man = boatman(jettyL);
-    man.g.setAttribute('transform', 'translate(392 548) scale(0.92)');
+    man.g.setAttribute('transform', 'translate(398 540) scale(0.92)');
 
     // cargo
     const pool = GS.shuffle(['karung', 'keranjang', 'kantong', 'semangka', 'karung', 'keranjang', 'kantong', 'semangka']);
-    const homes = [[78, 506], [192, 506], [306, 506], [100, 562], [214, 562], [328, 562]];
+    const homes = [[92, 566], [205, 566], [318, 566], [148, 506], [262, 506], [40, 506]];
     const order = GS.shuffle(P.ws.map((kg, j) => j));
     const cargo = P.ws.map((kg, j) => {
       let name = pool[j];
@@ -858,6 +852,7 @@
       const t = makeThing(jettyL, name, artItem(name), fitScale(name, C.size), { drag: true, aria: C.label + ' ' + kg + ' kilo' });
       t.kg = kg; t.rho = C.rho; t.label = C.label; t.idx = j;
       const h = homes[order.indexOf(j)];
+      void h;
       t.home = { x: h[0], y: h[1] };
       t.slot = null;
       t.tagG = kgTag(t.g, kg, dots, -t.bb.h * t.base * 0.42);
@@ -865,8 +860,12 @@
       return t;
     });
     // back row of jetty first
-    cargo.slice().sort((a, b) => a.home.y - b.home.y).forEach(t => jettyL.appendChild(t.g));
-    jettyL.appendChild(man.g);
+    const stackJetty = () => {
+      cargo.filter(c => !c.slot && c.home.y < 540).forEach(c => jettyL.appendChild(c.g));
+      jettyL.appendChild(man.g);
+      cargo.filter(c => !c.slot && c.home.y >= 540).forEach(c => jettyL.appendChild(c.g));
+    };
+    stackJetty();
 
     const load = () => cargo.reduce((a, t) => a + (t.slot ? t.kg : 0), 0);
     function updateBoard(reveal) {
@@ -908,8 +907,7 @@
       if (t.slot) { t.slot.t = null; t.slot = null; }
       jettyL.appendChild(t.g);
       t.shadow.removeAttribute('display');
-      cargo.slice().sort((a, b) => a.home.y - b.home.y).forEach(c => { if (!c.slot && c !== t) jettyL.appendChild(c.g); });
-      jettyL.appendChild(man.g);
+      stackJetty();
       GS.sfx.pop();
       flyTo(t, t.home.x, t.home.y, t.base, 220).then(() => squash(t, false));
       settleRaft();
@@ -1021,7 +1019,7 @@
       hud.mood('happy');
       say(exactLevel ? 'Tepat ' + K + ' kilo! Ayo menyeberang!' : l + ' kilo, paling banyak tanpa lewat ' + K + '!');
       // hop on board at the stern
-      const from = { x: 392, y: 548 }, to = { x: raft.x - RV.hw + 36, y: spr.y - 20 };
+      const from = { x: 398, y: 540 }, to = { x: raft.x - RV.hw + 36, y: spr.y - 20 };
       GS.sfx.boing();
       await T(520, (e, p) => {
         man.g.setAttribute('transform', 'translate(' + f1(GS.lerp(from.x, to.x, e)) + ' ' + f1(GS.lerp(from.y, to.y, e) - Math.sin(Math.PI * p) * 70) + ') scale(0.92)');
@@ -1167,7 +1165,7 @@
     // comparison chart: one row per shape, bars made of marbles
     const rows = shapes.length, rowH = rows > 3 ? 46 : 56;
     const chart = el('g', null, world);
-    const ch = { x: 24, y: 18, w: 600, h: 70 + rows * rowH };
+    const ch = { x: 24, y: 18, w: 600, h: 84 + rows * rowH };
     el('rect', { x: ch.x, y: ch.y, width: ch.w, height: ch.h, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, chart);
     el('rect', { x: ch.x + 11, y: ch.y + 11, width: ch.w - 22, height: ch.h - 22, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, chart);
     txt(chart, ch.x + ch.w / 2, ch.y + 48, 'Muat berapa kelereng?', { class: 't-display', 'font-size': 28 });
@@ -1183,16 +1181,16 @@
 
     // shapes waiting on the jetty
     let xCursor = 40;
-    const gap = (560 - shapes.reduce((a, s) => a + s.W, 0)) / (shapes.length - 1 || 1);
+    const gap = (Math.min(560, 500) - shapes.reduce((a, s) => a + s.W, 0)) / (shapes.length - 1 || 1);
     shapes.forEach((sh, j) => {
       sh.g = el('g', { class: 'pr-tap pr-focus', tabindex: 0, role: 'button', 'aria-label': sh.label }, jetty);
-      sh.home = { x: xCursor + sh.W / 2, y: 452 };
+      sh.home = { x: xCursor + sh.W / 2, y: 428 };
       xCursor += sh.W + gap;
       sh.sel = el('ellipse', { cx: 0, cy: 2, rx: sh.W / 2 + 16, ry: 14, fill: '#1F6FD1', 'fill-opacity': 0.25, stroke: '#1F6FD1', 'stroke-width': 4, display: 'none' }, sh.g);
       sh.shadow = el('ellipse', { cx: 0, cy: 2, rx: sh.W * 0.42, ry: 7, fill: OUT, 'fill-opacity': 0.18 }, sh.g);
       sh.ringEl = el('rect', { class: 'pr-ring', x: -sh.W / 2 - 14, y: -sh.D - 40, width: sh.W + 28, height: sh.D + 84, rx: 14, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-dasharray': '10 7' }, sh.g);
       sh.art = drawShape(sh.g, sh);
-      sh.tag = nameTag(sh.g, sh.label);
+      sh.tag = nameTag(sh.g, sh.label, shapes.length > 3 && j % 2 ? 32 : 0);
       el('rect', { x: -Math.max(40, sh.W / 2 + 10), y: -sh.D - 40, width: Math.max(80, sh.W + 20), height: sh.D + 84, fill: '#fff', 'fill-opacity': 0 }, sh.g);
       sh.x = sh.home.x; sh.y = sh.home.y;
       sh.g.setAttribute('transform', 'translate(' + sh.x + ' ' + sh.y + ')');
@@ -1201,7 +1199,7 @@
       sh.g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     });
     const posShape = (sh, x, y) => { sh.x = x; sh.y = y; sh.g.setAttribute('transform', 'translate(' + f1(x) + ' ' + f1(y) + ')'); };
-    const jar = drawJar(jetty, 560, 588, L9 ? 0 : S.target);
+    const jar = drawJar(jetty, 608, 570, L9 ? 0 : S.target);
 
     let choice = null;
     function choose(sh) {
@@ -1230,11 +1228,11 @@
         const d = jar.__d; jar.__d = null; if (!d) return;
         const tap = Math.hypot(p.x - d.sx, p.y - d.sy) < 12;
         const inTank = p.x > TK.x0 - 30 && p.x < TK.x1 + 30 && p.y < TK.base;
-        if (tap || inTank) addMarble(d.m, { x: tap ? 560 : p.x, y: tap ? 460 : p.y - 40 });
+        if (tap || inTank) addMarble(d.m, { x: tap ? 608 : p.x, y: tap ? 440 : p.y - 40 });
         else { GS.sfx.pop(); d.m.remove(); }
       }
     });
-    jar.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && loadSt) { e.preventDefault(); addMarble(null, { x: 560, y: 460 }); } });
+    jar.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && loadSt) { e.preventDefault(); addMarble(null, { x: 608, y: 440 }); } });
 
     async function addMarble(mEl, from) {
       const st = loadSt;
@@ -1392,7 +1390,7 @@
       const my = gen;
       (function feed() {
         if (my !== gen) return;
-        if (loadSt && !loadSt.busy) addMarble(null, { x: 560, y: 460 });
+        if (loadSt && !loadSt.busy) addMarble(null, { x: 608, y: 440 });
         setTimeout(feed, 60);
       })();
     };

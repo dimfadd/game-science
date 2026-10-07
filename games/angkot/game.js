@@ -359,14 +359,14 @@
     refreshMarks(A);
   }
   function addRoof(A, j, v, owner) {
-    const x = 50 + j * Math.min(32, 280 / Math.max(1, j + 1 > 9 ? j + 1 : 9));
+    const x = 48 + Math.min(j, 8) * 36 + (j > 8 ? 18 : 0);
     const n = G(A.roofL);
     const inner = G(n, { class: 'ak-stomp', style: 'animation-delay:' + (-j * 0.11).toFixed(2) + 's' });
     GS.markup(inner, personMarkup(v, false));
     grumpy(inner);
-    place(n, x, -338, 0.5);
+    place(n, x, -338, 0.62);
     A.roof[j] = { node: n, owner, v };
-    popIn(n, x, -338, 0.5);
+    popIn(n, x, -338, 0.62);
   }
   function popIn(n, x, y, s) {
     return tw(240, e => place(n, x, y, s * Math.max(0.01, e)), 'outBack');
@@ -1319,15 +1319,15 @@
       B.tG.innerHTML = ''; B.oG.innerHTML = ''; B.labels.innerHTML = '';
       for (let k = 0; k < B.tens; k++) {
         const x = 52 + (k % 5) * 48, y = 100 + Math.floor(k / 5) * 44;
-        const m = G(B.tG); place(m, x, y, 0.21); miniAngkot(m, { sw: 8 });
-        T(B.labels, x + 21, y + 10, String((k + 1) * 10), 15, P.sunH, { class: 'gs-num' });
-        if (popLast && k === B.tens - 1 && popLast === 't') popIn(m, x, y, 0.21);
+        const m = G(B.tG); place(m, x, y, 0.23); miniAngkot(m, { sw: 8 });
+        T(B.labels, x + 23, y + 12, String((k + 1) * 10), 15, P.sunH, { class: 'gs-num' });
+        if (popLast && k === B.tens - 1 && popLast === 't') popIn(m, x, y, 0.23);
       }
       for (let k = 0; k < B.ones; k++) {
         const x = 330 + (k % 5) * 44, y = 100 + Math.floor(k / 5) * 44;
-        const m = G(B.oG); place(m, x, y, 0.17); buildBecakIcon(m);
+        const m = G(B.oG); place(m, x, y, 0.19); buildBecakIcon(m);
         T(B.labels, x, y + 10, String(k + 1), 15, P.sunH, { class: 'gs-num' });
-        if (popLast && k === B.ones - 1 && popLast === 'o') popIn(m, x, y, 0.17);
+        if (popLast && k === B.ones - 1 && popLast === 'o') popIn(m, x, y, 0.19);
       }
     };
     B.setDigits = function (t, o) { B.boxT.t.textContent = t; B.boxO.t.textContent = o; };
@@ -1595,7 +1595,7 @@
   }
   async function kirim() {
     const t = tok;
-    const B = mode.board;
+    const B = mode.board, gate = mode.gate;
     if (mode.busy) return;
     if (B.tens + B.ones === 0) { GS.sfx.oops(); GS.say('Pilih dulu angkot dan becaknya.'); return; }
     mode.busy = true; B.locked = true; mode.btnSend.disabled = true;
@@ -1635,7 +1635,8 @@
       while (counted < veh.length && veh[counted].front - 40 + dx >= gateX) {
         total += veh[counted].val;
         counted++;
-        mode.gate.num.textContent = String(total);
+        gate.num.textContent = String(total);
+        if (!alive(t)) return;
         GS.sfx.count(Math.min(24, counted + 2));
         if (veh[counted - 1].val === 10) { lastSpoken = cap(words(total)); GS.say(lastSpoken + '!'); }
       }
