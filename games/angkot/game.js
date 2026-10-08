@@ -1314,7 +1314,8 @@
     if (rounds.length === 1) drawPips(total, 'angkot');
     const maxG = Math.max.apply(null, waves.map(w => w.groups.length));
     const big = maxG <= 3;
-    const mul = TK ? (big ? 1.12 : 1.22) : 1;
+    const allSingle = waves.every(w => w.groups.every(g => g.n === 1));
+    const mul = TK ? (allSingle ? 1.4 : big ? 1.12 : 1.22) : 1;
     slots = (big ? SLOTS_BIG : SLOTS_ALL).map(s => Object.assign({}, s, { occ: null, s: s.s * mul }));
     btnDown = mkBtn('Turunkan', true, () => sendBack(), GS.ICON.retry);
     btnDown.hidden = true;
@@ -1824,11 +1825,11 @@
     const sizes = { train: 52, bus: 50, angkot: 46, becak: 34, cap: 52 };
     let cx = x;
     const nodes = [];
-    list.forEach((v, k) => {
+    list.forEach((v, j) => {
       const w = (sizes[v.kind] || 40) * (k || 1);
-      if (k && list[k - 1].kind !== v.kind) cx += 10;
+      if (j && list[j - 1].kind !== v.kind) cx += 10;
       const m = iconFor(g, v.kind, cx, y, w, v.kind === 'cap' ? { cap: v.cap, full: true } : { full: true });
-      if (faded && faded(k)) m.setAttribute('opacity', '0.3');
+      if (faded && faded(j)) m.setAttribute('opacity', '0.3');
       nodes.push(m);
       cx += w + 4;
     });

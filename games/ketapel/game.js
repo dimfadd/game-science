@@ -17,8 +17,12 @@
   const PULL_MAX = 1.6;              // m (= 160 viewBox units of pouch travel)
   const PULL_MIN = 0.15;
   const ANG_MIN = 10, ANG_MAX = 78;
+  // Per-level geometry. FY is the field ground (patok, targets). In k4 the field is a raised
+  // terrace level with the pouch, so launch height ~ landing height and range = v0^2 sin2a / g.
+  let FY = GY;
+  const GEO = { LH: LAUNCH_H, drop: 0, kmul: 1, xmax: 12.9, z: 1 };
   const sx = m => X0 + m * 100;
-  const sy = m => GY - m * 100;
+  const sy = m => FY - m * 100;
 
   /* ---------------- projectiles ---------------- */
   // m is relative mass (kelereng = 1). c is the linear drag coefficient (tuned below).
@@ -66,9 +70,10 @@
    */
   function simulate(world, projKey, pull, deg) {
     const P = PROJ[projKey];
-    const v0 = pull * Math.sqrt(K / P.m);
+    const v0 = pull * Math.sqrt(K * (world.kmul || 1) / P.m);
     const a = deg * Math.PI / 180;
-    const s = { x: 0, y: LAUNCH_H, vx: v0 * Math.cos(a), vy: v0 * Math.sin(a) };
+    const drop = world.drop || 0, xmax = world.xmax || 12.9;
+    const s = { x: 0, y: world.LH != null ? world.LH : LAUNCH_H, vx: v0 * Math.cos(a), vy: v0 * Math.sin(a) };
     const b = P.c / P.m;
     const r = P.r;
     const gone = {};
@@ -111,7 +116,7 @@
         else if (!hitSolid) { hitSolid = bx.kind || 'solid'; events.push({ step: i, type: 'bonk', kind: hitSolid }); }
         respond(s, c, bx.e != null ? bx.e : P.e, 0.3);
       }
-      if (s.y < r) { respond(s, { nx: 0, ny: 1, pen: r - s.y }, P.e, 0.3); surf = true; }
+      if (s.y < r - drop) { respond(s, { nx: 0, ny: 1, pen: r - drop - s.y }, P.e, 0.3); surf = true; }
       if (surf) {
         if (!landing) { landing = { x: s.x, y: s.y - r, step: i }; events.push({ step: i, type: 'land', x: s.x }); }
         if (Math.abs(s.vy) < 0.6) {
@@ -122,7 +127,7 @@
       }
       pts.push(s.x, s.y);
       if (surf && s.vy === 0 && Math.abs(s.vx) < 0.03) break;
-      if (s.x > 12.9 || s.x < -1.6 || s.y < -1) { out = true; break; }
+      if (s.x > xmax || s.x < -1.6 || s.y < -1 - drop) { out = true; break; }
     }
     return { pts, events, landing, caught, out, hitSolid, steps: Math.min(i, MAX_STEPS), v0, proj: projKey, pull, deg };
   }
@@ -144,21 +149,69 @@
 
   /* ---------------- level definitions ---------------- */
   const R = GS.rand;
-  const LEVELS = [
-    { lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [3] }), say: 'Robohkan kalengnya! Ketuk dulu patok tebakanmu.' },
-    { lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [6] }), say: 'Kalengnya lebih jauh. Ketuk patok tebakanmu dulu.' },
-    { lock: true, proj: ['kelereng'], make: () => ({ cans: [4, 8] }), say: 'Dua kaleng! Tarik pendek untuk dekat, panjang untuk jauh.' },
-    { lock: true, proj: ['kelereng'], make: () => ({ cans: [R(3, 9)] }), say: 'Sekarang tanpa titik pemandu. Kamu pasti bisa!' },
-    { lock: false, proj: ['kelereng'], make: () => ({ cans: [R(5, 7)], bush: R(2, 3) + 0.5 }), say: 'Arah tarikan bisa diubah. Lewati pohon kecil itu!' },
-    { lock: false, proj: ['kelereng'], make: () => mangoSetup(2), say: 'Jatuhkan mangga ke keranjang! Ketuk patok tebakanmu dulu.' },
-    { lock: false, proj: ['kelereng', 'batu'], predictStages: true, staged: true, make: () => { const p = R(4, 5); return { cans: [p, p] }; }, say: 'Kelereng dulu, lalu batu. Kalengnya sama.' },
-    { lock: false, proj: ['kertas'], make: () => ({ cans: [R(3, 5)] }), say: 'Ini bola kertas. Ringan, tapi ditahan udara.' },
-    { lock: false, proj: ['kelereng'], make: () => ({ cans: [R(2, 3), R(5, 6), R(8, 9)] }), say: 'Tiga kaleng berjajar. Robohkan satu per satu!' },
-    { lock: false, inOrder: true, proj: ['batu', 'kertas', 'kelereng'], make: () => Object.assign(mangoSetup(1, true), { cans: [R(4, 5), R(2, 3)] }), say: 'Tantangan! Batu, lalu bola kertas, lalu kelereng.' }
-  ];
-  function mangoSetup(n, far) {
+  const TIER = (GS.tier && GS.tier()) || 'k1';
+  const half = () => R(2, 7) + 0.5;
+  const distinct = (lo, hi, n, gap) => { for (let t = 0; t < 200; t++) { const a = []; while (a.length < n) a.push(R(lo, hi)); a.sort((p, q) => p - q); if (a.every((v, k) => !k || v - a[k - 1] >= gap)) return a; } return [lo, lo + gap, lo + 2 * gap].slice(0, n); };
+  // Free flight range in the current level geometry (same simulator as every shot).
+  const rangeNow = (proj, pull, deg) => { const r = simulate(geoWorld([]), proj, pull, deg); return r.landing ? r.landing.x : 99; };
+  const bestRange = (proj, pull) => { let b = 0; for (let d = 12; d <= 70; d++) b = Math.max(b, rangeNow(proj, pull, d)); return b; };
+  const NOTCH = 0.75; // k4: "tarikan 1" = 0.75 m of rubber stretch
+  /* Level lists per grade tier (docs/KURIKULUM.md). Every level: say = first spoken line. */
+  const TIERS = {
+    tk: [
+      { marks: 'tk', lock: true, guide: true, hint: true, proj: ['kelereng'], make: () => ({ cans: [2] }), say: 'Tarik sedikit saja. Kalengnya dekat!' },
+      { marks: 'tk', lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [8] }), say: 'Kalengnya jauh. Tarik yang kuat!' },
+      { marks: 'tk', lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [R(1, 2) * 2, R(4, 5) * 2] }), say: 'Dua kaleng: dekat dan jauh.' },
+      { marks: 'tk', lock: true, proj: ['kelereng'], make: () => ({ cans: [R(2, 4) * 2] }), say: 'Sekarang tanpa titik bantu. Ayo!' },
+      { marks: 'tk', lock: true, proj: ['kelereng'], make: () => mangoSetup(1, false, { x: R(64, 70) / 10, y: R(18, 21) / 10 }), say: 'Jatuhkan mangga ke keranjang!' },
+      { marks: 'tk', lock: true, proj: ['kelereng'], make: () => ({ cans: [2, 6, 10] }), say: 'Tiga kaleng! Robohkan semua.' }
+    ],
+    k1: [
+      { lock: true, guide: true, hint: true, proj: ['kelereng'], make: () => ({ cans: [3] }), say: 'Robohkan kalengnya! Ketuk dulu patok tebakanmu.' },
+      { lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [6] }), say: 'Kalengnya lebih jauh. Ketuk patok tebakanmu dulu.' },
+      { lock: true, proj: ['kelereng'], make: () => ({ cans: [4, 8] }), say: 'Dua kaleng! Tarik pendek untuk dekat, panjang untuk jauh.' },
+      { lock: true, proj: ['kelereng'], make: () => ({ cans: [R(3, 9)] }), say: 'Sekarang tanpa titik pemandu. Kamu pasti bisa!' },
+      { lock: true, predictAll: true, proj: ['kelereng'], make: () => ({ cans: [R(3, 8)] }), say: 'Setiap tembakan, tebak dulu. Lihat selisihnya!' },
+      { lock: true, proj: ['kelereng'], make: () => ({ cans: [R(2, 3), R(5, 6), R(8, 9)] }), say: 'Tiga kaleng berurutan. Mulai dari yang dekat!' },
+      { lock: true, proj: ['kelereng'], make: () => ({ cans: distinct(2, 9, 2, 3) }), say: 'Kalengnya di patok acak. Bidik, ya!' },
+      { lock: true, proj: ['kelereng'], make: () => ({ cans: distinct(2, 9, 3, 2) }), say: 'Tantangan! Tiga kaleng, sesedikit mungkin tembakan.' }
+    ],
+    k2: [
+      { hint: true, proj: ['kelereng'], make: () => ({ cans: [R(5, 7)], bush: { x: R(2, 3) + 0.5 } }), say: 'Arah tarikan bisa diubah. Lewati pohon kecil itu!' },
+      { proj: ['kelereng'], make: () => mangoSetup(1), say: 'Ada mangga di dahan. Jatuhkan ke keranjang!' },
+      { proj: ['kelereng'], make: () => mangoSetup(2), say: 'Dua mangga! Atur arah dan tarikan.' },
+      { marks: 'half', proj: ['kelereng'], make: () => ({ cans: [half()] }), say: 'Kalengnya di tengah patok: setengah meter!' },
+      { proj: ['kelereng'], make: () => { const x = R(3, 4) + 0.5; return { bush: { x, tall: true }, cans: [x + 1.5] }; }, say: 'Kalengnya di balik pohon. Lempar tinggi!' },
+      { n: 15, zoom: 0.72, kmul: 1.45, proj: ['kelereng'], make: () => ({ cans: [R(4, 7), R(11, 14)] }), say: 'Karet dobel! Sekarang sampai 15 meter.' },
+      { proj: ['kelereng'], make: () => Object.assign(mangoSetup(1), { cans: [R(5, 6)], bush: { x: 2.5 } }), say: 'Campuran: semak, kaleng, lalu mangga.' },
+      { proj: ['kelereng'], make: () => ({ bush: { x: 3.5, tall: true }, cans: [R(5, 6), R(8, 9)] }), say: 'Tantangan! Pohon tinggi dan dua kaleng.' }
+    ],
+    k3: [
+      { proj: ['kelereng', 'batu'], predictStages: true, staged: true, make: () => { const p = R(4, 5); return { cans: [p, p] }; }, say: 'Kelereng dulu, lalu batu. Kalengnya sama.' },
+      { proj: ['kertas'], make: () => ({ cans: [R(3, 5)] }), say: 'Ini bola kertas. Ringan, tapi ditahan udara.' },
+      { proj: ['batu'], choose: ['batu', 'kertas', 'kelereng'], make: () => ({ cans: [R(8, 9)] }), say: 'Kalengnya jauh. Ketuk kartu, pilih yang bisa sampai!' },
+      { proj: ['batu', 'kertas', 'kelereng'], inOrder: true, make: () => ({ cans: [R(4, 5), R(2, 3), R(8, 9)] }), say: 'Tiga kaleng, tiga proyektil berbeda.' },
+      { lock: true, proj: ['batu'], demo: { proj: 'kelereng' }, make: () => ({}), say: 'Lihat kelereng dulu. Lalu batu, tarikan sama.' },
+      { marks: 'half', proj: ['batu'], make: () => ({ cans: [R(2, 4) + 0.5] }), say: 'Pakai batu. Kalengnya di setengah meter!' },
+      { proj: ['kertas', 'batu'], inOrder: true, make: () => ({ cans: [R(3, 4), 5.5], bush: { x: 2 } }), say: 'Bola kertas dulu, lalu batu.' },
+      { proj: ['batu', 'kertas', 'kelereng'], inOrder: true, make: () => Object.assign(mangoSetup(1, true), { cans: [R(4, 5), R(2, 3)] }), say: 'Tantangan! Batu, lalu bola kertas, lalu kelereng.' }
+    ],
+    k4: [
+      { terrace: true, showDeg: true, hint: true, fixedPull: 1.5, table: 'deg', proj: ['kelereng'], make: () => ({ mats: [rangeNow('kelereng', 1.5, 45) - 0.05] }), say: 'Tarikan selalu sama. Sudut mana paling jauh?' },
+      { terrace: true, lock: true, notch: NOTCH, table: 'pull', proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', NOTCH, 45), rangeNow('kelereng', 2 * NOTCH, 45)] }), say: 'Coba tarikan 1 dan tarikan 2. Catat jaraknya!' },
+      { terrace: true, lock: true, notch: NOTCH, table: 'pull', prefill: [1, 2], proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', 1.5 * NOTCH, 45)] }), say: 'Pakai tabelmu. Tarikan berapa untuk kaleng ini?' },
+      { terrace: true, showDeg: true, table: 'deg', staged: true, angles: [[10, 40], [50, 78]], proj: ['kelereng'], make: () => { const p = R(5, 7); return { cans: [p, p] }; }, say: 'Satu kaleng: sudut rendah dulu, lalu sudut tinggi.' },
+      { terrace: true, showDeg: true, proj: ['kelereng'], make: () => mangoSetup(1, true, { x: R(72, 80) / 10, y: R(30, 34) / 10 }), say: 'Mangga tinggi dan jauh. Atur sudut dan tarikan!' },
+      { terrace: true, showDeg: true, table: 'deg', proj: ['kertas'], make: () => ({ mats: [bestRange('kertas', PULL_MAX) - 0.3] }), say: 'Bola kertas ditahan udara. Cari sudut terbaik!' },
+      { terrace: true, showDeg: true, proj: ['batu', 'kertas'], inOrder: true, make: () => ({ cans: [R(5, 6)], mats: [R(3, 4) + 0.5], bush: { x: 2 } }), say: 'Batu dulu, lalu bola kertas. Lewati semaknya!' },
+      { terrace: true, showDeg: true, proj: ['batu', 'kertas', 'kelereng'], inOrder: true, make: () => Object.assign(mangoSetup(1, true, { x: R(78, 84) / 10, y: R(28, 32) / 10 }), { cans: [R(4, 5)], mats: [R(2, 3) + 0.5] }), say: 'Tantangan! Batu, bola kertas, lalu kelereng.' }
+    ]
+  };
+  const LEVELS = TIERS[TIER] || TIERS.k1;
+  function mangoSetup(n, far, one) {
     const mangoes = [];
-    if (n === 1) mangoes.push({ x: (R(78, 84)) / 10, y: R(24, 28) / 10 });
+    if (one) mangoes.push(one);
+    else if (n === 1) mangoes.push({ x: (R(78, 84)) / 10, y: R(24, 28) / 10 });
     else { mangoes.push({ x: R(63, 67) / 10, y: R(22, 26) / 10 }); mangoes.push({ x: R(72, 76) / 10, y: R(26, 30) / 10 }); }
     const last = mangoes[mangoes.length - 1].x;
     return { mangoes, trunk: last + (far ? 0.8 : 0.75) };
@@ -182,6 +235,7 @@
     decorTree(bg, 46, 1.05); decorTree(bg, 1238, 0.9);
   } catch (e) { fallbackScene(bg); }
   const world = GS.el('g', { class: 'world' }, svg);
+  const uiRoot = GS.el('g', { class: 'ui' }, svg); // unscaled UI (projectile card, shot table)
   const fireBtn = document.createElement('button');
   fireBtn.type = 'button'; fireBtn.className = 'gs-action'; fireBtn.textContent = 'Tembak!'; fireBtn.hidden = true;
   fireBtn.addEventListener('click', () => { GS.sfx.click(); keyFire(); });
@@ -217,22 +271,37 @@
   }
   function stopAll() { movers.length = 0; if (rafId) cancelAnimationFrame(rafId); rafId = 0; }
 
+  function geoWorld(targets, solids, canopies) {
+    return { targets, solids: (GEO.box ? [GEO.box] : []).concat(solids || []), canopies: canopies || [], LH: GEO.LH, drop: GEO.drop, kmul: GEO.kmul, xmax: GEO.xmax };
+  }
   function buildLevel(i) {
     token++;
     if (S) S.timers.forEach(clearTimeout);
     stopAll();
-    world.innerHTML = '';
+    world.innerHTML = ''; uiRoot.innerHTML = '';
     world.classList.remove('gs-shake');
     const L = LEVELS[i];
+    // geometry first: make() may measure ranges in it
+    FY = L.terrace ? GY - 126 : GY;
+    GEO.LH = (GY - REST.y) / 100 - (GY - FY) / 100;
+    GEO.drop = (GY - FY) / 100;
+    GEO.box = L.terrace ? { x0: 0.3, x1: 40, y0: -GEO.drop - 1, y1: 0, kind: 'terrace' } : null;
+    GEO.kmul = L.kmul || 1;
+    GEO.z = L.zoom || 1;
+    GEO.xmax = (L.n || 10) + 2.9;
+    world.setAttribute('transform', GEO.z === 1 ? '' : `translate(0 ${GY * (1 - GEO.z)}) scale(${GEO.z})`);
+    S = null;
     const setup = L.make();
     S = {
       i, L, timers: [], shots: 0, hits: 0, phase: 'intro', won: false,
       targets: [], solids: [], canopies: [], trails: [], predicted: null, predictedProj: null,
-      pull: 0, deg: 45, kbd: false, projKey: L.proj[0], lastFlight: null
+      pull: 0, deg: 45, kbd: false, projKey: L.proj[0], lastFlight: null, rows: [], angRange: null
     };
     // layers (back to front)
     const Ly = S.layers = {};
     ['far', 'patok', 'trails', 'basketBack', 'targets', 'falling', 'basketFront', 'slingBack', 'shot', 'slingFront', 'fx', 'ui', 'hits'].forEach(n => { Ly[n] = GS.el('g', { class: 'L-' + n }, world); });
+    if (L.terrace) drawTerrace();
+    buildMarks(L);
     drawPatok();
     // targets
     let id = 0;
@@ -244,57 +313,114 @@
       if (crateXs.indexOf(x) < 0) { crateXs.push(x); drawCrate(x); S.solids.push(Object.assign(crateBox(x), { kind: 'crate' })); }
       if (t.active) drawCanStack(t, false);
     });
-    if (setup.bush != null) drawBush(setup.bush);
-    if (setup.mangoes) drawMangoTree(setup, id);
+    (setup.mats || []).forEach(x => { const t = { id: id++, kind: 'mat', x, stage: 0, active: true, hit: false }; S.targets.push(t); drawMat(t); });
+    if (setup.bush) drawBush(setup.bush);
+    if (setup.mangoes) { drawMangoTree(setup, id); id += setup.mangoes.length; }
+    S.nextId = id;
     S.order = L.inOrder ? S.targets.slice() : S.targets.slice().sort((a, b) => (a.stage - b.stage) || (a.x - b.x));
     drawSlingshot();
     drawPicker();
+    if (L.table) drawTable();
     setupInput();
     S.projKey = currentProj();
+    S.angRange = L.angles ? L.angles[0] : null;
+    if (L.fixedPull) S.pull = L.fixedPull;
     loadProjectile(false);
     hud.mood('happy');
     GS.say(L.say);
-    startPredictOrAim(true);
+    if (L.demo) { S.phase = 'demo'; later(runDemo, 2600); }
+    else startPredictOrAim(true);
     updateMarker();
   }
-
-  function currentProj() { const p = S.L.proj; return p[Math.min(S.hits, p.length - 1)]; }
+  function currentProj() { if (S.chosen) return S.chosen; const p = S.L.proj; return p[Math.min(S.hits, p.length - 1)]; }
   function aliveTargets() { return S.targets.filter(t => t.active && !t.hit); }
   function allHit() { return S.targets.every(t => t.hit); }
   function needPredict() {
     if (S.shots === 0 && S.predictedProj == null) return true;
+    if (S.L.predictAll) return true;
     return !!(S.L.predictStages && S.predictedProj !== S.projKey);
   }
 
   /* ---------------- drawing: patok number line ---------------- */
+  // The number line: patok marks in meters. tk: 5 dotted patok, one every 2 m.
+  function buildMarks(L) {
+    const m = [];
+    const kind = L.marks || 'std';
+    if (kind === 'tk') for (let n = 1; n <= 5; n++) m.push({ x: 2 * n, n, plate: true });
+    else if (kind === 'half') for (let k = 1; k <= 20; k++) m.push({ x: k / 2, n: k / 2, plate: k % 2 === 0 });
+    else for (let n = 1; n <= (L.n || 10); n++) m.push({ x: n, n, plate: true });
+    S.marks = m; S.markKind = kind; S.markStep = kind === 'tk' ? 2 : kind === 'half' ? 0.5 : 1;
+  }
+  const fmt = v => String(Math.round(v * 10) / 10).replace('.', ',');
+  function markAt(xm) {
+    const m = S.marks, st = S.markStep;
+    if (xm < m[0].x - st / 2) return null;
+    if (xm > m[m.length - 1].x + st / 2) return 'far';
+    let best = m[0];
+    m.forEach(k => { if (Math.abs(k.x - xm) < Math.abs(best.x - xm)) best = k; });
+    return best;
+  }
+  function markWords(k) { return S.markKind === 'half' ? fmt(k.x) + ' meter' : 'patok ' + k.n; }
+  function lastWords() { const k = S.marks[S.marks.length - 1]; return S.markKind === 'half' ? fmt(k.x) + ' meter' : 'patok ' + k.n; }
+  function dotsMarkup(n, cx, cy, r) {
+    let out = '';
+    const per = n > 3 ? Math.ceil(n / 2) : n;
+    for (let k = 0; k < n; k++) {
+      const row = k < per ? 0 : 1, col = row ? k - per : k, cnt = row ? n - per : per;
+      out += `<circle cx="${cx + (col - (cnt - 1) / 2) * r * 2.6}" cy="${cy + row * r * 2.6}" r="${r}" fill="#F28C28" stroke="${LINE}" stroke-width="1.5"/>`;
+    }
+    return out;
+  }
   function drawPatok() {
     const g = S.layers.patok;
+    const tk = S.markKind === 'tk';
+    const last = S.marks[S.marks.length - 1].x;
     // a faint rope line along the ground marks the number line
-    GS.el('path', { d: `M${X0} ${GY + 30}H${sx(10)}`, stroke: LINE, 'stroke-width': 3, 'stroke-dasharray': '2 10', 'stroke-linecap': 'round', opacity: 0.35 }, g);
+    GS.el('path', { d: `M${X0} ${FY + 30}H${sx(last)}`, stroke: LINE, 'stroke-width': 3, 'stroke-dasharray': '2 10', 'stroke-linecap': 'round', opacity: 0.35 }, g);
     S.plates = [];
-    for (let n = 1; n <= 10; n++) {
-      const x = sx(n);
+    S.marks.forEach(mk => {
+      const x = sx(mk.x);
       const st = GS.el('g', null, g);
-      GS.el('ellipse', { cx: x + 2, cy: GY + 2, rx: 14, ry: 4, fill: LINE, opacity: 0.18 }, st);
-      GS.el('path', { d: `M${x - 7} ${GY + 4}V${GY - 34}L${x} ${GY - 44}L${x + 7} ${GY - 34}V${GY + 4}Z`, fill: '#A8673A', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, st);
-      GS.el('path', { d: `M${x + 2} ${GY - 32}V${GY + 2}`, stroke: '#7E4A27', 'stroke-width': 4, 'stroke-linecap': 'round' }, st);
-      GS.el('path', { d: `M${x - 3} ${GY - 34}V${GY - 6}`, stroke: '#C98552', 'stroke-width': 2, 'stroke-linecap': 'round' }, st);
+      const big = mk.plate;
+      const hh = big ? 44 : 26;
+      GS.el('ellipse', { cx: x + 2, cy: FY + 2, rx: big ? 14 : 9, ry: 4, fill: LINE, opacity: 0.18 }, st);
+      GS.el('path', { d: `M${x - (big ? 7 : 5)} ${FY + 4}V${FY - hh + 10}L${x} ${FY - hh}L${x + (big ? 7 : 5)} ${FY - hh + 10}V${FY + 4}Z`, fill: '#A8673A', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, st);
+      if (big) {
+        GS.el('path', { d: `M${x + 2} ${FY - 32}V${FY + 2}`, stroke: '#7E4A27', 'stroke-width': 4, 'stroke-linecap': 'round' }, st);
+        GS.el('path', { d: `M${x - 3} ${FY - 34}V${FY - 6}`, stroke: '#C98552', 'stroke-width': 2, 'stroke-linecap': 'round' }, st);
+      }
       // number plate in front, below the ground line so crates never hide it
       const pl = GS.el('g', null, S.layers.fx);
       const inner = GS.el('g', null, pl);
-      GS.el('rect', { x: x - 21, y: GY + 14, width: 42, height: 34, rx: 10, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3 }, inner);
-      const t = GS.el('text', { x, y: GY + 40, 'text-anchor': 'middle', 'font-size': 24, 'font-weight': 600, fill: '#2B1D14', class: 'gs-num' }, inner);
-      t.textContent = n;
+      if (big) {
+        const w = tk ? 66 : 42, h = tk ? 64 : 34;
+        GS.el('rect', { x: x - w / 2, y: FY + 14, width: w, height: h, rx: 10, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3 }, inner);
+        const t = GS.el('text', { x, y: FY + 40, 'text-anchor': 'middle', 'font-size': tk ? 26 : 24, 'font-weight': 600, fill: '#2B1D14', class: 'gs-num' }, inner);
+        t.textContent = mk.n;
+        if (tk) GS.markup(inner, dotsMarkup(mk.n, x, FY + 54, 4.5));
+      } else {
+        GS.el('rect', { x: x - 17, y: FY + 18, width: 34, height: 24, rx: 8, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 2.5 }, inner);
+        const t = GS.el('text', { x, y: FY + 36, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, inner);
+        t.textContent = fmt(mk.x);
+      }
       S.plates.push(inner);
-    }
+    });
+    if (tk) return;
     // "0" under the slingshot so the line reads from zero
-    const z = GS.el('text', { x: X0, y: GY + 40, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
+    const z = GS.el('text', { x: X0, y: FY + 40, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
     z.textContent = '0';
-    const m = GS.el('text', { x: sx(10) + 40, y: GY + 40, 'text-anchor': 'start', 'font-size': 18, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
+    const m = GS.el('text', { x: sx(last) + 40, y: FY + 40, 'text-anchor': 'start', 'font-size': 18, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
     m.textContent = 'meter';
   }
-
-  /* ---------------- drawing: props ---------------- */
+  // k4: a raised kebun terrace at pouch height (stone wall front, grass top).
+  function drawTerrace() {
+    const g = S.layers.far, x0 = sx(0.3);
+    GS.el('rect', { x: x0 + 6, y: FY + 6, width: 1800, height: GY - FY + 4, fill: LINE, opacity: 0.18 }, g);
+    GS.el('rect', { x: x0, y: FY, width: 1800, height: GY - FY + 2, fill: '#C9955A', stroke: LINE, 'stroke-width': 3.5 }, g);
+    for (let r = 0; r < 4; r++) for (let x = x0 + 14 + (r % 2) * 30; x < 1330; x += 62) GS.el('ellipse', { cx: x, cy: FY + 30 + r * 28, rx: 24, ry: 10, fill: r % 2 ? '#B5844E' : '#D9A86A', opacity: 0.85 }, g);
+    GS.el('rect', { x: x0 - 4, y: FY - 8, width: 1810, height: 16, rx: 8, fill: '#7CC26B', stroke: LINE, 'stroke-width': 3 }, g);
+    GS.el('path', { d: `M${x0 + 6} ${FY - 3}H1290`, stroke: '#A6D99A', 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
+  }
   function shadow(parent, x, y, rx) { GS.el('ellipse', { cx: x, cy: y, rx, ry: Math.max(4, rx * 0.18), fill: LINE, opacity: 0.18 }, parent); }
   function stick(parent, d, w, col) {
     col = col || { base: '#A8673A', hl: '#C98552', sh: '#7E4A27' };
@@ -306,8 +432,8 @@
   }
   function drawCrate(xm) {
     const x = sx(xm), g = GS.el('g', null, S.layers.targets);
-    shadow(g, x + 4, GY + 2, 52);
-    const w = 88, h = 40, y = GY - h;
+    shadow(g, x + 4, FY + 2, 52);
+    const w = 88, h = 40, y = FY - h;
     GS.el('rect', { x: x - w / 2, y, width: w, height: h, rx: 5, fill: '#A8673A', stroke: LINE, 'stroke-width': 3.5 }, g);
     GS.el('rect', { x: x - w / 2 + 4, y: y + 3, width: w - 8, height: 6, rx: 3, fill: '#C98552' }, g);
     GS.el('rect', { x: x - w / 2 + 4, y: y + h - 9, width: w - 8, height: 6, rx: 3, fill: '#7E4A27' }, g);
@@ -340,7 +466,7 @@
       <ellipse cx="-5" cy="-25" rx="6" ry="1.4" fill="#fff" opacity="0.8"/>`;
   }
   function drawCanStack(t, drop) {
-    const x = sx(t.x), base = GY - 40;
+    const x = sx(t.x), base = FY - 40;
     const g = GS.el('g', { class: drop ? 'kt-pop' : null }, S.layers.targets);
     t.g = g;
     const pos = [[x - 21, base - 24], [x + 21, base - 24], [x, base - 72]];
@@ -351,24 +477,36 @@
       return { el, x: p[0], y: p[1], a: 0 };
     });
   }
-  function drawBush(xm) {
+  function drawBush(o) {
+    const xm = o.x, tall = !!o.tall;
+    const cyM = tall ? 2.9 : 2.0, rM = tall ? 0.85 : 0.72, k = rM / 0.72, trunkTop = tall ? 2.4 : 1.45;
     const x = sx(xm), g = GS.el('g', null, S.layers.targets);
-    shadow(g, x + 6, GY + 2, 50);
-    stick(g, `M${x} ${GY + 2}C${x - 2} ${GY - 50} ${x + 3} ${GY - 100} ${x} ${GY - 140}`, 18);
-    const cy = sy(2.0), leaves = GS.el('g', { class: 'kt-leaf' }, g);
-    const blobs = [[0, 0, 62], [-46, 18, 40], [44, 16, 42], [-22, -40, 40], [26, -38, 40]];
+    shadow(g, x + 6, FY + 2, 50 * k);
+    stick(g, `M${x} ${FY + 2}C${x - 2} ${FY - 50} ${x + 3} ${FY - trunkTop * 70} ${x} ${sy(trunkTop)}`, tall ? 22 : 18);
+    const cy = sy(cyM), leaves = GS.el('g', { class: 'kt-leaf' }, g);
+    const blobs = [[0, 0, 62], [-46, 18, 40], [44, 16, 42], [-22, -40, 40], [26, -38, 40]].map(b => [b[0] * k, b[1] * k, b[2] * k]);
     blobs.forEach(b => GS.el('circle', { cx: x + b[0], cy: cy + b[1], r: b[2] + 3.5, fill: LINE }, leaves));
     blobs.forEach(b => GS.el('circle', { cx: x + b[0], cy: cy + b[1], r: b[2], fill: '#4DAA57' }, leaves));
-    GS.el('ellipse', { cx: x + 26, cy: cy + 34, rx: 46, ry: 18, fill: '#357F40', opacity: 0.8 }, leaves);
-    GS.el('ellipse', { cx: x - 26, cy: cy - 36, rx: 26, ry: 14, fill: '#86CC8C' }, leaves);
-    GS.el('ellipse', { cx: x - 44, cy: cy + 6, rx: 14, ry: 9, fill: '#86CC8C', opacity: 0.8 }, leaves);
+    GS.el('ellipse', { cx: x + 26 * k, cy: cy + 34 * k, rx: 46 * k, ry: 18 * k, fill: '#357F40', opacity: 0.8 }, leaves);
+    GS.el('ellipse', { cx: x - 26 * k, cy: cy - 36 * k, rx: 26 * k, ry: 14 * k, fill: '#86CC8C' }, leaves);
+    GS.el('ellipse', { cx: x - 44 * k, cy: cy + 6 * k, rx: 14 * k, ry: 9 * k, fill: '#86CC8C', opacity: 0.8 }, leaves);
     // a few small jambu fruits for charm
-    [[-30, 6], [20, 20], [40, -12]].forEach(p => GS.el('circle', { cx: x + p[0], cy: cy + p[1], r: 6, fill: '#F59AB0', stroke: LINE, 'stroke-width': 2 }, leaves));
+    [[-30, 6], [20, 20], [40, -12]].forEach(p => GS.el('circle', { cx: x + p[0] * k, cy: cy + p[1] * k, r: 6, fill: '#F59AB0', stroke: LINE, 'stroke-width': 2 }, leaves));
     S.bushG = leaves;
-    S.canopies.push({ x: xm, y: 2.0, r: 0.72 });
-    S.solids.push({ x0: xm - 0.12, x1: xm + 0.12, y0: 0, y1: 1.45, kind: 'trunk', e: 0.2 });
+    S.canopies.push({ x: xm, y: cyM, r: rM });
+    S.solids.push({ x0: xm - 0.12, x1: xm + 0.12, y0: 0, y1: trunkTop, kind: 'trunk', e: 0.2 });
   }
-
+  // Woven tampah lying on the ground: a flat target (no tall stack to catch long shots).
+  function drawMat(t) {
+    const x = sx(t.x), g = GS.el('g', { transform: `translate(${x} ${FY})` }, S.layers.targets);
+    const inner = GS.el('g', null, g);
+    t.g = g;
+    shadow(inner, 3, 2, 40);
+    GS.el('ellipse', { cx: 0, cy: -6, rx: 38, ry: 11, fill: '#C98B4E', stroke: LINE, 'stroke-width': 3 }, inner);
+    GS.el('ellipse', { cx: 0, cy: -8, rx: 31, ry: 7.5, fill: '#E6C68D', stroke: '#9C6B2E', 'stroke-width': 1.6 }, inner);
+    GS.el('ellipse', { cx: 0, cy: -8, rx: 31, ry: 7.5, fill: 'url(#ktWeave)' }, inner);
+    GS.el('path', { d: 'M-24 -11Q-10 -15 6 -14', stroke: '#F2DCB0', 'stroke-width': 3, 'stroke-linecap': 'round', fill: 'none' }, inner);
+  }
   function mangoMarkup() {
     try {
       if (art.item) return { m: art.item('mangga', { shadow: false }), lib: true };
@@ -385,12 +523,12 @@
     const tx = sx(setup.trunk);
     const far = S.layers.far;
     const g = GS.el('g', null, far);
-    shadow(g, tx + 10, GY + 3, 90);
+    shadow(g, tx + 10, FY + 3, 90);
     const topY = sy(3.6);
-    stick(g, `M${tx - 4} ${GY + 4}C${tx + 4} ${GY - 120} ${tx - 10} ${GY - 220} ${tx} ${topY}`, 40);
+    stick(g, `M${tx - 4} ${FY + 4}C${tx + 4} ${FY - 120} ${tx - 10} ${FY - 220} ${tx} ${topY}`, 40);
     // roots
-    stick(g, `M${tx - 16} ${GY - 10}Q${tx - 30} ${GY - 2} ${tx - 42} ${GY + 2}`, 10);
-    stick(g, `M${tx + 14} ${GY - 10}Q${tx + 28} ${GY - 2} ${tx + 40} ${GY + 2}`, 10);
+    stick(g, `M${tx - 16} ${FY - 10}Q${tx - 30} ${FY - 2} ${tx - 42} ${FY + 2}`, 10);
+    stick(g, `M${tx + 14} ${FY - 10}Q${tx + 28} ${FY - 2} ${tx + 40} ${FY + 2}`, 10);
     // canopy (behind the branches tips): merged blobs with one outline
     const cx = tx - 40, cy = sy(4.1);
     const leaves = GS.el('g', { class: 'kt-leaf' }, g);
@@ -430,17 +568,17 @@
     });
   }
   function drawBasket(x0m, x1m) {
-    const x0 = sx(x0m), x1 = sx(x1m), h = 48, top = GY - h;
+    const x0 = sx(x0m), x1 = sx(x1m), h = 48, top = FY - h;
     const back = S.layers.basketBack, front = S.layers.basketFront;
-    shadow(back, (x0 + x1) / 2 + 6, GY + 3, (x1 - x0) / 2 + 10);
+    shadow(back, (x0 + x1) / 2 + 6, FY + 3, (x1 - x0) / 2 + 10);
     GS.el('ellipse', { cx: (x0 + x1) / 2, cy: top + 2, rx: (x1 - x0) / 2, ry: 10, fill: '#7E4A27', stroke: LINE, 'stroke-width': 3 }, back);
     const g = GS.el('g', null, front);
     S.basketG = g;
-    const body = `M${x0} ${top}L${x0 + 14} ${GY}H${x1 - 14}L${x1} ${top}Z`;
+    const body = `M${x0} ${top}L${x0 + 14} ${FY}H${x1 - 14}L${x1} ${top}Z`;
     GS.el('path', { d: body, fill: '#D9A85C', stroke: LINE, 'stroke-width': 3.5, 'stroke-linejoin': 'round' }, g);
     GS.el('path', { d: body, fill: 'url(#ktWeave)' }, g);
-    GS.el('path', { d: `M${x1 - 30} ${top + 6}L${x1 - 18} ${GY - 4}`, stroke: '#9C6B2E', 'stroke-width': 10, 'stroke-linecap': 'round', opacity: 0.55 }, g);
-    GS.el('path', { d: `M${x0 + 14} ${top + 8}L${x0 + 22} ${GY - 10}`, stroke: '#F0CC8A', 'stroke-width': 6, 'stroke-linecap': 'round' }, g);
+    GS.el('path', { d: `M${x1 - 30} ${top + 6}L${x1 - 18} ${FY - 4}`, stroke: '#9C6B2E', 'stroke-width': 10, 'stroke-linecap': 'round', opacity: 0.55 }, g);
+    GS.el('path', { d: `M${x0 + 14} ${top + 8}L${x0 + 22} ${FY - 10}`, stroke: '#F0CC8A', 'stroke-width': 6, 'stroke-linecap': 'round' }, g);
     GS.el('rect', { x: x0 - 6, y: top - 7, width: x1 - x0 + 12, height: 14, rx: 7, fill: '#C98B4E', stroke: LINE, 'stroke-width': 3 }, g);
     GS.el('path', { d: `M${x0 + 2} ${top - 2}H${x1 - 20}`, stroke: '#E8B97E', 'stroke-width': 3, 'stroke-linecap': 'round' }, g);
   }
@@ -552,9 +690,16 @@
 
   /* ---------------- projectile picker card ---------------- */
   function drawPicker() {
-    const g = GS.el('g', { transform: 'translate(20 18)' }, S.layers.ui);
+    const g = GS.el('g', { transform: 'translate(20 18)' }, uiRoot);
     S.picker = g;
     renderPicker();
+    if (S.L.choose) {
+      // tap the card to switch projectile (k3 "pilih proyektil")
+      const hit = GS.el('rect', { x: 0, y: 0, width: 300, height: 96, rx: 22, fill: 'transparent', style: 'cursor:pointer', tabindex: 0, role: 'button', 'aria-label': 'Ganti proyektil' }, uiRoot);
+      hit.setAttribute('transform', 'translate(20 18)');
+      hit.addEventListener('click', () => chooseNext());
+      hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); chooseNext(); } });
+    }
   }
   function weightIcon(heavy) {
     if (heavy) {
@@ -570,7 +715,7 @@
   function renderPicker() {
     const g = S.picker; g.innerHTML = '';
     const P = PROJ[S.projKey];
-    const seq = S.L.proj;
+    const seq = S.L.choose || S.L.proj;
     const w = seq.length > 1 ? 300 : 262;
     GS.el('rect', { x: 0, y: 4, width: w, height: 92, rx: 22, fill: LINE, opacity: 0.25 }, g);
     GS.el('rect', { x: 0, y: 0, width: w, height: 90, rx: 22, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3.5 }, g);
@@ -586,8 +731,8 @@
     if (seq.length > 1) {
       // queue of projectiles for this level, current one marked
       seq.forEach((k, j) => {
-        const done = j < Math.min(S.hits, seq.length - 1) || (j < seq.length - 1 && S.hits > j);
-        const cur = k === S.projKey && j === Math.min(S.hits, seq.length - 1);
+        const done = !S.L.choose && (j < Math.min(S.hits, seq.length - 1) || (j < seq.length - 1 && S.hits > j));
+        const cur = S.L.choose ? k === S.projKey : k === S.projKey && j === Math.min(S.hits, seq.length - 1);
         const cx = w - 26, cy = 18 + j * 27;
         GS.el('circle', { cx, cy, r: 12, fill: cur ? '#FFC83D' : '#FFF8EC', stroke: LINE, 'stroke-width': 2, opacity: done ? 0.45 : 1 }, g);
         const s = GS.el('g', { transform: `translate(${cx} ${cy})`, opacity: done ? 0.45 : 1 }, g);
@@ -596,10 +741,92 @@
     }
   }
 
+  function chooseNext() {
+    if (!S.L.choose || (S.phase !== 'aim' && S.phase !== 'predict')) return;
+    const c = S.L.choose;
+    S.chosen = c[(c.indexOf(S.projKey) + 1) % c.length];
+    S.projKey = S.chosen;
+    GS.sfx.pick();
+    renderPicker();
+    loadProjectile(true);
+    const P = PROJ[S.projKey];
+    GS.say(`${cap(P.name)}, ${P.weight}.`);
+  }
+
+  /* ---------------- shot table (k4) ---------------- */
+  function drawTable() {
+    S.tableG = GS.el('g', { transform: 'translate(952 18)' }, uiRoot);
+    if (S.L.prefill) S.L.prefill.forEach(n => { const p = n * NOTCH; S.rows.push({ pull: p, deg: 45, dist: rangeNow(S.projKey, p, 45), old: true }); });
+    renderTable();
+  }
+  function addRow(res) {
+    S.rows.push({ pull: res.pull, deg: res.deg, dist: res.landing ? res.landing.x : null });
+    while (S.rows.length > 6) S.rows.shift();
+    if (S.L.table === 'pull') {
+      const d = n => { const r = S.rows.filter(q => Math.abs(q.pull - n * NOTCH) < 0.01 && q.dist).pop(); return r && r.dist; };
+      if (d(1) && d(2)) { S.ratioN = d(2) / d(1); S.ratio = `tarikan 2×, jarak ${fmt(S.ratioN)}×`; }
+    }
+    renderTable();
+  }
+  function renderTable() {
+    const g = S.tableG; if (!g) return;
+    g.innerHTML = '';
+    const byPull = S.L.table === 'pull';
+    const rows = S.rows, h = 52 + Math.max(1, rows.length) * 30 + (S.ratio ? 34 : 0);
+    GS.el('rect', { x: 0, y: 4, width: 308, height: h, rx: 18, fill: LINE, opacity: 0.25 }, g);
+    GS.el('rect', { x: 0, y: 0, width: 308, height: h, rx: 18, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3.5 }, g);
+    const head = (x, t, a) => { const e = GS.el('text', { x, y: 32, 'text-anchor': a || 'middle', 'font-size': 20, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, g); e.textContent = t; };
+    head(80, byPull ? 'tarikan' : 'sudut'); head(220, 'jarak');
+    GS.el('path', { d: 'M16 44H292M150 12V' + (h - 10), stroke: LINE, 'stroke-width': 2, opacity: 0.35 }, g);
+    rows.forEach((r, k) => {
+      const y = 70 + k * 30;
+      const c = r.old ? '#6B5444' : '#2B1D14';
+      const a = GS.el('text', { x: 80, y, 'text-anchor': 'middle', 'font-size': 22, 'font-weight': 600, fill: c, class: 'gs-num' }, g);
+      a.textContent = byPull ? tarikanWords(r.pull) : Math.round(r.deg) + '°';
+      const b = GS.el('text', { x: 220, y, 'text-anchor': 'middle', 'font-size': 22, 'font-weight': 600, fill: c, class: 'gs-num' }, g);
+      b.textContent = r.dist == null ? 'jauh sekali' : fmt(r.dist) + ' m';
+    });
+    if (S.ratio) {
+      const t = GS.el('text', { x: 154, y: h - 16, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 700, fill: '#0F8C7A', class: 't-body' }, g);
+      t.textContent = S.ratio;
+    }
+  }
+
+  /* ---------------- demo shot (k3: heavier projectile, same pull) ---------------- */
+  function runDemo() {
+    const P0 = R(125, 140) / 100;
+    S.demoPull = P0;
+    S.projKey = S.L.demo.proj; renderPicker(); loadProjectile(true);
+    GS.say('Lihat! Kelereng dengan tarikan ini.');
+    let t = 0;
+    const t0 = performance.now();
+    addMover((dt, now) => { t = Math.min(1, (now - t0) / 900); setAim(P0 * GS.ease.outCubic(t), 45); return t < 1; });
+    later(() => { S.demoShot = true; fire(P0, 45); }, 1100);
+  }
+  function afterDemo(res) {
+    S.demoShot = false;
+    S.shots = 0;
+    S.projKey = currentProj(); renderPicker(); loadProjectile(true);
+    // where the heavy stone lands with the same pull: the real simulator decides
+    const rb = simulate(simWorld(), S.projKey, S.demoPull, 45);
+    S.demoPending = rb.landing ? rb.landing.x : 3;
+    GS.say(`Kelereng ${patokWords(res)}. Sekarang batu, tarikan sama.`);
+    later(() => startPredictOrAim(), 2600);
+  }
+  function revealDemoTarget() {
+    const x = Math.round(S.demoPending * 10) / 10;
+    S.demoPending = null;
+    const t = { id: S.nextId++, kind: 'can', x, stage: 0, active: true, hit: false };
+    S.targets.push(t); S.order.push(t);
+    drawCrate(x); S.solids.push(Object.assign(crateBox(x), { kind: 'crate' }));
+    drawCanStack(t, true);
+    GS.sfx.drop();
+  }
+
   /* ---------------- input ---------------- */
   function setupInput() {
     // big pull zone: the whole left third of the screen
-    const zone = GS.el('rect', { x: 0, y: 0, width: 427, height: 800, fill: 'transparent', class: 'kt-dragzone' }, S.layers.hits);
+    const zone = GS.el('rect', { x: -300, y: -600, width: 427 / GEO.z + 300, height: 2000, fill: 'transparent', class: 'kt-dragzone' }, S.layers.hits);
     GS.drag(zone, {
       svg,
       onStart(p) {
@@ -616,7 +843,7 @@
       },
       onMove(p) {
         if (S.phase !== 'pulling') return;
-        aimFrom(p.x - S.dragStart.x, p.y - S.dragStart.y);
+        aimFrom((p.x - S.dragStart.x) / GEO.z, (p.y - S.dragStart.y) / GEO.z);
       },
       onEnd() {
         if (S.phase !== 'pulling') return;
@@ -627,11 +854,19 @@
     });
     // patok tap targets (prediction); only active during the prediction phase
     S.patokHits = GS.el('g', { 'pointer-events': 'none' }, S.layers.hits);
-    for (let n = 1; n <= 10; n++) {
-      const r = GS.el('rect', { x: sx(n) - 46, y: 500, width: 92, height: 200, rx: 18, fill: 'transparent', class: 'kt-patok-hit', tabindex: -1, role: 'button', 'aria-label': 'Patok ' + n }, S.patokHits);
-      r.addEventListener('click', () => choosePatok(n));
-      r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); choosePatok(n); } });
+    if (S.markKind === 'half') {
+      // half meters are too close for separate buttons: one wide strip, snapped to 0.5 m
+      const strip = GS.el('rect', { x: sx(0.25), y: FY - 130, width: 975, height: 210, rx: 18, fill: 'transparent', class: 'kt-patok-hit' }, S.patokHits);
+      strip.addEventListener('click', e => { const pt = GS.svgPoint(svg, e.clientX, e.clientY, world); const mk = markAt((pt.x - X0) / 100); if (mk && mk !== 'far') choosePatok(mk); });
     }
+    S.marks.forEach(mk => {
+      if (!mk.plate) return;
+      const w = Math.min(92, S.markStep * 100 - 8) * (S.markKind === 'half' ? 0 : 1) || 0;
+      if (!w) return;
+      const r = GS.el('rect', { x: sx(mk.x) - w / 2, y: FY - 124, width: w, height: 200, rx: 18, fill: 'transparent', class: 'kt-patok-hit', tabindex: -1, role: 'button', 'aria-label': 'Patok ' + mk.n }, S.patokHits);
+      r.addEventListener('click', () => choosePatok(mk));
+      r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); choosePatok(mk); } });
+    });
   }
   // Convert a finger offset (viewBox units, y down) into pull length + launch angle.
   function aimFrom(dx, dy) {
@@ -645,8 +880,10 @@
       const a = deg * Math.PI / 180;
       L = -dx * Math.cos(a) + dy * Math.sin(a); // finger offset projected on the pull direction
     }
+    if (S.L.fixedPull) L = Math.hypot(dx, dy) < 12 ? 0 : S.L.fixedPull * 100; // pull length is fixed: only the direction changes
     setAim(L / 100, deg);
   }
+  function angLimits() { const r = S.angRange || [ANG_MIN, ANG_MAX]; return [Math.max(ANG_MIN, r[0]), Math.min(ANG_MAX, r[1])]; }
   function maxPull(deg) {
     const a = deg * Math.PI / 180;
     let m = PULL_MAX;
@@ -655,25 +892,41 @@
     return m;
   }
   function setAim(pullM, deg) {
+    if (!S.L.lock) { const lim = angLimits(); deg = clamp(deg, lim[0], lim[1]); }
+    if (S.L.notch) { const h = S.L.notch / 2; pullM = Math.min(Math.round(pullM / h) * h, Math.floor(maxPull(deg) / h) * h); }
     pullM = clamp(pullM, 0, maxPull(deg));
     const a = deg * Math.PI / 180;
     const px = REST.x - Math.cos(a) * pullM * 100, py = REST.y + Math.sin(a) * pullM * 100;
     if (pullM > S.creakAt + 0.16) { GS.sfx.creak(); S.creakAt = pullM; } else if (pullM < S.creakAt - 0.16) S.creakAt = pullM;
     S.pull = pullM; S.deg = deg;
     setPouch(px, py);
-    if (!S.L.lock) drawTrack();
+    if (!S.L.lock || S.L.showDeg) drawTrack();
     drawGuide();
   }
+  const tarikanWords = p => { const n = Math.round(p / (S.L.notch / 2)); return n % 2 ? (n === 1 ? '½' : (n - 1) / 2 + '½') : String(n / 2); };
   function drawTrack() {
     const g = S.track; g.innerHTML = '';
     const a = S.deg * Math.PI / 180, mp = maxPull(S.deg) * 100;
     // dashed rail in the current pull direction, with ring marks every 0.4 m
     GS.el('path', { d: `M${REST.x} ${REST.y}L${REST.x - Math.cos(a) * mp} ${REST.y + Math.sin(a) * mp}`, stroke: '#FFF8EC', 'stroke-width': 6, 'stroke-dasharray': '2 12', 'stroke-linecap': 'round', opacity: 0.9 }, g);
-    for (let k = 40; k <= mp + 1; k += 40) GS.el('circle', { cx: REST.x - Math.cos(a) * k, cy: REST.y + Math.sin(a) * k, r: 4, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 1.5, opacity: 0.85 }, g);
+    if (S.L.notch) {
+      // notches: tarikan 1/2, 1, 1 1/2, 2 (one tarikan = NOTCH m of stretch)
+      for (let k = S.L.notch / 2; k * 100 <= mp + 1; k += S.L.notch / 2) {
+        const nx = REST.x - Math.cos(a) * k * 100, ny = REST.y + Math.sin(a) * k * 100;
+        GS.el('circle', { cx: nx, cy: ny, r: 7, fill: '#FFC83D', stroke: LINE, 'stroke-width': 2 }, g);
+        const t = GS.el('text', { x: nx - 18, y: ny + 7, 'text-anchor': 'end', 'font-size': 20, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 4, 'paint-order': 'stroke', class: 'gs-num' }, g);
+        t.textContent = tarikanWords(k);
+      }
+    } else for (let k = 40; k <= mp + 1; k += 40) GS.el('circle', { cx: REST.x - Math.cos(a) * k, cy: REST.y + Math.sin(a) * k, r: 4, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 1.5, opacity: 0.85 }, g);
+    if (S.L.showDeg && S.pull > 0) {
+      const t = GS.el('text', { x: REST.x + 46, y: REST.y - 30, 'font-size': 26, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 5, 'paint-order': 'stroke', class: 'gs-num' }, g);
+      t.textContent = Math.round(S.deg) + '°';
+      GS.el('path', { d: `M${REST.x} ${REST.y}h44M${REST.x} ${REST.y}l${Math.cos(a) * 44} ${-Math.sin(a) * 44}`, stroke: '#2B1D14', 'stroke-width': 2.5, 'stroke-dasharray': '3 4', opacity: 0.7 }, g);
+    }
     if (!S.L.lock) {
-      const R0 = PULL_MAX * 100;
+      const R0 = PULL_MAX * 100, lim = angLimits();
       const p = deg => ({ x: REST.x - Math.cos(deg * Math.PI / 180) * R0, y: REST.y + Math.sin(deg * Math.PI / 180) * R0 });
-      const s = p(ANG_MIN), e = p(Math.min(ANG_MAX, 62));
+      const s = p(lim[0]), e = p(Math.min(lim[1], 62));
       GS.el('path', { d: `M${s.x} ${s.y}A${R0} ${R0} 0 0 1 ${e.x} ${e.y}`, fill: 'none', stroke: '#FFF8EC', 'stroke-width': 3, 'stroke-dasharray': '4 9', opacity: 0.55 }, g);
     }
   }
@@ -699,7 +952,9 @@
       S.plates.forEach((p, k) => { p.classList.add('kt-plate-pulse'); p.style.animationDelay = (k * 70) + 'ms'; });
       hud.mood('think');
       const P = PROJ[S.projKey];
-      const line = S.shots === 0 && S.hits === 0 ? `Ketuk patok: di mana ${P.name} akan jatuh?` : `Sekarang ${P.name}. Tebak dulu, jatuh di patok mana?`;
+      const line = S.L.demo ? 'Tarikan sama. Batu jatuh di mana? Ketuk tebakanmu.'
+        : S.L.predictAll && S.shots > 0 ? 'Tebak lagi: jatuh di patok mana?'
+        : S.shots === 0 && S.hits === 0 ? `Ketuk patok: di mana ${P.name} akan jatuh?` : `Sekarang ${P.name}. Tebak dulu, jatuh di patok mana?`;
       if (quiet) later(() => { if (S.phase === 'predict') GS.say(line); }, 3600);
       else GS.say(line);
     } else toAim();
@@ -709,34 +964,36 @@
     S.plates.forEach(p => { p.classList.remove('kt-plate-pulse'); void p.getBBox(); p.classList.add('kt-plate-pulse'); });
     GS.say('Ketuk patok tebakanmu dulu, ya.');
   }
-  function choosePatok(n) {
-    if (S.phase !== 'predict') return;
-    S.predicted = n; S.predictedProj = S.projKey;
+  function choosePatok(mk) {
+    if (S.phase !== 'predict' || !mk) return;
+    S.predicted = mk; S.predictedProj = S.projKey;
     S.patokHits.setAttribute('pointer-events', 'none');
     [...S.patokHits.children].forEach(r => r.setAttribute('tabindex', -1));
     S.plates.forEach(p => p.classList.remove('kt-plate-pulse'));
-    GS.sfx.count(n);
-    plantFlag(n);
-    GS.say(`Tebakanmu patok ${n}. Sekarang tarik karetnya!`);
+    GS.sfx.count(Math.round(mk.n));
+    plantFlag(mk.x);
+    GS.say(`Tebakanmu ${markWords(mk)}. Sekarang tarik karetnya!`);
+    if (S.demoPending) revealDemoTarget();
     toAim();
   }
-  function plantFlag(n) {
+  function plantFlag(xm) {
     if (S.flag) S.flag.remove();
-    const x = sx(n);
+    const x = sx(xm);
     const g = GS.el('g', { class: 'kt-pop' }, S.layers.fx);
     S.flag = g;
-    GS.el('ellipse', { cx: x + 3, cy: GY + 2, rx: 10, ry: 3, fill: LINE, opacity: 0.2 }, g);
-    GS.el('path', { d: `M${x} ${GY}V${GY - 92}`, stroke: LINE, 'stroke-width': 7, 'stroke-linecap': 'round' }, g);
-    GS.el('path', { d: `M${x} ${GY}V${GY - 92}`, stroke: '#E9D3A6', 'stroke-width': 3, 'stroke-linecap': 'round' }, g);
-    GS.el('path', { d: `M${x + 2} ${GY - 90}L${x + 50} ${GY - 76}L${x + 2} ${GY - 60}Z`, fill: '#1F6FD1', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, g);
-    [[14, -80], [26, -76], [14, -70]].forEach(p => GS.el('circle', { cx: x + p[0], cy: GY + p[1], r: 3, fill: '#fff' }, g));
-    const lab = GS.el('text', { x: x + 8, y: GY - 100, 'font-size': 17, 'font-weight': 700, fill: '#1F6FD1', class: 't-body', 'text-anchor': 'middle' }, g);
-    lab.textContent = 'tebakanku';
+    GS.el('ellipse', { cx: x + 3, cy: FY + 2, rx: 10, ry: 3, fill: LINE, opacity: 0.2 }, g);
+    GS.el('path', { d: `M${x} ${FY}V${FY - 92}`, stroke: LINE, 'stroke-width': 7, 'stroke-linecap': 'round' }, g);
+    GS.el('path', { d: `M${x} ${FY}V${FY - 92}`, stroke: '#E9D3A6', 'stroke-width': 3, 'stroke-linecap': 'round' }, g);
+    GS.el('path', { d: `M${x + 2} ${FY - 90}L${x + 50} ${FY - 76}L${x + 2} ${FY - 60}Z`, fill: '#1F6FD1', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, g);
+    [[14, -80], [26, -76], [14, -70]].forEach(p => GS.el('circle', { cx: x + p[0], cy: FY + p[1], r: 3, fill: '#fff' }, g));
+    const lab = GS.el('text', { x: x + 8, y: FY - 100, 'font-size': 17, 'font-weight': 700, fill: '#1F6FD1', class: 't-body', 'text-anchor': 'middle' }, g);
+    lab.textContent = S.markKind === 'tk' ? '' : 'tebakanku';
   }
   function toAim() {
     S.phase = 'aim';
     hud.mood('point');
-    if (S.shots === 0 && (S.i === 0 || S.i === 4)) showHint();
+    if (S.shots === 0 && S.L.hint) showHint();
+    if (S.L.choose && S.shots === 0) GS.fx(S.picker, 'gs-pulse', 2400);
   }
   function showHint() {
     hideHint();
@@ -752,8 +1009,10 @@
 
   /* ---------------- shooting ---------------- */
   function simWorld() {
-    const targets = aliveTargets().map(t => t.kind === 'can' ? { id: t.id, kind: 'can', boxes: canBoxes(t.x) } : { id: t.id, kind: 'mango', x: t.x, y: t.y, r: t.r });
-    return { targets, solids: S.solids, canopies: S.canopies };
+    const targets = aliveTargets().map(t => t.kind === 'can' ? { id: t.id, kind: 'can', boxes: canBoxes(t.x) }
+      : t.kind === 'mat' ? { id: t.id, kind: 'can', boxes: [{ x0: t.x - 0.2, x1: t.x + 0.2, y0: 0, y1: 0.1 }] }
+      : { id: t.id, kind: 'mango', x: t.x, y: t.y, r: t.r });
+    return geoWorld(targets, S.solids, S.canopies);
   }
   function releaseShot() {
     if (S.pull < PULL_MIN) {
@@ -771,7 +1030,7 @@
     hideHint();
     S.guide.innerHTML = '';
     fireBtn.hidden = true;
-    S.shots++;
+    if (!S.demoShot) S.shots++;
     const res = simulate(simWorld(), S.projKey, pull, deg);
     S.lastFlight = res;
     const from = { x: S.pouchPos.x, y: S.pouchPos.y };
@@ -858,6 +1117,7 @@
       if (!t || t.hit) return;
       t.hit = true;
       if (t.kind === 'can') { clang(); toppleCans(t, ev); }
+      else if (t.kind === 'mat') { GS.sfx.coin(); hitSparkle(sx(t.x), FY - 30); if (t.g) GS.fx(t.g, 'gs-wobble'); }
       else dropMango(t);
     } else if (ev.type === 'land') {
       if (P.heavy) { GS.sfx.thud(); shake(); }
@@ -887,7 +1147,7 @@
   function toppleCans(t, ev) {
     const push = clamp(ev.vx, 1, 6);
     t.cans.forEach((c, k) => {
-      const b = { x: (c.x - X0) / 100, y: (GY - c.y) / 100, vx: push * (0.45 + k * 0.12) + 0.4, vy: 1.4 + (k === 2 ? 1.2 : 0.4) + Math.max(0, ev.vy) * 0.1, a: 0, va: 300 + k * 140 };
+      const b = { x: (c.x - X0) / 100, y: (FY - c.y) / 100, vx: push * (0.45 + k * 0.12) + 0.4, vy: 1.4 + (k === 2 ? 1.2 : 0.4) + Math.max(0, ev.vy) * 0.1, a: 0, va: 300 + k * 140 };
       let rest = false, bounces = 0;
       addMover(dt => {
         if (rest) return false;
@@ -908,7 +1168,7 @@
         return !rest;
       });
     });
-    hitSparkle(sx(t.x), GY - 100);
+    hitSparkle(sx(t.x), FY - 100);
   }
   function dropMango(t) {
     t.sway.classList.remove('kt-sway');
@@ -936,7 +1196,7 @@
     const cx = (sx(S.basket.x0) + sx(S.basket.x1)) / 2;
     GS.tween(300, (e, p) => {
       const s = p < 0.5 ? 1 + 0.12 * Math.sin(p * Math.PI * 2) : 1 - 0.05 * Math.sin((p - 0.5) * Math.PI * 2);
-      S.basketG.setAttribute('transform', `translate(${cx} ${GY}) scale(${2 - s} ${s}) translate(${-cx} ${-GY})`);
+      S.basketG.setAttribute('transform', `translate(${cx} ${FY}) scale(${2 - s} ${s}) translate(${-cx} ${-FY})`);
     }, 'linear').then(() => S.basketG && S.basketG.removeAttribute('transform'));
   }
   function hitSparkle(x, y) {
@@ -962,52 +1222,54 @@
     S.landG = g;
     const x = sx(xm);
     // exact landing point
-    const top = GY - 196;
-    GS.el('ellipse', { cx: x, cy: GY, rx: 13, ry: 5, fill: '#7E4A27', opacity: 0.5 }, g);
-    GS.el('path', { d: `M${x} ${GY - 4}V${top + 38}`, stroke: LINE, 'stroke-width': 2.5, 'stroke-dasharray': '3 6', 'stroke-linecap': 'round', opacity: 0.8 }, g);
-    GS.el('circle', { cx: x, cy: GY, r: 6, fill: '#F28C28', stroke: LINE, 'stroke-width': 2.5 }, g);
-    const text = labelFor(xm);
-    const tw = text.length * 10.5 + 28;
-    const lx = clamp(x, 20 + tw / 2, 1260 - tw / 2);
+    const top = FY - 196;
+    GS.el('ellipse', { cx: x, cy: FY, rx: 13, ry: 5, fill: '#7E4A27', opacity: 0.5 }, g);
+    GS.el('path', { d: `M${x} ${FY - 4}V${top + 38}`, stroke: LINE, 'stroke-width': 2.5, 'stroke-dasharray': '3 6', 'stroke-linecap': 'round', opacity: 0.8 }, g);
+    GS.el('circle', { cx: x, cy: FY, r: 6, fill: '#F28C28', stroke: LINE, 'stroke-width': 2.5 }, g);
+    const km = markAt(xm), tkPill = S.markKind === 'tk' && km && km !== 'far';
+    const text = tkPill ? String(km.n) : labelFor(xm);
+    const tw = tkPill ? 44 + km.n * 12 : text.length * 10.5 + 28;
+    const lx = clamp(x, 20 + tw / 2, 1260 / GEO.z - tw / 2);
     const lg = GS.el('g', { class: 'kt-pop' }, g);
     GS.el('rect', { x: lx - tw / 2, y: top + 4, width: tw, height: 36, rx: 18, fill: LINE, opacity: 0.25 }, lg);
     GS.el('rect', { x: lx - tw / 2, y: top, width: tw, height: 36, rx: 18, fill: '#F28C28', stroke: LINE, 'stroke-width': 3 }, lg);
-    const t = GS.el('text', { x: lx, y: top + 25, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, lg);
+    const t = GS.el('text', { x: tkPill ? lx - tw / 2 + 20 : lx, y: top + 26, 'text-anchor': 'middle', 'font-size': tkPill ? 24 : 20, 'font-weight': 700, fill: '#2B1D14', class: tkPill ? 'gs-num' : 't-body' }, lg);
     t.textContent = text;
+    if (tkPill) GS.markup(lg, dotsMarkup(km.n, lx + 12, top + 18, 4).replace(/#F28C28/g, '#FFF8EC'));
   }
   function labelFor(xm) {
-    const n = Math.round(xm);
-    if (n < 1) return 'jatuh dekat ketapel';
-    if (n > 10) return 'jatuh lewat patok 10';
-    return 'jatuh di patok ' + n;
+    const k = markAt(xm);
+    if (!k) return 'jatuh dekat ketapel';
+    if (k === 'far') return 'jatuh lewat ' + lastWords();
+    return 'jatuh di ' + markWords(k);
   }
   function patokWords(res) {
-    if (!res.landing) return 'terbang lewat patok 10';
-    const n = Math.round(res.landing.x);
-    if (n < 1) return 'jatuh dekat ketapel';
-    if (n > 10) return 'jatuh lewat patok 10';
-    return 'jatuh di patok ' + n;
+    if (!res.landing) return 'terbang lewat ' + lastWords();
+    return labelFor(res.landing.x);
   }
-
-  /* ---------------- after each shot ---------------- */
   function afterShot(res) {
     if (S.won) return;
+    if (S.demoShot) { afterDemo(res); return; }
     const P = PROJ[res.proj];
     const hitNow = res.events.filter(e => e.type === 'hit').length;
     S.hits = S.targets.filter(t => t.hit).length;
-    if (!res.landing && res.out) landMarker(12.6);
+    if (!res.landing && res.out) landMarker(GEO.xmax - 0.3);
+    if (S.L.table) addRow(res);
     // prediction comparison (only on a predicted shot)
     let line = '';
     if (S.predicted != null) {
-      const land = res.landing ? Math.round(res.landing.x) : 11;
+      const land = res.landing ? markAt(res.landing.x) : 'far';
       const where = patokWords(res);
       if (land === S.predicted) {
         line = `Tebakanmu tepat! ${cap(P.its)} ${where}.`;
         GS.sfx.coin();
-        if (S.flag) hitSparkle(sx(S.predicted) + 20, GY - 80);
+        if (S.flag) hitSparkle(sx(S.predicted.x) + 20, FY - 80);
       } else {
-        line = `Tebakanmu patok ${S.predicted}, ${P.its} ${where}.`;
-        drawDiffArrow(S.predicted, res.landing ? res.landing.x : 11);
+        line = `Tebakanmu ${markWords(S.predicted)}, ${P.its} ${where}.`;
+        const lx = res.landing ? res.landing.x : GEO.xmax - 0.3;
+        const gap = land && land !== 'far' ? Math.round(Math.abs(land.x - S.predicted.x) / S.markStep) : 0;
+        drawDiffArrow(S.predicted.x, lx, S.L.predictAll ? gap : 0);
+        if (S.L.predictAll && gap) line += ` Selisih ${gap} patok.`;
       }
       S.predicted = null;
     }
@@ -1016,8 +1278,13 @@
       if (S.marker) { S.marker.remove(); S.marker = null; }
       hud.mood('cheer');
       const stars = S.shots <= S.targets.length ? 3 : S.shots <= S.targets.length + 2 ? 2 : 1;
-      GS.say(line ? line + ' Kena!' : 'Kena! Hebat!');
-      const text = S.targets.some(t => t.kind === 'mango') && !S.targets.some(t => t.kind === 'can') ? 'Mangganya masuk keranjang!' : S.L.proj.length > 1 ? 'Semua sasaran kena! Hebat!' : 'Kalengnya roboh semua! Hebat!';
+      let text = S.targets.some(t => t.kind === 'mango') && !S.targets.some(t => t.kind === 'can') ? 'Mangganya masuk keranjang!' : S.L.proj.length > 1 ? 'Semua sasaran kena! Hebat!' : 'Kalengnya roboh semua! Hebat!';
+      let extra = '';
+      if (S.L.table === 'pull' && S.ratioN && !S.L.prefill) { extra = S.ratioN > 3.5 ? ' Tarikan 2 kali lipat, jaraknya hampir 4 kali lipat!' : ''; text = 'Tarikan 2×, jarak hampir 4×!'; }
+      else if (S.L.fixedPull) { extra = ` Sudut ${Math.round(res.deg)} derajat paling jauh.`; text = 'Sudut tengah paling jauh!'; }
+      else if (S.L.angles) text = 'Sudut rendah dan tinggi, kaleng yang sama!';
+      else if (S.targets.every(t => t.kind === 'mat')) text = 'Masuk tampah! Hebat!';
+      GS.say((line ? line + ' Kena!' : 'Kena! Hebat!') + extra);
       later(() => run.win(stars, text), 1600);
       return;
     }
@@ -1047,7 +1314,7 @@
     const g = GS.el('g', { 'pointer-events': 'none' }, S.layers.fx);
     S.marker = g;
     const inner = GS.el('g', { class: 'kt-next' }, g);
-    const x = sx(t.x), y = GY - 160;
+    const x = sx(t.x), y = FY - 160;
     GS.el('path', { d: `M${x - 14} ${y - 22}H${x + 14}V${y - 6}H${x + 24}L${x} ${y + 16}L${x - 24} ${y - 6}H${x - 14}Z`, fill: '#FFC83D', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, inner);
     GS.el('path', { d: `M${x - 8} ${y - 17}V${y - 4}`, stroke: '#FFE08A', 'stroke-width': 4, 'stroke-linecap': 'round' }, inner);
   }
@@ -1060,6 +1327,8 @@
   function missHint(res, t) {
     if (res.caught) return 'Tersangkut daun. Arahkan lebih tinggi!';
     if (!t) return 'Coba lagi, ya!';
+    if (S.L.choose && t.kind === 'can' && bestRange(S.projKey, PULL_MAX) < t.x - 0.6) return `${cap(PROJ[S.projKey].name)} tidak sampai. Ketuk kartu, ganti!`;
+    if (S.L.fixedPull) { const lx = res.landing ? res.landing.x : 12; return lx < t.x - 0.25 ? 'Kurang jauh. Coba sudut lain!' : 'Hampir! Coba sudut lain.'; }
     if (t.kind === 'mango') {
       // height of the path where it passes the mango
       const pts = res.pts;
@@ -1075,13 +1344,25 @@
     if (lx < t.x) return 'Kurang jauh. Tarik lebih panjang!';
     return 'Terlalu jauh. Tarik sedikit saja.';
   }
-  function drawDiffArrow(pred, landX) {
+  function drawDiffArrow(predX, landX, hops) {
     if (S.diffG) S.diffG.remove();
     const g = GS.el('g', { class: 'kt-fade' }, S.layers.fx);
     S.diffG = g;
-    const x1 = sx(pred), x2 = sx(clamp(landX, 0, 11.2)), y = GY - 146;
+    const x1 = sx(predX), x2 = sx(clamp(landX, 0, GEO.xmax - 0.3)), y = FY - 146;
     if (Math.abs(x2 - x1) < 30) return;
     const dir = Math.sign(x2 - x1);
+    if (hops) {
+      // counted hops from the flag to the landing patok: the size of the gap, one patok per hop
+      const st = S.markStep * 100;
+      for (let k = 0; k < hops; k++) {
+        const a = x1 + dir * k * st, b = a + dir * st;
+        GS.el('path', { d: `M${a} ${FY + 8}Q${(a + b) / 2} ${FY - 48} ${b} ${FY + 8}`, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': '2 7' }, g);
+        const n = GS.el('text', { x: (a + b) / 2, y: FY - 30, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 600, fill: '#1F6FD1', class: 'gs-num' }, g);
+        n.textContent = k + 1;
+      }
+      later(() => { g.style.opacity = 0; }, 5200);
+      return;
+    }
     GS.el('path', { d: `M${x1} ${y}H${x2 - dir * 10}`, stroke: '#1F6FD1', 'stroke-width': 5, 'stroke-linecap': 'round', 'stroke-dasharray': '1 10' }, g);
     GS.el('path', { d: `M${x2 - dir * 16} ${y - 9}L${x2} ${y}L${x2 - dir * 16} ${y + 9}`, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
     GS.el('circle', { cx: x1, cy: y, r: 7, fill: '#1F6FD1', stroke: LINE, 'stroke-width': 2 }, g);
@@ -1102,18 +1383,22 @@
       }
     });
     S.projKey = newProj;
+    if (S.L.angles) {
+      const nr = S.L.angles[Math.min(S.hits, S.L.angles.length - 1)];
+      if (nr !== S.angRange) { S.angRange = nr; S.deg = (nr[0] + nr[1]) / 2; GS.say(nr[0] >= 45 ? 'Sekarang sudut tinggi! Kalengnya sama.' : 'Pakai sudut rendah.'); }
+    }
     if (changed) { renderPicker(); GS.sfx.pick(); }
     loadProjectile(true);
     GS.sfx.pick();
     if (changed && !S.L.predictStages) GS.say(`Sekarang pakai ${PROJ[newProj].name}. ${PROJ[newProj].heavy ? 'Lebih berat!' : 'Ringan sekali!'}`);
-    if (revealed) GS.say('Pak Tani menyusun kalengnya lagi.');
+    if (revealed && !S.L.angles) GS.say('Pak Tani menyusun kalengnya lagi.');
     later(() => { startPredictOrAim(); updateMarker(); }, revealed ? 1500 : changed && !S.L.predictStages ? 900 : 50);
   }
 
   /* ---------------- keyboard ---------------- */
   document.addEventListener('keydown', e => {
     if (!S || e.target.closest && e.target.closest('.gs-overlay')) return;
-    if (S.phase === 'predict' && /^[0-9]$/.test(e.key)) { choosePatok(e.key === '0' ? 10 : +e.key); return; }
+    if (S.phase === 'predict' && /^[0-9]$/.test(e.key)) { const v = e.key === '0' ? 10 : +e.key; choosePatok(S.marks.find(m => m.n === v)); return; }
     if (S.phase !== 'aim') return;
     const step = 0.04;
     let used = true;
@@ -1128,7 +1413,7 @@
   function kbdAim(pull, deg) {
     if (!S.kbd) { S.kbd = true; S.creakAt = 0; S.track.setAttribute('opacity', 1); drawTrack(); hideHint(); }
     fireBtn.hidden = false;
-    setAim(pull, clamp(deg, ANG_MIN, ANG_MAX));
+    setAim(S.L.fixedPull || pull, deg);
   }
   function keyFire() {
     if (S.phase !== 'aim') return;
@@ -1144,13 +1429,17 @@
     const W = simWorld();
     const tryShot = (pull, deg) => { const r = simulate(W, S.projKey, pull, deg); return r.events.some(e => e.type === 'hit' && e.id === tgt.id) ? r : null; };
     const degs = S.L.lock ? [45] : [];
-    if (!S.L.lock) for (let d = 45; d <= 72; d += 1) { degs.push(d); if (d !== 45) degs.push(90 - d); }
+    const lim = angLimits();
+    if (!S.L.lock) for (let d = 0; d <= 40; d += 1) { degs.push(45 + d); if (d) degs.push(45 - d); }
+    const step = S.L.notch ? S.L.notch / 2 : 0.005;
     for (const deg of degs) {
-      if (deg < ANG_MIN || deg > ANG_MAX) continue;
+      if (deg < lim[0] || deg > lim[1]) continue;
       const mp = maxPull(deg);
-      for (let pull = 0.2; pull <= mp; pull += 0.005) {
+      if (S.L.fixedPull) { if (tryShot(S.L.fixedPull, deg)) return { pull: S.L.fixedPull, deg, res: simulate(W, S.projKey, S.L.fixedPull, deg) }; continue; }
+      for (let pull = S.L.notch ? step : 0.2; pull <= mp + 1e-9; pull += step) {
         const r = tryShot(pull, deg);
         if (r) {
+          if (S.L.notch) return { pull, deg, res: r };
           // aim for the middle of the hitting window
           let p2 = pull; while (p2 + 0.005 <= mp && tryShot(p2 + 0.005, deg)) p2 += 0.005;
           const mid = (pull + p2) / 2;
@@ -1164,7 +1453,7 @@
     go: i => run.go(i),
     get state() { return S; },
     PROJ, simulate, get K() { return K; }, freeRange, findSolution,
-    patok: n => choosePatok(n),
+    patok: n => choosePatok(S.marks.find(m => m.n === n) || markAt(n)),
     // Release the slingshot with a given pull (m) and angle, through the same code path as a drag.
     shoot(pull, deg) {
       if (S.phase !== 'aim') return false;
@@ -1173,17 +1462,21 @@
       releaseShot();
       return true;
     },
+    count: () => LEVELS.length,
+    tier: TIER,
     async solve() {
       const tk = token;
       for (let guard = 0; guard < 20 && tk === token && !S.won; guard++) {
         while (tk === token && !S.won && S.phase !== 'predict' && S.phase !== 'aim') await GS.wait(80);
         if (tk !== token || S.won) break;
-        const sol = findSolution();
+        let sol = findSolution();
+        for (let c = 0; !sol && S.L.choose && c < S.L.choose.length; c++) { chooseNext(); sol = findSolution(); }
         if (!sol) return 'no-solution';
         if (S.phase === 'predict') {
-          const n = sol.res.landing ? clamp(Math.round(sol.res.landing.x), 1, 10) : 10;
-          choosePatok(n);
+          const mk = sol.res.landing ? markAt(sol.res.landing.x) : 'far';
+          choosePatok(mk && mk !== 'far' ? mk : mk === 'far' ? S.marks[S.marks.length - 1] : S.marks[0]);
           await GS.wait(60);
+          if (S.L.demo) continue; // the target only appears after the prediction
         }
         window.__game.shoot(sol.pull, sol.deg);
         await GS.wait(100);
