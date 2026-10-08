@@ -1276,7 +1276,8 @@
       if (ok) bonus();
       mood(ok ? 'happy' : 'surprise');
       const small = heavy.h < light.h;
-      say((ok ? 'Tebakanmu benar! ' : 'Ternyata ') + `${label(heavy.kind)} lebih berat` + (small ? ', padahal kecil.' : '.'));
+      const nm = label(heavy.kind);
+      say(ok ? `Tebakanmu benar! ${nm.charAt(0).toUpperCase() + nm.slice(1)} lebih berat` + (small ? ', padahal kecil.' : '.') : `Ternyata ${nm} lebih berat` + (small ? ', padahal kecil.' : '.'));
       await nextRound();
     };
     o.winText = () => 'Kecil belum tentu ringan!';
