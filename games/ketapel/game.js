@@ -397,7 +397,7 @@
       // Half-meter plates sit on a second row so every number can be big.
       const pl = GS.el('g', null, S.layers.fx);
       const inner = GS.el('g', null, pl);
-      const w = (tk ? 96 : big ? 70 : 66) * k, h = (tk ? 108 : big ? 58 : 50) * k, fs = (tk ? 48 : big ? 44 : 38) * k;
+      const w = Math.min((tk ? 96 : big ? 76 : 70) * k, S.markStep * (big || tk ? 100 : 200) - 8), h = (tk ? 108 : big ? 60 : 50) * k, fs = (tk ? 48 : big ? 48 : 40) * k;
       const y0 = FY + 12 + (big ? 0 : 58);
       if (!big) GS.el('path', { d: `M${x} ${FY + 6}V${y0}`, stroke: LINE, 'stroke-width': 2.5, 'stroke-dasharray': '2 5', opacity: 0.5 }, inner);
       GS.el('rect', { x: x - w / 2, y: y0, width: w, height: h, rx: 12 * k, fill: big ? '#FFF8EC' : '#F6E9D2', stroke: LINE, 'stroke-width': 3 }, inner);
@@ -408,9 +408,9 @@
     });
     if (tk) return;
     // "0" under the slingshot so the line reads from zero
-    const z0 = GS.el('text', { x: X0, y: FY + 56 * k, 'text-anchor': 'middle', 'font-size': 40 * k, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
+    const z0 = GS.el('text', { x: FY < GY ? X0 + 44 : X0, y: FY + 56 * k, 'text-anchor': 'middle', 'font-size': 44 * k, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
     z0.textContent = '0';
-    const m = GS.el('text', { x: sx(last), y: FY + (hf ? 152 : 104) * k, 'text-anchor': 'middle', 'font-size': 30 * k, 'font-weight': 700, fill: '#6B5444', class: 't-body' }, S.layers.fx);
+    const m = GS.el('text', { x: sx(last), y: FY + (hf ? 152 : 104) * k, 'text-anchor': 'middle', 'font-size': 34 * k, 'font-weight': 700, fill: '#6B5444', class: 't-body' }, S.layers.fx);
     m.textContent = 'meter';
   }
   function drawTerrace() {
@@ -992,7 +992,7 @@
     GS.el('path', { d: `M${x} ${FY}V${FY - 92}`, stroke: '#E9D3A6', 'stroke-width': 3, 'stroke-linecap': 'round' }, g);
     GS.el('path', { d: `M${x + 2} ${FY - 90}L${x + 50} ${FY - 76}L${x + 2} ${FY - 60}Z`, fill: '#1F6FD1', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, g);
     [[14, -80], [26, -76], [14, -70]].forEach(p => GS.el('circle', { cx: x + p[0], cy: FY + p[1], r: 3, fill: '#fff' }, g));
-    const lab = GS.el('text', { x: x + 8, y: FY - 102, 'font-size': 30, 'font-weight': 700, fill: '#1F6FD1', stroke: '#FFF8EC', 'stroke-width': 6, 'paint-order': 'stroke', class: 't-body', 'text-anchor': 'middle' }, g);
+    const lab = GS.el('text', { x: x + 8, y: FY - 102, 'font-size': 34, 'font-weight': 700, fill: '#1F6FD1', stroke: '#FFF8EC', 'stroke-width': 6, 'paint-order': 'stroke', class: 't-body', 'text-anchor': 'middle' }, g);
     lab.textContent = S.markKind === 'tk' ? '' : 'tebakanku';
   }
   function toAim() {
