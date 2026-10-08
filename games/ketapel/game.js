@@ -690,13 +690,16 @@
 
   /* ---------------- projectile picker card ---------------- */
   function drawPicker() {
-    const g = GS.el('g', { transform: 'translate(20 18)' }, uiRoot);
+    // top-right: on phones the caption bubble covers the top-left, the bottom-right is free for the dock
+    const cw = (S.L.choose || S.L.proj).length > 1 ? 400 : 344;
+    S.cardX = 1262 - cw;
+    const g = GS.el('g', { transform: `translate(${S.cardX} 14)`, 'pointer-events': S.L.choose ? null : 'none' }, uiRoot);
     S.picker = g;
     renderPicker();
     if (S.L.choose) {
       // tap the card to switch projectile (k3 "pilih proyektil")
-      const hit = GS.el('rect', { x: 0, y: 0, width: 300, height: 96, rx: 22, fill: 'transparent', style: 'cursor:pointer', tabindex: 0, role: 'button', 'aria-label': 'Ganti proyektil' }, uiRoot);
-      hit.setAttribute('transform', 'translate(20 18)');
+      const hit = GS.el('rect', { x: 0, y: 0, width: cw, height: 128, rx: 26, fill: 'transparent', style: 'cursor:pointer', tabindex: 0, role: 'button', 'aria-label': 'Ganti proyektil', 'data-hit': 'kartu' }, uiRoot);
+      hit.setAttribute('transform', `translate(${S.cardX} 14)`);
       hit.addEventListener('click', () => chooseNext());
       hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); chooseNext(); } });
     }
@@ -716,27 +719,27 @@
     const g = S.picker; g.innerHTML = '';
     const P = PROJ[S.projKey];
     const seq = S.L.choose || S.L.proj;
-    const w = seq.length > 1 ? 300 : 262;
-    GS.el('rect', { x: 0, y: 4, width: w, height: 92, rx: 22, fill: LINE, opacity: 0.25 }, g);
-    GS.el('rect', { x: 0, y: 0, width: w, height: 90, rx: 22, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3.5 }, g);
-    GS.el('circle', { cx: 46, cy: 45, r: 33, fill: '#E6F5F0', stroke: LINE, 'stroke-width': 3 }, g);
-    const ic = GS.el('g', { class: 'kt-pop' }, GS.el('g', { transform: 'translate(46 45)' }, g));
-    GS.markup(ic, projMarkup(S.projKey, 21));
-    const name = GS.el('text', { x: 90, y: 40, 'font-size': 26, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, g);
+    const w = seq.length > 1 ? 400 : 344, h = 124;
+    GS.el('rect', { x: 0, y: 5, width: w, height: h + 2, rx: 26, fill: LINE, opacity: 0.25 }, g);
+    GS.el('rect', { x: 0, y: 0, width: w, height: h, rx: 26, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3.5 }, g);
+    GS.el('circle', { cx: 62, cy: 62, r: 46, fill: '#E6F5F0', stroke: LINE, 'stroke-width': 3 }, g);
+    const ic = GS.el('g', { class: 'kt-pop' }, GS.el('g', { transform: 'translate(62 62)' }, g));
+    GS.markup(ic, projMarkup(S.projKey, 30));
+    const name = GS.el('text', { x: 122, y: 52, 'font-size': 36, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, g);
     name.textContent = P.name;
-    const wi = GS.el('g', { transform: 'translate(103 64)' }, g);
+    const wi = GS.el('g', { transform: 'translate(138 90) scale(1.3)' }, g);
     GS.markup(wi, weightIcon(P.heavy));
-    const wt = GS.el('text', { x: 126, y: 72, 'font-size': 20, 'font-weight': 700, fill: P.heavy ? '#2B1D14' : '#6B5444', class: 't-body' }, g);
+    const wt = GS.el('text', { x: 166, y: 101, 'font-size': 30, 'font-weight': 700, fill: P.heavy ? '#2B1D14' : '#6B5444', class: 't-body' }, g);
     wt.textContent = P.weight;
     if (seq.length > 1) {
       // queue of projectiles for this level, current one marked
       seq.forEach((k, j) => {
         const done = !S.L.choose && (j < Math.min(S.hits, seq.length - 1) || (j < seq.length - 1 && S.hits > j));
         const cur = S.L.choose ? k === S.projKey : k === S.projKey && j === Math.min(S.hits, seq.length - 1);
-        const cx = w - 26, cy = 18 + j * 27;
-        GS.el('circle', { cx, cy, r: 12, fill: cur ? '#FFC83D' : '#FFF8EC', stroke: LINE, 'stroke-width': 2, opacity: done ? 0.45 : 1 }, g);
+        const cx = w - 34, cy = 24 + j * 38;
+        GS.el('circle', { cx, cy, r: 17, fill: cur ? '#FFC83D' : '#FFF8EC', stroke: LINE, 'stroke-width': 2.5, opacity: done ? 0.45 : 1 }, g);
         const s = GS.el('g', { transform: `translate(${cx} ${cy})`, opacity: done ? 0.45 : 1 }, g);
-        GS.markup(s, projMarkup(k, 7.5));
+        GS.markup(s, projMarkup(k, 11));
       });
     }
   }
@@ -755,7 +758,7 @@
 
   /* ---------------- shot table (k4) ---------------- */
   function drawTable() {
-    S.tableG = GS.el('g', { transform: 'translate(952 18)' }, uiRoot);
+    S.tableG = GS.el('g', { transform: 'translate(918 154)', 'pointer-events': 'none' }, uiRoot);
     if (S.L.prefill) S.L.prefill.forEach(n => { const p = n * NOTCH; S.rows.push({ pull: p, deg: 45, dist: rangeNow(S.projKey, p, 45), old: true }); });
     renderTable();
   }
@@ -763,7 +766,7 @@
     // "jarak": where this exact shot reaches the field when nothing is in the way (same simulator)
     const free = rangeNow(res.proj, res.pull, res.deg);
     S.rows.push({ pull: res.pull, deg: res.deg, dist: free < 90 ? free : null });
-    while (S.rows.length > 6) S.rows.shift();
+    while (S.rows.length > 4) S.rows.shift();
     if (S.L.table === 'pull') {
       const d = n => { const r = S.rows.filter(q => Math.abs(q.pull - n * NOTCH) < 0.01 && q.dist).pop(); return r && r.dist; };
       if (d(1) && d(2)) { S.ratioN = d(2) / d(1); S.ratio = `tarikan 2×, jarak ${fmt(S.ratioN)}×`; }
@@ -773,23 +776,23 @@
   function renderTable() {
     const g = S.tableG; if (!g) return;
     g.innerHTML = '';
-    const byPull = S.L.table === 'pull';
-    const rows = S.rows, h = 52 + Math.max(1, rows.length) * 30 + (S.ratio ? 34 : 0);
-    GS.el('rect', { x: 0, y: 4, width: 308, height: h, rx: 18, fill: LINE, opacity: 0.25 }, g);
-    GS.el('rect', { x: 0, y: 0, width: 308, height: h, rx: 18, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3.5 }, g);
-    const head = (x, t, a) => { const e = GS.el('text', { x, y: 32, 'text-anchor': a || 'middle', 'font-size': 20, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, g); e.textContent = t; };
-    head(80, byPull ? 'tarikan' : 'sudut'); head(220, 'jarak');
-    GS.el('path', { d: 'M16 44H292M150 12V' + (h - 10), stroke: LINE, 'stroke-width': 2, opacity: 0.35 }, g);
+    const byPull = S.L.table === 'pull', W = 344, RH = 48;
+    const rows = S.rows, h = 62 + Math.max(1, rows.length) * RH + (S.ratio ? 46 : 0);
+    GS.el('rect', { x: 0, y: 5, width: W, height: h, rx: 22, fill: LINE, opacity: 0.25 }, g);
+    GS.el('rect', { x: 0, y: 0, width: W, height: h, rx: 22, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3.5 }, g);
+    const head = (x, t) => { const e = GS.el('text', { x, y: 40, 'text-anchor': 'middle', 'font-size': 32, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, g); e.textContent = t; };
+    head(86, byPull ? 'tarikan' : 'sudut'); head(254, 'jarak');
+    GS.el('path', { d: `M16 56H${W - 16}M170 12V${h - (S.ratio ? 56 : 10)}`, stroke: LINE, 'stroke-width': 2, opacity: 0.35 }, g);
     rows.forEach((r, k) => {
-      const y = 70 + k * 30;
+      const y = 56 + RH * (k + 1) - 8;
       const c = r.old ? '#6B5444' : '#2B1D14';
-      const a = GS.el('text', { x: 80, y, 'text-anchor': 'middle', 'font-size': 22, 'font-weight': 600, fill: c, class: 'gs-num' }, g);
+      const a = GS.el('text', { x: 86, y, 'text-anchor': 'middle', 'font-size': 40, 'font-weight': 600, fill: c, class: 'gs-num' }, g);
       a.textContent = byPull ? tarikanWords(r.pull) : Math.round(r.deg) + '°';
-      const b = GS.el('text', { x: 220, y, 'text-anchor': 'middle', 'font-size': 22, 'font-weight': 600, fill: c, class: 'gs-num' }, g);
+      const b = GS.el('text', { x: 254, y, 'text-anchor': 'middle', 'font-size': r.dist == null ? 30 : 40, 'font-weight': 600, fill: c, class: r.dist == null ? 't-body' : 'gs-num' }, g);
       b.textContent = r.dist == null ? 'jauh sekali' : fmt(r.dist) + ' m';
     });
     if (S.ratio) {
-      const t = GS.el('text', { x: 154, y: h - 16, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 700, fill: '#0F8C7A', class: 't-body' }, g);
+      const t = GS.el('text', { x: W / 2, y: h - 16, 'text-anchor': 'middle', 'font-size': 30, 'font-weight': 700, fill: '#0F8C7A', class: 't-body' }, g);
       t.textContent = S.ratio;
     }
   }
