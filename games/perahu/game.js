@@ -1901,8 +1901,9 @@
       txt(g, -36, 14, String(k + 1), { 'font-size': 40 });
       return { x, y: 512, t: null, g };
     });
-    txt(rack, 46, 596, 'sedikit terendam', { class: 't-body', 'font-size': 34, 'font-weight': 700, 'text-anchor': 'start' });
-    txt(rack, 600, 596, 'banyak terendam', { class: 't-body', 'font-size': 34, 'font-weight': 700, 'text-anchor': 'end' });
+    txt(rack, 110, 598, 'sedikit', { class: 't-body', 'font-size': 34, 'font-weight': 700 });
+    txt(rack, 530, 598, 'banyak', { class: 't-body', 'font-size': 34, 'font-weight': 700 });
+    el('path', { d: 'M178 588 H462 M446 578 L462 588 L446 598', fill: 'none', stroke: OUT, 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, rack);
     function put(t, q) {
       if (t.slot) t.slot.t = null;
       if (q && q.t && q.t !== t) { const o = q.t; o.slot = null; if (t.slot0) { put(o, t.slot0); } else { o.tag.removeAttribute('display'); flyTo(o, o.home.x, o.home.y, o.base, 200); } }
