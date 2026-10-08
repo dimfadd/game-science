@@ -321,3 +321,15 @@ button { font: inherit; color: inherit; }
   .gs-picker-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px; }
   .gs-level { height: 72px; }
 }
+
+/* Short landscape phones: the caption moves to the top-left, under the HUD, where the
+ * scenes are mostly sky. At the bottom-left it covered the slingshot, the halte and
+ * the first number-line stakes. */
+@media (max-height: 500px) {
+  .gs-caption {
+    top: calc(var(--hud-h) + env(safe-area-inset-top, 0px) + 6px); bottom: auto;
+    align-items: flex-start; transform: translateY(-12px);
+  }
+  .gs-caption.show { transform: none; }
+  .gs-caption-text { margin: 6px 0 0; border-radius: 6px 16px 16px 16px; }
+}
