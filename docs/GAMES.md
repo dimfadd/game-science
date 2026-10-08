@@ -1,4 +1,6 @@
-# Spesifikasi Game
+# Spesifikasi Game (versi awal)
+
+> **Catatan:** dokumen ini adalah spesifikasi versi pertama (satu jenjang). Daftar level yang berlaku sekarang, per kelas, ada di `docs/KURIKULUM.md`.
 
 Setiap game mengikuti `docs/DESIGN.md`. Angka dalam soal **diacak per sesi** dalam rentang yang disebutkan, kecuali level yang sengaja dibuat tetap untuk mengenalkan konsep.
 Bintang: 3 = berhasil pada uji pertama, 2 = 1–2 uji ulang, 1 = lebih dari itu. "Uji" adalah aksi komit (Lepas!, Lompat!, Tembak, Dayung!, Bagikan!), bukan setiap seretan.

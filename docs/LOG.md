@@ -2,6 +2,15 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-08 (later): Games and difficulty per kelas
+
+Requested by the owner: games, variations and difficulty must follow the selected kelas, with the option to switch or move up.
+- `docs/KURIKULUM.md` + `shared/curriculum.js`: five tiers (TK, Kelas 1, 2, 3, 4+) mapped to Kurikulum Merdeka phases; TK 6 levels, others 8; per-tier descriptions for the hub.
+- All six games rebuilt per tier by their original builder agents (Timbangan, Angkot, Katak, Ketapel, Rakit, Martabak): 38 levels each, 228 in total, with new mechanics for TK (dots, no reading, looser tolerance) and Kelas 4+ (equations with boxes, kg/g, thousands, rounding, fractions on the number line, equivalent fractions, salt water, angle/pull-squared range). All tiers pass `tests/levels.js`.
+- Stars stored per tier; hub map + parent guide follow the tier; profile editor (name, kelas, avatar); level-up banner.
+- Bugs fixed: level picker close button clipped (now inside the card); hub map left empty strips on wide phones (viewBox now widens to the screen, scenery extends past the edges); caption bubble covered play areas on short landscape phones (moved to top-left there); hub subtitle overlapped landmarks on short screens.
+- Rate limits interrupted the agents several times (including the weekly limit); work resumed from the saved state each time.
+
 ## 2026-10-08: Mat Sains, PWA, onboarding, login, bug fixes
 
 Requested by the owner after testing on a real Android phone via Vercel (game-science-seven.vercel.app).

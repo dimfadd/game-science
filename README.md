@@ -1,6 +1,6 @@
 # Mat Sains
 
-Koleksi game HTML5 untuk anak kelas 1–3 SD. Anak belajar matematika dan fisika intuitif lewat mekanik permainan, bukan lewat kuis.
+Koleksi game HTML5 untuk anak TK sampai kelas 4+ SD. Isi dan tingkat kesulitan setiap game mengikuti kelas yang dipilih (lihat `docs/KURIKULUM.md`). Anak belajar matematika dan fisika intuitif lewat mekanik permainan, bukan lewat kuis.
 
 ## Cara main
 

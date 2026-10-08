@@ -36,7 +36,9 @@ audio/voice/            Recorded narrator clips + manifest.json (empty until rec
 shared/core.js          window.GS runtime (see API below)
 shared/core.css         Design tokens, HUD, buttons, overlays, start gate
 shared/art.js           window.GS.art SVG library (mascot, items, people, scenes, landmarks)
-shared/auth.js          window.MS.auth: session, guard, profile chip
+shared/auth.js          window.MS.auth: session, guard, profile chip, updateProfile
+shared/curriculum.js    window.MS.kur + GS.tier(): grade tiers and per-tier game texts/level counts
+shared/profile.js       window.MS.profileEditor: change name, kelas and avatar (hub)
 shared/config.js        window.MS.config: GOOGLE_CLIENT_ID, voice settings
 shared/pwa.js           window.MS.pwa: SW registration, install button ([data-pwa-install])
 shared/voice.js         Narrator: recorded clips first, tuned TTS fallback (GS.speakImpl)
@@ -44,22 +46,32 @@ games/<id>/index.html   One folder per game: timbangan, angkot, katak, ketapel, 
 games/<id>/game.js
 games/_template/        Starting point for a new game
 docs/DESIGN.md          Design bible: pedagogy, visual style, palette, fonts, motion, physics rules
-docs/GAMES.md           Level-by-level spec of every game
+docs/KURIKULUM.md       Level list of every game PER GRADE TIER (the current spec)
+docs/GAMES.md           Original single-tier spec (historical; superseded by KURIKULUM.md)
 docs/NARASI.md          Narrator line list + recording guide
 docs/LOG.md             Chronological work log (append an entry for every change)
 tests/                  Playwright smoke + full-level tests (see Testing)
 ```
 
+## Grade tiers (kelas)
+
+Every game has five tiers: `tk`, `k1`, `k2`, `k3`, `k4` (Kelas 4+), following Kurikulum Merdeka phases (Fondasi, A, B). **TK = 6 levels, every other tier = 8 levels.** The level lists are in `docs/KURIKULUM.md`.
+- The tier comes from the child's kelas (session/profile), overridable with `?tier=k3` in the URL. `GS.tier()` / `MS.kur` live in `shared/curriculum.js`, which also holds the per-tier descriptions shown on the hub map and parent guide.
+- Each game builds its level list from `GS.tier()`; `window.__game.count()` must equal `MS.kur.levels(tier)`.
+- Stars are stored per game per tier (`stars.<game>@<tier>`; `GS.store` adds the suffix automatically).
+- Hub: the "Kelas" button and the profile chip open `MS.profileEditor` (name, kelas, avatar). When every level of the current tier has a star, a banner offers the next tier.
+- TK tier: no reading required (numbers always with dots/objects), bigger targets, looser tolerances.
+
 ## The games
 
-| id | Name | Levels | Teaches |
+| id | Name | Levels (per tier) | Teaches (across tiers) |
 |---|---|---|---|
-| timbangan | Timbangan Pasar | 12 | =, <, >, number bonds, missing addend, subtraction, halves (pan balance locked by a peg, "Lepas!" releases); L10–12 seesaw torque (weight × distance) |
-| angkot | Angkot Penuh! | 10 | Make-ten (angkot leaves only at exactly 10, seats are a ten-frame), tens and ones with angkot + becak |
-| katak | Lompat Katak | 10 | Number line, hop size × hop count planned before jumping, skip counting, subtraction |
-| ketapel | Ketapel Mangga | 10 | Pull → speed → distance, parabolic flight, mass and air drag, patok number line |
-| perahu | Rakit Terapung | 10 | Float/sink by density, raft capacity (exact sums), hull shape capacity |
-| martabak | Bagi Martabak | 10 | Equal parts, ½ ⅓ ¼ by cutting convex polygons, comparing unit fractions |
+| timbangan | Timbangan Pasar | 6 / 8 | =, <, >, number bonds, missing addend, subtraction, halves (pan balance locked by a peg, "Lepas!" releases); L10–12 seesaw torque (weight × distance) |
+| angkot | Angkot Penuh! | 6 / 8 | Make-ten (angkot leaves only at exactly 10, seats are a ten-frame), tens and ones with angkot + becak |
+| katak | Lompat Katak | 6 / 8 | Number line, hop size × hop count planned before jumping, skip counting, subtraction |
+| ketapel | Ketapel Mangga | 6 / 8 | Pull → speed → distance, parabolic flight, mass and air drag, patok number line |
+| perahu | Rakit Terapung | 6 / 8 | Float/sink by density, raft capacity (exact sums), hull shape capacity |
+| martabak | Bagi Martabak | 6 / 8 | Equal parts, ½ ⅓ ¼ by cutting convex polygons, comparing unit fractions |
 
 Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solve()` completes the **current round**; multi-round levels need repeated calls. Angkot also has `speed(n)` to speed up animations in tests.
 
@@ -88,7 +100,8 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
 
 - `tests/` holds Playwright scripts (uses `playwright-core`; Chromium path via `CHROMIUM` env or `/opt/pw-browsers/...`). Run `npm --prefix tests install` once, then:
   - `node tests/smoke.js`: every page loads without errors or horizontal overflow at 4 device sizes (`SITE_DIR=dist` to test the Vercel build).
-  - `node tests/levels.js [gameId]`: solves every level (run one game per command; the whole set takes over 10 minutes).
+  - `node tests/levels.js [gameId] [tier]`: solves every level of every tier and checks the level count (run one game per command; one game takes 3 to 8 minutes).
+  - `node tests/hub-tiers.js`: signed-in hub at four sizes, profile editor, switching kelas, level-up banner.
   - `node tests/journey.js [phoneLandscape|phonePortrait|tablet]`: new player end to end with the login guard on (onboarding, dev login, hub, tap a landmark, start gate).
   - `node tests/hub-hover.js`: hub landmarks stay in place on hover/press.
   - `node tests/collect-lines.js`: plays every level and rewrites the narrator line list in `docs/NARASI.md`.

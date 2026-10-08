@@ -2,7 +2,10 @@
 (function () {
   'use strict';
   const GAME = 'template';
-  const LEVELS = [/* level definitions */ {}, {}, {}];
+  // Level list per grade tier (see docs/KURIKULUM.md): tk = 6 levels, k1..k4 = 8 levels.
+  const TIER = GS.tier ? GS.tier() : 'k1';
+  const BY_TIER = { tk: [{}, {}, {}, {}, {}, {}], k1: [{}, {}, {}, {}, {}, {}, {}, {}], k2: [], k3: [], k4: [] };
+  const LEVELS = BY_TIER[TIER];
 
   const svg = document.getElementById('stage');
   const hud = GS.hud({ gameId: GAME, title: 'Nama Game', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
@@ -27,5 +30,7 @@
     run.win(stars, 'Hebat!');
   }
 
+  // Test hook: go(i), solve() through the real code paths, count() = level count of this tier.
+  window.__game = { go: i => run.go(i), solve: () => {}, count: () => LEVELS.length };
   run.go(GS.store.nextLevel(GAME, LEVELS.length));
 })();

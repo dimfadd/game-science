@@ -1824,12 +1824,12 @@
       await sayWait('Di air tawar telur tenggelam. Di air asin telur terapung!', right === 2 ? 'happy' : 'surprise');
       if (my !== gen) return;
       say('Tambah garam ke air tawar. Berapa sendok sampai telur naik?', 'point');
-      btn.hidden = true;
+      btn.style.display = 'none';
       saltBtn.disabled = false;
-      saltBtn.hidden = false;
+      saltBtn.hidden = false; saltBtn.style.display = '';
     }
     const saltBtn = button('+ Garam', 'alt', () => addSalt());
-    saltBtn.hidden = true; saltBtn.disabled = true;
+    saltBtn.hidden = true; saltBtn.disabled = true; saltBtn.style.display = 'none';
     async function addSalt() {
       if (!fresh || saltBtn.disabled) return;
       const my = gen;
