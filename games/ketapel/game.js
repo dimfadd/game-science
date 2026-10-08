@@ -370,13 +370,14 @@
     const per = n > 3 ? Math.ceil(n / 2) : n;
     for (let k = 0; k < n; k++) {
       const row = k < per ? 0 : 1, col = row ? k - per : k, cnt = row ? n - per : per;
-      out += `<circle cx="${cx + (col - (cnt - 1) / 2) * r * 2.6}" cy="${cy + row * r * 2.6}" r="${r}" fill="#F28C28" stroke="${LINE}" stroke-width="1.5"/>`;
+      out += `<circle cx="${cx + (col - (cnt - 1) / 2) * r * 2.5}" cy="${cy + row * r * 2.5}" r="${r}" fill="#F28C28" stroke="${LINE}" stroke-width="2"/>`;
     }
     return out;
   }
   function drawPatok() {
     const g = S.layers.patok;
-    const tk = S.markKind === 'tk';
+    const tk = S.markKind === 'tk', hf = S.markKind === 'half';
+    const z = GEO.z, k = 1 / z; // plates keep their on-screen size in the zoomed 15 m level
     const last = S.marks[S.marks.length - 1].x;
     // a faint rope line along the ground marks the number line
     GS.el('path', { d: `M${X0} ${FY + 30}H${sx(last)}`, stroke: LINE, 'stroke-width': 3, 'stroke-dasharray': '2 10', 'stroke-linecap': 'round', opacity: 0.35 }, g);
@@ -385,38 +386,33 @@
       const x = sx(mk.x);
       const st = GS.el('g', null, g);
       const big = mk.plate;
-      const hh = big ? 44 : 26;
-      GS.el('ellipse', { cx: x + 2, cy: FY + 2, rx: big ? 14 : 9, ry: 4, fill: LINE, opacity: 0.18 }, st);
-      GS.el('path', { d: `M${x - (big ? 7 : 5)} ${FY + 4}V${FY - hh + 10}L${x} ${FY - hh}L${x + (big ? 7 : 5)} ${FY - hh + 10}V${FY + 4}Z`, fill: '#A8673A', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, st);
+      const hh = big ? 44 : 30;
+      GS.el('ellipse', { cx: x + 2, cy: FY + 2, rx: big ? 14 : 10, ry: 4, fill: LINE, opacity: 0.18 }, st);
+      GS.el('path', { d: `M${x - (big ? 7 : 6)} ${FY + 4}V${FY - hh + 10}L${x} ${FY - hh}L${x + (big ? 7 : 6)} ${FY - hh + 10}V${FY + 4}Z`, fill: big ? '#A8673A' : '#C98552', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, st);
       if (big) {
         GS.el('path', { d: `M${x + 2} ${FY - 32}V${FY + 2}`, stroke: '#7E4A27', 'stroke-width': 4, 'stroke-linecap': 'round' }, st);
         GS.el('path', { d: `M${x - 3} ${FY - 34}V${FY - 6}`, stroke: '#C98552', 'stroke-width': 2, 'stroke-linecap': 'round' }, st);
       }
-      // number plate in front, below the ground line so crates never hide it
+      // number plate in front, below the ground line so crates never hide it.
+      // Half-meter plates sit on a second row so every number can be big.
       const pl = GS.el('g', null, S.layers.fx);
       const inner = GS.el('g', null, pl);
-      if (big) {
-        const w = tk ? 66 : 42, h = tk ? 64 : 34;
-        GS.el('rect', { x: x - w / 2, y: FY + 14, width: w, height: h, rx: 10, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 3 }, inner);
-        const t = GS.el('text', { x, y: FY + 40, 'text-anchor': 'middle', 'font-size': tk ? 26 : 24, 'font-weight': 600, fill: '#2B1D14', class: 'gs-num' }, inner);
-        t.textContent = mk.n;
-        if (tk) GS.markup(inner, dotsMarkup(mk.n, x, FY + 54, 4.5));
-      } else {
-        GS.el('rect', { x: x - 17, y: FY + 18, width: 34, height: 24, rx: 8, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 2.5 }, inner);
-        const t = GS.el('text', { x, y: FY + 36, 'text-anchor': 'middle', 'font-size': 15, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, inner);
-        t.textContent = fmt(mk.x);
-      }
+      const w = (tk ? 96 : big ? 70 : 66) * k, h = (tk ? 108 : big ? 58 : 50) * k, fs = (tk ? 48 : big ? 44 : 38) * k;
+      const y0 = FY + 12 + (big ? 0 : 58);
+      if (!big) GS.el('path', { d: `M${x} ${FY + 6}V${y0}`, stroke: LINE, 'stroke-width': 2.5, 'stroke-dasharray': '2 5', opacity: 0.5 }, inner);
+      GS.el('rect', { x: x - w / 2, y: y0, width: w, height: h, rx: 12 * k, fill: big ? '#FFF8EC' : '#F6E9D2', stroke: LINE, 'stroke-width': 3 }, inner);
+      const t = GS.el('text', { x, y: y0 + (tk ? 44 : h / 2 + fs * 0.36), 'text-anchor': 'middle', 'font-size': fs, 'font-weight': 600, fill: '#2B1D14', class: 'gs-num' }, inner);
+      t.textContent = big ? mk.n : fmt(mk.x);
+      if (tk) GS.markup(inner, dotsMarkup(mk.n, x, y0 + 68, 8));
       S.plates.push(inner);
     });
     if (tk) return;
-    if (S.markKind === 'half') { const m = GS.el('text', { x: sx(10) + 40, y: FY + 36, 'font-size': 18, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx); m.textContent = 'meter'; return; }
     // "0" under the slingshot so the line reads from zero
-    const z = GS.el('text', { x: X0, y: FY + 40, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
-    z.textContent = '0';
-    const m = GS.el('text', { x: sx(last) + 40, y: FY + 40, 'text-anchor': 'start', 'font-size': 18, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
+    const z0 = GS.el('text', { x: X0, y: FY + 56 * k, 'text-anchor': 'middle', 'font-size': 40 * k, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
+    z0.textContent = '0';
+    const m = GS.el('text', { x: sx(last), y: FY + (hf ? 152 : 104) * k, 'text-anchor': 'middle', 'font-size': 30 * k, 'font-weight': 700, fill: '#6B5444', class: 't-body' }, S.layers.fx);
     m.textContent = 'meter';
   }
-  // k4: a raised kebun terrace at pouch height (stone wall front, grass top).
   function drawTerrace() {
     const g = S.layers.far, x0 = sx(0.3);
     GS.el('rect', { x: x0 + 6, y: FY + 6, width: 1800, height: GY - FY + 4, fill: LINE, opacity: 0.18 }, g);
@@ -860,16 +856,17 @@
     });
     // patok tap targets (prediction); only active during the prediction phase
     S.patokHits = GS.el('g', { 'pointer-events': 'none' }, S.layers.hits);
-    if (S.markKind === 'half') {
+    if (S.markKind === 'half' || GEO.z !== 1) {
       // half meters are too close for separate buttons: one wide strip, snapped to 0.5 m
-      const strip = GS.el('rect', { x: sx(0.25), y: FY - 130, width: 975, height: 210, rx: 18, fill: 'transparent', class: 'kt-patok-hit' }, S.patokHits);
+      const lastX = S.marks[S.marks.length - 1].x;
+      const strip = GS.el('rect', { x: sx(S.marks[0].x - S.markStep / 2), y: FY - 130, width: (lastX + S.markStep / 2) * 100 - (S.marks[0].x - S.markStep / 2) * 100, height: 300, rx: 18, fill: 'transparent', class: 'kt-patok-hit', 'data-hit': 'patok' }, S.patokHits);
       strip.addEventListener('click', e => { const pt = GS.svgPoint(svg, e.clientX, e.clientY, world); const mk = markAt((pt.x - X0) / 100); if (mk && mk !== 'far') choosePatok(mk); });
     }
     S.marks.forEach(mk => {
       if (!mk.plate) return;
-      const w = Math.min(92, S.markStep * 100 - 8) * (S.markKind === 'half' ? 0 : 1) || 0;
-      if (!w) return;
-      const r = GS.el('rect', { x: sx(mk.x) - w / 2, y: FY - 124, width: w, height: 200, rx: 18, fill: 'transparent', class: 'kt-patok-hit', tabindex: -1, role: 'button', 'aria-label': 'Patok ' + mk.n }, S.patokHits);
+      if (S.markKind === 'half' || GEO.z !== 1) return;
+      const w = Math.min(180, S.markStep * 100 - 4);
+      const r = GS.el('rect', { x: sx(mk.x) - w / 2, y: FY - 124, width: w, height: 260, rx: 18, fill: 'transparent', class: 'kt-patok-hit', 'data-hit': 'patok', tabindex: -1, role: 'button', 'aria-label': 'Patok ' + mk.n }, S.patokHits);
       r.addEventListener('click', () => choosePatok(mk));
       r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); choosePatok(mk); } });
     });
@@ -919,13 +916,13 @@
       // notches: tarikan 1/2, 1, 1 1/2, 2 (one tarikan = NOTCH m of stretch)
       for (let k = S.L.notch / 2; k * 100 <= mp + 1; k += S.L.notch / 2) {
         const nx = REST.x - Math.cos(a) * k * 100, ny = REST.y + Math.sin(a) * k * 100;
-        GS.el('circle', { cx: nx, cy: ny, r: 7, fill: '#FFC83D', stroke: LINE, 'stroke-width': 2 }, g);
-        const t = GS.el('text', { x: nx - 18, y: ny + 7, 'text-anchor': 'end', 'font-size': 20, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 4, 'paint-order': 'stroke', class: 'gs-num' }, g);
+        GS.el('circle', { cx: nx, cy: ny, r: 8, fill: '#FFC83D', stroke: LINE, 'stroke-width': 2 }, g);
+        const t = GS.el('text', { x: nx - 16, y: ny + 34, 'text-anchor': 'end', 'font-size': 38, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 4, 'paint-order': 'stroke', class: 'gs-num' }, g);
         t.textContent = tarikanWords(k);
       }
     } else for (let k = 40; k <= mp + 1; k += 40) GS.el('circle', { cx: REST.x - Math.cos(a) * k, cy: REST.y + Math.sin(a) * k, r: 4, fill: '#FFF8EC', stroke: LINE, 'stroke-width': 1.5, opacity: 0.85 }, g);
     if (S.L.showDeg && S.pull > 0) {
-      const t = GS.el('text', { x: REST.x + 46, y: REST.y - 30, 'font-size': 26, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 5, 'paint-order': 'stroke', class: 'gs-num' }, g);
+      const t = GS.el('text', { x: REST.x + 50, y: REST.y - 34, 'font-size': 46, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 5, 'paint-order': 'stroke', class: 'gs-num' }, g);
       t.textContent = Math.round(S.deg) + '°';
       GS.el('path', { d: `M${REST.x} ${REST.y}h44M${REST.x} ${REST.y}l${Math.cos(a) * 44} ${-Math.sin(a) * 44}`, stroke: '#2B1D14', 'stroke-width': 2.5, 'stroke-dasharray': '3 4', opacity: 0.7 }, g);
     }
@@ -992,7 +989,7 @@
     GS.el('path', { d: `M${x} ${FY}V${FY - 92}`, stroke: '#E9D3A6', 'stroke-width': 3, 'stroke-linecap': 'round' }, g);
     GS.el('path', { d: `M${x + 2} ${FY - 90}L${x + 50} ${FY - 76}L${x + 2} ${FY - 60}Z`, fill: '#1F6FD1', stroke: LINE, 'stroke-width': 3, 'stroke-linejoin': 'round' }, g);
     [[14, -80], [26, -76], [14, -70]].forEach(p => GS.el('circle', { cx: x + p[0], cy: FY + p[1], r: 3, fill: '#fff' }, g));
-    const lab = GS.el('text', { x: x + 8, y: FY - 100, 'font-size': 17, 'font-weight': 700, fill: '#1F6FD1', class: 't-body', 'text-anchor': 'middle' }, g);
+    const lab = GS.el('text', { x: x + 8, y: FY - 102, 'font-size': 30, 'font-weight': 700, fill: '#1F6FD1', stroke: '#FFF8EC', 'stroke-width': 6, 'paint-order': 'stroke', class: 't-body', 'text-anchor': 'middle' }, g);
     lab.textContent = S.markKind === 'tk' ? '' : 'tebakanku';
   }
   function toAim() {
@@ -1228,20 +1225,20 @@
     S.landG = g;
     const x = sx(xm);
     // exact landing point
-    const top = FY - 196;
+    const top = FY - 214;
     GS.el('ellipse', { cx: x, cy: FY, rx: 13, ry: 5, fill: '#7E4A27', opacity: 0.5 }, g);
-    GS.el('path', { d: `M${x} ${FY - 4}V${top + 38}`, stroke: LINE, 'stroke-width': 2.5, 'stroke-dasharray': '3 6', 'stroke-linecap': 'round', opacity: 0.8 }, g);
+    GS.el('path', { d: `M${x} ${FY - 4}V${top + 52}`, stroke: LINE, 'stroke-width': 2.5, 'stroke-dasharray': '3 6', 'stroke-linecap': 'round', opacity: 0.8 }, g);
     GS.el('circle', { cx: x, cy: FY, r: 6, fill: '#F28C28', stroke: LINE, 'stroke-width': 2.5 }, g);
     const km = markAt(xm), tkPill = S.markKind === 'tk' && km && km !== 'far';
     const text = tkPill ? String(km.n) : labelFor(xm);
-    const tw = tkPill ? 44 + km.n * 12 : text.length * 10.5 + 28;
+    const tw = tkPill ? 64 + km.n * 20 : text.length * 16 + 40;
     const lx = clamp(x, 20 + tw / 2, 1260 / GEO.z - tw / 2);
     const lg = GS.el('g', { class: 'kt-pop' }, g);
-    GS.el('rect', { x: lx - tw / 2, y: top + 4, width: tw, height: 36, rx: 18, fill: LINE, opacity: 0.25 }, lg);
-    GS.el('rect', { x: lx - tw / 2, y: top, width: tw, height: 36, rx: 18, fill: '#F28C28', stroke: LINE, 'stroke-width': 3 }, lg);
-    const t = GS.el('text', { x: tkPill ? lx - tw / 2 + 20 : lx, y: top + 26, 'text-anchor': 'middle', 'font-size': tkPill ? 24 : 20, 'font-weight': 700, fill: '#2B1D14', class: tkPill ? 'gs-num' : 't-body' }, lg);
+    GS.el('rect', { x: lx - tw / 2, y: top + 4, width: tw, height: 52, rx: 26, fill: LINE, opacity: 0.25 }, lg);
+    GS.el('rect', { x: lx - tw / 2, y: top, width: tw, height: 52, rx: 26, fill: '#F28C28', stroke: LINE, 'stroke-width': 3 }, lg);
+    const t = GS.el('text', { x: tkPill ? lx - tw / 2 + 30 : lx, y: top + 38, 'text-anchor': 'middle', 'font-size': tkPill ? 42 : 32, 'font-weight': 700, fill: '#2B1D14', class: tkPill ? 'gs-num' : 't-body' }, lg);
     t.textContent = text;
-    if (tkPill) GS.markup(lg, dotsMarkup(km.n, lx + 12, top + 18, 4).replace(/#F28C28/g, '#FFF8EC'));
+    if (tkPill) GS.markup(lg, dotsMarkup(km.n, lx + 22, top + 26 - (km.n > 3 ? 10 : 0), 7).replace(/#F28C28/g, '#FFF8EC'));
   }
   function labelFor(xm) {
     const k = markAt(xm);
@@ -1363,7 +1360,7 @@
       for (let k = 0; k < hops; k++) {
         const a = x1 + dir * k * st, b = a + dir * st;
         GS.el('path', { d: `M${a} ${FY + 8}Q${(a + b) / 2} ${FY - 48} ${b} ${FY + 8}`, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': '2 7' }, g);
-        const n = GS.el('text', { x: (a + b) / 2, y: FY - 30, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 600, fill: '#1F6FD1', class: 'gs-num' }, g);
+        const n = GS.el('text', { x: (a + b) / 2, y: FY - 40, 'text-anchor': 'middle', 'font-size': 38, 'font-weight': 600, fill: '#1F6FD1', stroke: '#FFF8EC', 'stroke-width': 6, 'paint-order': 'stroke', class: 'gs-num' }, g);
         n.textContent = k + 1;
       }
       later(() => { g.style.opacity = 0; }, 5200);

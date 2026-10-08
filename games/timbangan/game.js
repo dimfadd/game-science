@@ -344,7 +344,7 @@
 
   function drawTitle(t) {
     const g = el('g', { transform: 'translate(30 40)' }, S.layers.ui);
-    const tt = el('text', { x: 0, y: 0, 'dominant-baseline': 'central', 'font-size': 34, fill: C.ink, class: 'tp-tw', stroke: '#FFF8EC', 'stroke-width': 7, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g);
+    const tt = el('text', { 'data-qc': 'decor', x: 0, y: 0, 'dominant-baseline': 'central', 'font-size': 34, fill: C.ink, class: 'tp-tw', stroke: '#FFF8EC', 'stroke-width': 7, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g);
     tt.textContent = t;
   }
   function roundPips() {
@@ -606,8 +606,8 @@
       const x = s * d * STEP;
       el('rect', { x: x - 5, y: -17, width: 10, height: 7, rx: 2, fill: C.woodSh, stroke: OL, 'stroke-width': 2 }, pg);
       el('path', { d: `M${x} 10V22`, stroke: OL, 'stroke-width': 3 }, pg);
-      el('circle', { cx: x, cy: 40, r: 24, fill: s < 0 ? C.blueTint : C.orangeTint, stroke: s < 0 ? C.blue : C.orange, 'stroke-width': 3.4 }, pg);
-      txt(pg, x, 41, String(d), { size: 38 });
+      el('circle', { cx: x, cy: 42, r: 28, fill: s < 0 ? C.blueTint : C.orangeTint, stroke: s < 0 ? C.blue : C.orange, 'stroke-width': 3.4 }, pg);
+      txt(pg, x, 43, String(d), { size: 46 });
       const g = el('g', { transform: `translate(${x} -12)` }, pg);
       const hl = el('ellipse', { cx: 0, cy: -60, rx: 54, ry: 76, fill: 'none', stroke: C.ink, 'stroke-width': 4, 'stroke-dasharray': '10 9', opacity: 0.5, display: 'none' }, g);
       const content = el('g', null, g);
@@ -1068,7 +1068,7 @@
     const w = Math.max(116, text.length * 25 + 30), h = 62 + dotRows * 19 + (parts.length - 1) * 6;
     el('path', { d: `M0 ${-h / 2}V${-h / 2 - 14}`, stroke: OL, 'stroke-width': 2.4 }, g);
     el('path', { d: rr(-w / 2, -h / 2, w, h, 14), fill: C.cream, stroke: side < 0 ? C.blue : C.orange, 'stroke-width': 4 }, g);
-    txt(g, 0, -h / 2 + 30, text, { size: 44 });
+    txt(g, 0, -h / 2 + 30, text, { size: 46 });
     let y = -h / 2 + 64;
     if (showDots) parts.forEach((k, i) => {
       const r = rowsOf(k);
@@ -1135,7 +1135,7 @@
         const tint = side < 0 ? C.blueTint : side > 0 ? C.orangeTint : '#FFFFFF';
         const sc = side < 0 ? C.blue : side > 0 ? C.orange : OL;
         el('path', { d: rr(x, -34, w, 68, 18), fill: empty ? '#FFFFFF' : tint, stroke: empty ? C.muted : sc, 'stroke-width': 3.5, 'stroke-dasharray': empty ? '7 6' : null }, g);
-        txt(g, cx, 1, show(t.v), { size: show(t.v).length > 4 ? 40 : 46, fill: empty ? C.muted : C.ink });
+        txt(g, cx, 1, show(t.v), { size: show(t.v).length > 4 ? 42 : 46, fill: empty ? C.muted : C.ink });
       }
       if (st.prev[i] && st.prev[i] !== key && !GS.reducedMotion) {
         GS.tween(300, e => g.setAttribute('transform', `translate(${n1(cx)} 0) scale(${n1((1.25 - 0.25 * e) * 100) / 100}) translate(${n1(-cx)} 0)`), 'outBack');
@@ -1174,7 +1174,7 @@
             else el('rect', { x: x - dr, y: yy - dr, width: 2 * dr, height: 2 * dr, rx: 4, fill: C.orange, stroke: OL, 'stroke-width': 2 }, g);
           }
         }
-        txt(g, PX + side * (STEP - 64), top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: 36, fill: C.ink });
+        txt(g, PX + side * (STEP / 2 - 4), top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: 46, fill: C.ink });
         r += o.w;
       });
       const tot = objs.reduce((a, o) => a + o.w * o.d, 0);
@@ -1204,13 +1204,13 @@
     return { mk, box: { x: -hw - 4, y: T - 21, width: 2 * hw + 8, height: -(T - 21) } };
   }
   /** Width of the cream number plate on a weight (font 40 u, 36 u for long labels). */
-  function plateW(label) { const n = String(label).length; return n <= 3 ? n * 24 + 22 : n * 20 + 18; }
+  function plateW(label) { const n = String(label).length; return n <= 3 ? n * 27 + 22 : n * 21 + 18; }
   /** Every weight carries its own big number plate (the art's small numeral is hidden by CSS). */
   function weightPlate(it) {
     const label = it.label || fmt(it.w), w = plateW(label), cy = -it.h * 0.44;
     const g = el('g', { class: 'tp-plate' }, it.inner);
-    el('path', { d: rr(-w / 2, cy - 24, w, 48, 12), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-    txt(g, 0, cy + 1, label, { size: label.length > 3 ? 36 : 40 });
+    el('path', { d: rr(-w / 2, cy - 27, w, 54, 13), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
+    txt(g, 0, cy + 1, label, { size: label.length > 3 ? 38 : 46 });
   }
   const wt = (n, o) => {
     o = o || {};
@@ -1231,12 +1231,12 @@
     const dots = it.labelDots && typeof n === 'number' && n <= 10;
     if (dots) {
       el('path', { d: rr(-46, cy - 34, 92, 82, 12), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-      txt(g, 0, cy - 10, s, { size: 40 });
+      txt(g, 0, cy - 10, s, { size: 46 });
       dotsAt(g, n, 0, cy + 28, { r: 7, gap: 16, fill: OL });
     } else {
       const w = plateW(s) + 4;
       el('path', { d: rr(-w / 2, cy - 26, w, 52, 12), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-      txt(g, 0, cy + 1, s, { size: s.length > 3 ? 36 : 42 });
+      txt(g, 0, cy + 1, s, { size: s.length > 3 ? 40 : 46 });
     }
   }
   /** Sealed cloth bag (kantong) holding g units; its own label is drawn over the art's. */
@@ -1244,10 +1244,10 @@
     return Object.assign({
       kind: 'kantong', w: g, h: 82, fixed: true,
       decor: it => {
-        const cy = (-20 - (it.ab.y + it.ab.height)) * it.sc, r = 27;
+        const cy = (-20 - (it.ab.y + it.ab.height)) * it.sc, r = 31;
         const lg = el('g', null, it.inner);
         el('circle', { cx: 0, cy, r, fill: C.cream, stroke: OL, 'stroke-width': 2.6 }, lg);
-        txt(lg, 0, cy + 1, fmt(g), { size: 38 });
+        txt(lg, 0, cy + 1, fmt(g), { size: 46 });
       }
     }, o || {});
   }
@@ -1266,7 +1266,7 @@
         const bw = 62, bh = 70;
         el('path', { d: 'M0 24V30', stroke: OL, 'stroke-width': 2.4 }, g);
         el('path', { d: rr(-bw / 2, -bh / 2 - 12, bw, bh, 14), fill: C.cream, stroke: OL, 'stroke-width': 3.2 }, g);
-        txt(g, 0, -20, String(w), { size: 40 });
+        txt(g, 0, -20, String(w), { size: 46 });
         dotsAt(g, w, 0, 10, { r: 7, gap: 17 });
       }
     }, o || {});
@@ -1321,8 +1321,8 @@
   function basketLabel(b, text, accent) {
     const g = b.lab; g.innerHTML = '';
     const s = String(text), w = plateW(s);
-    el('path', { d: rr(-w / 2, -40, w, 48, 12), fill: accent ? C.blueTint : C.cream, stroke: accent ? C.blue : OL, 'stroke-width': 3 }, g);
-    txt(g, 0, -15, s, { size: 40 });
+    el('path', { d: rr(-w / 2, -42, w, 54, 13), fill: accent ? C.blueTint : C.cream, stroke: accent ? C.blue : OL, 'stroke-width': 3 }, g);
+    txt(g, 0, -15, s, { size: s.length > 3 ? 38 : 46 });
   }
   function sackDecor(i) {
     const p = S.pans[i];
@@ -1490,7 +1490,7 @@
     const cols = ns.map((k, ci) => {
       const cx = 72 + ci * 108;
       el('path', { d: rr(cx - 44, 20, 88, 50, 12), fill: '#E8D3A6', stroke: OL, 'stroke-width': 2.6 }, rack);
-      txt(rack, cx, 46, String(k), { size: 40 });
+      txt(rack, cx, 46, String(k), { size: 46 });
       return [0, 1, 2].map(j => {
         const y = 120 + j * 74;
         el('path', { d: rr(cx - 50, y - 28, 100, 56, 14), fill: 'none', stroke: C.muted, 'stroke-width': 2.4, 'stroke-dasharray': '6 5' }, rack);
@@ -1529,7 +1529,7 @@
       const slotPos = cols[o.round][found.length - 1];
       const chip = slotPos.g;
       el('path', { d: rr(slotPos.x - 50, slotPos.y - 28, 100, 56, 14), fill: C.tealTint, stroke: C.teal, 'stroke-width': 3 }, chip);
-      txt(chip, slotPos.x, slotPos.y + 1, `${x}+${y}`, { size: 38 });
+      txt(chip, slotPos.x, slotPos.y + 1, `${x}+${y}`, { size: 46 });
       if (!GS.reducedMotion) GS.tween(380, e => chip.setAttribute('transform', `translate(${slotPos.x} ${slotPos.y}) scale(${n1(e * 100) / 100}) translate(${-slotPos.x} ${-slotPos.y})`), 'outBack');
       GS.sfx.coin();
       say(`Pasangan baru: ${x} dan ${y}!`);
