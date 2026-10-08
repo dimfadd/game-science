@@ -13,7 +13,6 @@
   const G = 980, DT = 1 / 120, ZETA = 0.32, CQ = 0.9, RHO_W = 1.0;
   const DBG = { fast: false };
 
-  const LEVELS = ['A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C'];
 
   /* ---------------- materials ---------------- */
   // rho: density relative to water. s: drawn scale (size never encodes weight). air: air drag for light, wide things.
@@ -33,7 +32,8 @@
     koin: { rho: 7.1, label: 'koin', size: 44 },
     sendok: { rho: 7.8, label: 'sendok', size: 92 },
     paku: { rho: 7.8, label: 'paku', size: 62 },
-    baut: { rho: 7.8, label: 'baut', size: 52 }
+    baut: { rho: 7.8, label: 'baut', size: 52 },
+    telur: { rho: 1.03, label: 'telur', size: 58 }
   };
   const WHY = {
     kayu: 'Kayu ringan untuk ukurannya, jadi terapung.',
@@ -60,8 +60,80 @@
     keranjang: { rho: 0.6, label: 'keranjang buah', size: 100 },
     kantong: { rho: 2.0, label: 'kantong paku', size: 92 },
     semangka: { rho: 0.95, label: 'semangka', size: 96 },
-    kelapa: { rho: 0.9, label: 'kelapa', size: 84 }
+    kelapa: { rho: 0.9, label: 'kelapa', size: 84 },
+    peti: { rho: 0.8, label: 'peti ikan', size: 66 }
   };
+
+  /* ---------------- grade tiers (docs/KURIKULUM.md) ---------------- */
+  const TIER = (GS.tier && GS.tier()) || 'k1';
+  const BIG = TIER === 'tk'; // TK: bigger touch targets, nothing to read
+  const rndOf = a => a[Math.floor(Math.random() * a.length)];
+  function pickMix(n) {
+    const P = GS.shuffle(PAIRS), out = [];
+    for (const pr of P) if (out.length + 2 <= n) out.push(...pr);
+    while (out.length < n) { const e = rndOf(EXTRA); if (out.indexOf(e) < 0) out.push(e); }
+    return GS.shuffle(out);
+  }
+  const A1 = () => GS.shuffle(PAIRS[0].concat(PAIRS[4]));
+  const A2 = () => GS.shuffle(PAIRS[1].concat(PAIRS[2]));
+  const A3 = () => GS.shuffle(PAIRS[3].concat(rndOf([PAIRS[0], PAIRS[1], PAIRS[2], PAIRS[4]]), rndOf(EXTRA)));
+  const A4 = () => pickMix(6);
+  const C3 = () => [{ k: 'bola', label: 'bola', N: 0 }, { k: 'perahu', label: 'perahu kecil', N: GS.rand(4, 6) }, { k: 'mangkuk', label: 'mangkuk lebar', N: GS.rand(9, 12) }];
+  const TIERS = {
+    tk: [
+      { t: 'A', names: () => GS.shuffle(['kayu', 'batu', 'gabus']), say: 'Terapung atau tenggelam? Seret ke keranjang.' },
+      { t: 'A', names: () => GS.shuffle(['apel', 'koin', 'botol']), say: 'Ayo tebak lagi. Seret ke keranjang.' },
+      { t: 'A', names: () => GS.shuffle(['daun', 'kelereng', 'bulu', 'sendok']), say: 'Empat benda. Seret ke keranjang.' },
+      { t: 'A', names: () => GS.shuffle(['kayu', 'paku', 'kelapa', 'koin']), say: 'Yang besar belum tentu tenggelam. Ayo tebak!' },
+      { t: 'B', fruit: true, mode: 'exact', say: () => 'Muat kelapa sampai rakit penuh!' },
+      { t: 'A', names: () => pickMix(5), say: 'Tantangan! Seret semua ke keranjang.' }
+    ],
+    k1: [
+      { t: 'A', names: A1, say: 'Terapung atau tenggelam? Seret ke keranjang tebakan.' },
+      { t: 'A', names: A2, say: 'Tebak lagi. Terapung atau tenggelam?' },
+      { t: 'A', names: A3, say: 'Besar belum tentu tenggelam. Ayo tebak!' },
+      { t: 'A', names: A4, say: 'Enam benda. Seret semua ke keranjang tebakan.' },
+      { t: 'B', mode: 'exact', K: [8, 10], n: 4, w: [2, 7], dots: true },
+      { t: 'B', mode: 'exact', K: [9, 10], n: 5, w: [2, 7], minItems: 3 },
+      { t: 'B', mode: 'max', K: [9, 10], n: 5, w: [2, 7], noExact: true },
+      { t: 'B', mode: 'max', K: [9, 10], n: 6, w: [2, 7], hide: true }
+    ],
+    k2: [
+      { t: 'A', names: A4, say: 'Enam benda. Terapung atau tenggelam?' },
+      { t: 'A', names: A4, say: 'Tebak lagi, enam benda. Seret ke keranjang.' },
+      { t: 'B', mode: 'exact', K: [12, 18], n: 5, w: [2, 12] },
+      { t: 'B', mode: 'exact', K: [18, 24], n: 5, w: [2, 12] },
+      { t: 'B', mode: 'exact', K: [24, 30], n: 6, w: [2, 12], minItems: 3 },
+      { t: 'B', mode: 'max', K: [18, 26], n: 5, w: [2, 12], hide: true, noExact: true },
+      { t: 'B', mode: 'max', K: [24, 30], n: 6, w: [2, 12], hide: true },
+      { t: 'B', mode: 'exact', K: [26, 30], n: 6, w: [2, 12], hide: true, minItems: 3 }
+    ],
+    k3: [
+      { t: 'B', mode: 'max', crates: [4], n: [4, 7] },
+      { t: 'B', mode: 'max', crates: [3, 5, 6], n: [4, 8] },
+      { t: 'T' },
+      { t: 'C', mode: 'count', shapes: () => [{ k: 'perahu', label: 'perahu kecil', N: GS.rand(4, 7) }] },
+      { t: 'C', mode: 'count', shapes: () => [{ k: 'mangkuk', label: 'mangkuk lebar', N: GS.rand(9, 13) }] },
+      { t: 'C', mode: 'predict', shapes: C3 },
+      { t: 'C', mode: 'predict', shapes: () => {
+        const N = GS.shuffle([GS.rand(3, 5), GS.rand(6, 8), GS.rand(10, 12)]);
+        return [{ k: 'perahu', label: 'perahu', N: N[0] }, { k: 'kotak', label: 'kotak', N: N[1] }, { k: 'mangkuk', label: 'mangkuk', N: N[2] }];
+      } },
+      { t: 'C', mode: 'target' }
+    ],
+    k4: [
+      { t: 'E' },
+      { t: 'R' },
+      { t: 'B', mode: 'max', crates: [11, 12, 13, 14, 15], n: [4, 8] },
+      { t: 'C', mode: 'design', m: 5 },
+      { t: 'C', mode: 'design', m: 10 },
+      { t: 'B', mode: 'max', kinds: true, hide: true },
+      { t: 'A', rhoW: 1.1, names: () => GS.shuffle(['telur'].concat(pickMix(4))), say: 'Ini air asin. Terapung atau tenggelam?' },
+      { t: 'B', mode: 'max', K: [60, 90], n: 6, w: [11, 25], hide: true }
+    ]
+  };
+  const LEVELS = TIERS[TIER] || TIERS.k1;
+
 
   /* ---------------- art wrappers (never throw) ---------------- */
   const art = () => GS.art || {};
@@ -72,6 +144,8 @@
       if (art().item && has) return art().item(n, { shadow: false });
     } catch (e) { /* fall through */ }
     if (n === 'plastisin') return lumpMarkup();
+    if (n === 'telur') return eggMarkup();
+    if (n === 'peti') return crateMarkup();
     return '<circle cx="0" cy="-40" r="36" fill="#F3DDA6" stroke="' + OUT + '" stroke-width="4"/><text x="0" y="-28" text-anchor="middle" font-size="32" fill="#2B1D14">' + n.charAt(0).toUpperCase() + '</text>';
   }
   function artPerson(i) {
@@ -105,6 +179,18 @@
 
   // Plastisin lump drawn here (not in the shared library). Bottom-centre origin.
   const PL = { b: '#F59AB0', s: '#D9738E', h: '#FBC3D0', in: '#C45E7A' };
+  function eggMarkup() {
+    return '<path d="M0 -76 C24 -76 36 -40 36 -24 C36 -6 20 2 0 2 C-20 2 -36 -6 -36 -24 C-36 -40 -24 -76 0 -76Z" fill="#F6E3C4" stroke="' + OUT + '" stroke-width="4"/>' +
+      '<ellipse cx="-13" cy="-50" rx="8" ry="13" fill="#FFF8EC" transform="rotate(18 -13 -50)"/>' +
+      '<path d="M18 -12 C27 -18 31 -26 31 -34" fill="none" stroke="#E0C49A" stroke-width="6" stroke-linecap="round"/>';
+  }
+  function crateMarkup() {
+    let m = '<rect x="-40" y="-70" width="80" height="70" rx="6" fill="#C2814F" stroke="' + OUT + '" stroke-width="4"/>';
+    for (const y of [-52, -34, -16]) m += '<path d="M-38 ' + y + 'H38" stroke="#7E4A27" stroke-width="3"/>';
+    m += '<path d="M-34 -64 L34 -6 M-36 -66 v62 M36 -66 v62" stroke="#A8673A" stroke-width="7" stroke-linecap="round"/>';
+    m += '<rect x="-34" y="-66" width="40" height="7" rx="3" fill="#D99A66"/>';
+    return m;
+  }
   function lumpMarkup() {
     return '<path d="M-44 -4 C-52 -30 -36 -58 -8 -60 C20 -64 46 -46 46 -22 C47 -6 34 2 0 1 C-24 1 -40 2 -44 -4Z" fill="' + PL.b + '" stroke="' + OUT + '" stroke-width="4" stroke-linejoin="round"/>' +
       '<ellipse cx="-16" cy="-40" rx="14" ry="8" fill="' + PL.h + '" transform="rotate(-18 -16 -40)"/>' +
@@ -208,16 +294,17 @@
     sim.raf = busy() ? requestAnimationFrame(frame) : 0;
   }
   function Body(o) {
-    return Object.assign({ x: 0, y: 0, v: 0, H: 50, w: 50, rho: 1, ws: 0, floor: 1e4, air: 0, drift: 0, asleep: false, inWater: false, onBottom: false, calm: false, calmT: 0, bubT: 0, fxLayer: null, render: null, onEnter: null }, o);
+    return Object.assign({ x: 0, y: 0, v: 0, H: 50, w: 50, rho: 1, rhoW: RHO_W, ws: 0, floor: 1e4, air: 0, drift: 0, asleep: false, inWater: false, onBottom: false, calm: false, calmT: 0, bubT: 0, fxLayer: null, render: null, onEnter: null }, o);
   }
   function stepBody(b, dt) {
     if (b.asleep) return;
     const d = clamp(b.y - b.ws, 0, b.H), f = d / b.H;
     // gravity minus buoyancy (rho_w * g * submerged depth / (rho * H)), per unit mass
-    let a = G * (1 - (RHO_W / b.rho) * f);
+    let a = G * (1 - (b.rhoW / b.rho) * f);
     if (f > 0) {
-      const w = Math.sqrt(G * RHO_W / (b.rho * b.H)); // natural bobbing frequency
-      a -= 2 * ZETA * w * b.v + CQ * b.v * Math.abs(b.v) / (b.rho * b.H); // linear + quadratic water drag
+      const w = Math.sqrt(G * b.rhoW / (b.rho * b.H)); // natural bobbing frequency
+      // surface damping only while piercing the surface; fully under water only drag acts
+      a -= (f < 1 ? 2 * ZETA * w * b.v : 0) + CQ * b.v * Math.abs(b.v) / (b.rho * b.H);
     } else if (b.air) a -= b.air * b.v; // air drag only for light, wide things
     b.v += a * dt;
     b.y += b.v * dt;
@@ -232,7 +319,7 @@
       if (b.bubT <= 0) { b.bubT = 0.09; bubble(b.fxLayer, b.x + (Math.random() - 0.5) * b.w * 0.5, b.y - b.H * 0.6, b.ws); }
     }
     const fNow = clamp(b.y - b.ws, 0, b.H) / b.H;
-    const still = Math.abs(b.v) < 9 && (b.onBottom || (fNow > 0 && fNow < 1 && Math.abs(fNow - b.rho) < 0.06));
+    const still = Math.abs(b.v) < 9 && (b.onBottom || (fNow > 0 && fNow < 1 && Math.abs(fNow - b.rho / b.rhoW) < 0.06));
     b.calmT = still ? b.calmT + dt : 0;
     b.calm = b.calmT > 0.25;
     if (!b.drift && b.calmT > 2 && Math.abs(b.v) < 0.6) { b.v = 0; b.asleep = true; }
@@ -295,7 +382,7 @@
     t.g = el('g', { class: 'pr-thing' + (opt.drag ? ' pr-drag pr-focus' : ''), tabindex: opt.drag ? 0 : null, role: opt.drag ? 'button' : null, 'aria-label': opt.aria || null }, parent);
     t.bb = measure(markup, 'item:' + name);
     t.shadow = el('ellipse', { cx: 0, cy: 0, rx: f1(t.bb.w * k * 0.42), ry: 7, fill: OUT, 'fill-opacity': 0.18 }, t.g);
-    const hw = Math.max(44, t.bb.w * k / 2 + 14), hh = Math.max(84, t.bb.h * k + 22);
+    const hw = Math.max(BIG ? 58 : 44, t.bb.w * k / 2 + (BIG ? 24 : 14)), hh = Math.max(BIG ? 110 : 84, t.bb.h * k + (BIG ? 34 : 22));
     t.ring = el('rect', { class: 'pr-ring', x: f1(-hw), y: f1(-hh + 6), width: f1(hw * 2), height: f1(hh), rx: 16, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-dasharray': '10 7' }, t.g);
     t.fx = el('g', null, t.g);
     t.inner = el('g', null, t.fx);
@@ -414,12 +501,18 @@
   }
 
   // Clear glass aquarium. Returns the layers that go inside it.
-  const TK = { x0: 690, x1: 1230, top: 128, ws: 232, floor: 572, base: 600 };
-  TK.cx = (TK.x0 + TK.x1) / 2; TK.ix0 = TK.x0 + 12; TK.ix1 = TK.x1 - 12;
-  function drawTank(parent) {
-    const { x0, x1, top, ws, floor, base, ix0, ix1, cx } = TK;
-    if (!document.getElementById('pr-tank-clip')) {
-      const cp = el('clipPath', { id: 'pr-tank-clip' }, defs);
+  function mkTank(x0, x1, id) {
+    const t = { x0, x1, top: 128, ws: 232, floor: 572, base: 600, id };
+    t.cx = (x0 + x1) / 2; t.ix0 = x0 + 12; t.ix1 = x1 - 12;
+    return t;
+  }
+  const TK = mkTank(690, 1230, 'main');
+  function drawTank(parent, tk) {
+    tk = tk || TK;
+    const { x0, x1, top, ws, floor, base, ix0, ix1, cx } = tk;
+    const clipId = 'pr-tank-clip-' + tk.id;
+    if (!document.getElementById(clipId)) {
+      const cp = el('clipPath', { id: clipId }, defs);
       el('rect', { x: ix0, y: top, width: ix1 - ix0, height: base - top }, cp);
     }
     const back = el('g', null, parent);
@@ -434,10 +527,10 @@
     for (let x = ix0; x < ix1; x += 60) d += ' q15 -7 30 -2 t30 0';
     d += ' V' + (base - 12) + ' H' + ix0 + ' Z';
     el('path', { d, fill: '#F3DDA6' }, back);
-    for (let i = 0; i < 9; i++) el('ellipse', { cx: ix0 + 30 + i * 58, cy: floor + 12 + (i % 3) * 4, rx: 7 + (i % 3) * 2, ry: 4.5, fill: i % 2 ? '#8C8F94' : '#D4A062', opacity: 0.8 }, back);
+    for (let i = 0; ix0 + 30 + i * 58 < ix1 - 10; i++) el('ellipse', { cx: ix0 + 30 + i * 58, cy: floor + 12 + (i % 3) * 4, rx: 7 + (i % 3) * 2, ry: 4.5, fill: i % 2 ? '#8C8F94' : '#D4A062', opacity: 0.8 }, back);
     const items = el('g', null, parent);
     const front = el('g', null, parent);
-    drawWaterFront(front, ix0, ix1, ws, base - 12, 0.22, 'pr-tank-clip');
+    const wf = drawWaterFront(front, ix0, ix1, ws, base - 12, 0.22, clipId);
     const fxL = el('g', null, parent);
     const glass = el('g', { 'pointer-events': 'none' }, parent);
     el('rect', { x: ix0, y: top, width: ix1 - ix0, height: base - top - 12, fill: 'none', stroke: '#BFE3E0', 'stroke-width': 5 }, glass);
@@ -446,7 +539,7 @@
     el('rect', { x: x0 - 6, y: top - 8, width: x1 - x0 + 12, height: 14, rx: 7, fill: '#BFE3E0', stroke: OUT, 'stroke-width': 4 }, glass);
     el('rect', { x: x0 - 8, y: base - 16, width: x1 - x0 + 16, height: 22, rx: 8, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, glass);
     el('path', { d: 'M' + (x0 + 2) + ' ' + (base - 10) + 'H' + (x1 - 2), stroke: '#C2814F', 'stroke-width': 4, 'stroke-linecap': 'round' }, glass);
-    return { back, items, front, fx: fxL, glass };
+    return { back, items, front, fx: fxL, glass, wf, tk };
   }
 
   // Scene for parts A and C: a wide wooden pier (dermaga) over the river, aquarium on the right.
@@ -470,9 +563,8 @@
     tries = 0;
     S = { gen, level: i, locked: false };
     hud.mood('think');
-    if (LEVELS[i] === 'A') buildA(i);
-    else if (LEVELS[i] === 'B') buildB(i);
-    else buildC(i);
+    const L = LEVELS[i];
+    ({ A: buildA, B: buildB, C: buildC, T: buildTwin, E: buildEgg, R: buildRank })[L.t](L, i);
   }
   function finish(stars, text) {
     const my = gen;
@@ -484,15 +576,6 @@
   /* =====================================================================
    * PART A: terapung atau tenggelam (L1-4)
    * ===================================================================== */
-  function pickA(i) {
-    const P = PAIRS, rnd = a => a[Math.floor(Math.random() * a.length)];
-    let names;
-    if (i === 0) names = P[0].concat(P[4]);
-    else if (i === 1) names = P[1].concat(P[2]);
-    else if (i === 2) names = P[3].concat(rnd([P[0], P[1], P[2], P[4]]), rnd(EXTRA));
-    else names = GS.shuffle(P).slice(0, 2).flat().concat(GS.shuffle(EXTRA).slice(0, 2));
-    return GS.shuffle(names);
-  }
   function drawBasket(parent, cx, by, kind) {
     const C = kind === 'float'
       ? { b: '#2F80C9', s: '#215F98', h: '#6FAEE3', pat: 'url(#pr-dots)', label: 'Terapung' }
@@ -552,22 +635,31 @@
     return g;
   }
 
-  function buildA(i) {
-    const L = pierScene();
+  function waterTag(parent, tk, text) {
+    const box = el('rect', { y: tk.top + 20, height: 32, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, parent);
+    const t = txt(parent, tk.cx, tk.top + 43, text, { class: 't-body', 'font-size': 19, 'font-weight': 700 });
+    t.set = v => { t.textContent = v; const w = v.length * 10 + 30; box.setAttribute('x', tk.cx - w / 2); box.setAttribute('width', w); };
+    t.set(text);
+    return t;
+  }
+  function buildA(LV) {
+    pierScene();
+    const rhoW = LV.rhoW || RHO_W;
     const tank = drawTank(world);
+    if (rhoW > RHO_W) waterTag(tank.glass, TK, 'air asin');
     const bLayer = el('g', null, world);
     const jetty = el('g', null, world);
     S.fxTop = el('g', null, world);
     S.dragLayer = el('g', null, world);
     const baskets = { float: drawBasket(bLayer, 175, 592, 'float'), sink: drawBasket(bLayer, 478, 592, 'sink') };
     // Baskets list content in insertion order: re-append in back-to-front order.
-    const names = pickA(i);
+    const names = LV.names();
     const n = names.length;
     const items = names.map((name, j) => {
       const m = MAT[name] || { size: 70 };
       const t = makeThing(jetty, name, artItem(name), fitScale(name, m.size), { drag: true, aria: labelOf(name) });
       t.rho = density(name);
-      t.floats = t.rho < RHO_W;
+      t.floats = t.rho < rhoW;
       t.label = labelOf(name);
       t.air = m.air || 0;
       t.home = { x: 0, y: 392 };
@@ -656,7 +748,7 @@
         await flyTo(t, tx, ty, t.base, 520, 80);
         if (my !== gen) return;
         const b = Body({
-          x: tx, y: ty, H: t.bb.h * t.base, w: t.bb.w * t.base, rho: t.rho, air: t.air,
+          x: tx, y: ty, H: t.bb.h * t.base, w: t.bb.w * t.base, rho: t.rho, rhoW, air: t.air,
           ws: TK.ws, floor: TK.floor, fxLayer: tank.fx,
           render: bb => place(t, bb.x, bb.y),
           onEnter: bb => splash(tank.fx, bb.x, TK.ws, bb.w, bb.v),
@@ -669,7 +761,8 @@
         const ok = (t.where === 'float') === t.floats;
         if (!ok) wrong++;
         if (t.floats) t.fx.classList.add('pr-bob');
-        const why = (t.floats === (MAT[t.name] ? MAT[t.name].rho < 1 : t.floats) && WHY[t.name]) ||
+        const why = (t.name === 'telur' && (t.floats ? 'Telur kalah padat dari air asin. Terapung!' : 'Telur sedikit lebih padat dari air tawar. Tenggelam pelan.')) ||
+          (t.floats === (MAT[t.name] ? MAT[t.name].rho < 1 : t.floats) && WHY[t.name]) ||
           (t.label.charAt(0).toUpperCase() + t.label.slice(1) + (t.floats ? ' ringan untuk ukurannya. Terapung!' : ' padat untuk ukurannya. Tenggelam!'));
         if (ok) { sparkle(S.fxTop, t.x, t.y - t.bb.h * t.base - 20); await sayWait('Pas! ' + why, 'happy'); }
         else await sayWait(why, 'surprise');
@@ -680,13 +773,7 @@
     }
 
     S.solve = () => { items.forEach(t => assign(t, t.floats ? 'float' : 'sink')); const s = S; setTimeout(() => { if (S === s) S.cemplung(); }, 300); };
-    const intro = [
-      'Terapung atau tenggelam? Seret ke keranjang tebakan.',
-      'Tebak lagi. Terapung atau tenggelam?',
-      'Besar belum tentu tenggelam. Ayo tebak!',
-      'Enam benda. Seret semua ke keranjang tebakan.'
-    ];
-    say(intro[i], 'think');
+    say(LV.say, 'think');
   }
 
   /* =====================================================================
@@ -703,27 +790,41 @@
     return { best, bestMask, exactMin };
   }
   function popc(m) { let c = 0; while (m) { c += m & 1; m >>= 1; } return c; }
-  function genB(i) {
-    const cfg = [[8, 10, 4], [10, 13, 5], [10, 15, 5], [12, 15, 6]][i - 4];
-    for (let tr = 0; tr < 800; tr++) {
-      const K = GS.rand(cfg[0], cfg[1]);
-      const ws = Array.from({ length: cfg[2] }, () => GS.rand(2, 7));
+  function genB(L) {
+    const pack = (K, ws, names) => Object.assign({ K, ws, names }, subsetInfo(ws, K));
+    if (L.fruit) { const K = GS.rand(3, 5); return pack(K, Array(K + 2).fill(1), Array(K + 2).fill('kelapa')); }
+    if (L.crates) {
+      // n identical crates of w kg: the most that fits is floor(K / w) crates (multiplication).
+      const w = rndOf(L.crates), n = GS.rand(L.n[0], L.n[1]);
+      const K = n * w + GS.rand(1, w - 1);
+      return pack(K, Array(n + 2).fill(w), Array(n + 2).fill('peti'));
+    }
+    if (L.kinds) {
+      for (let tr = 0; tr < 400; tr++) {
+        const w1 = GS.rand(9, 15), w2 = GS.rand(4, 8), ws = [w1, w1, w1, w1, w2, w2, w2, w2];
+        const K = GS.rand(30, 60), P = pack(K, ws, ws.map(w => (w === w1 ? 'peti' : 'karung')));
+        if (P.best < K && P.best > K - 4 && P.bestMask !== 255) return P;
+      }
+      return pack(41, [12, 12, 12, 12, 7, 7, 7, 7], ['peti', 'peti', 'peti', 'peti', 'karung', 'karung', 'karung', 'karung']);
+    }
+    for (let tr = 0; tr < 1500; tr++) {
+      const K = GS.rand(L.K[0], L.K[1]);
+      const ws = Array.from({ length: L.n }, () => GS.rand(L.w[0], L.w[1]));
       const total = ws.reduce((a, b) => a + b, 0);
       if (total < K + 4) continue;
-      const info = subsetInfo(ws, K);
-      if (i === 4 && info.best !== K) continue;
-      if (i === 5 && (info.best !== K || info.exactMin < 3)) continue;
-      if (i === 6 && (info.best === K || info.best < K - 2)) continue;
-      if (i === 7 && info.best < K - 2) continue;
-      return Object.assign({ K, ws }, info);
+      const P = pack(K, ws);
+      if (L.mode === 'exact' && (P.best !== K || P.exactMin < (L.minItems || 2))) continue;
+      if (L.mode === 'max' && (P.best < K - 3 || (L.noExact && P.best === K))) continue;
+      return P;
     }
-    const fb = [[9, [4, 5, 3, 6]], [12, [2, 3, 7, 6, 5]], [11, [4, 4, 6, 6, 2]], [13, [4, 6, 2, 6, 4, 4]]][i - 4];
-    return Object.assign({ K: fb[0], ws: fb[1] }, subsetInfo(fb[1], fb[0]));
+    const ws = [L.w[0], L.w[0] + 1, L.w[0] + 2, L.w[0] + 3, L.w[0] + 1, L.w[0] + 2].slice(0, L.n);
+    return pack(ws.slice(0, 3).reduce((a, b) => a + b, 0), ws);
   }
   const RV = { ws: 620, F: 34, hw: 220 };
-  function drawRaft(parent, K) {
+  function drawRaft(parent, K, opt) {
+    opt = opt || {};
     const g = el('g', null, parent);
-    const hw = RV.hw, w = hw * 2;
+    const hw = opt.hw || RV.hw, w = hw * 2;
     // deck (top surface, 4 lashed poles)
     for (let k = 0; k < 4; k++) {
       const y = -42 + k * 10.5;
@@ -750,6 +851,7 @@
       el('path', { d: 'M' + (x - 8) + ' -42 V-2 M' + (x + 8) + ' -42 V-2', stroke: '#7A5A30', 'stroke-width': 4.5, 'stroke-linecap': 'round' }, g);
       el('path', { d: 'M' + (x - 8) + ' -42 V-2 M' + (x + 8) + ' -42 V-2', stroke: '#C9A66B', 'stroke-width': 1.8, 'stroke-linecap': 'round' }, g);
     }
+    if (K == null) return g;
     // mast + capacity flag
     const mx = hw - 30;
     el('rect', { x: mx - 4, y: -176, width: 9, height: 140, rx: 4, fill: '#7E4A27', stroke: OUT, 'stroke-width': 2.5 }, g);
@@ -758,8 +860,13 @@
     el('path', { d: 'M' + (mx + 5) + ' -170 h104 l-16 25 l16 25 h-104 Z', fill: '#FFC83D', stroke: OUT, 'stroke-width': 3, 'stroke-linejoin': 'round' }, fl);
     el('path', { d: 'M' + (mx + 10) + ' -164 h86', stroke: '#FFE08A', 'stroke-width': 4, 'stroke-linecap': 'round' }, fl);
     el('path', { d: 'M' + (mx + 10) + ' -126 h80', stroke: '#E09A00', 'stroke-width': 3, 'stroke-linecap': 'round' }, fl);
-    const t = txt(fl, mx + 50, -135, '', { 'font-size': 30 });
-    t.innerHTML = K + '<tspan font-size="19" dx="3">kg</tspan>';
+    if (opt.fruit) {
+      txt(fl, mx + 28, -133, String(K), { 'font-size': 30 });
+      for (let d = 0; d < K; d++) el('circle', { cx: mx + 52 + (d % 3) * 13, cy: -152 + Math.floor(d / 3) * 14, r: 5, fill: '#2F80C9', stroke: OUT, 'stroke-width': 1.5 }, fl);
+    } else {
+      const t = txt(fl, mx + 50, -135, '', { 'font-size': 30 });
+      t.innerHTML = K + '<tspan font-size="19" dx="3">kg</tspan>';
+    }
     return g;
   }
   function kgTag(parent, kg, dots, y) {
@@ -792,9 +899,12 @@
     return { g, fxw, pad };
   }
 
-  function buildB(i) {
-    const P = genB(i);
-    const K = P.K, exactLevel = i <= 5, hideSum = i === 7, dots = i === 4;
+  function buildB(LV) {
+    const P = genB(LV);
+    const K = P.K, exactLevel = LV.mode === 'exact', hideSum = !!LV.hide, dots = !!LV.dots, fruit = !!LV.fruit;
+    const many = P.ws.length > 6, grouped = !!(LV.crates || LV.kinds);
+    const U = n => fruit ? n + ' kelapa' : n + ' kilo';
+    const MAN = { x: many ? 410 : 398, y: 540 };
     const WS = RV.ws, F = RV.F;
     // scene
     const river = el('g', null, world);
@@ -823,39 +933,43 @@
     const board = el('g', null, world);
     el('rect', { x: 26, y: 22, width: 590, height: 92, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, board);
     el('rect', { x: 38, y: 33, width: 566, height: 70, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, board);
-    txt(board, 104, 77, 'Muatan', { class: 't-body', 'font-size': 24, 'font-weight': 700 });
+    if (!fruit) txt(board, 104, 77, 'Muatan', { class: 't-body', 'font-size': 24, 'font-weight': 700 });
+    else { const ic = el('g', { transform: 'translate(96 96) scale(0.55)' }, board); GS.markup(ic, artItem('kelapa')); }
     const sent = txt(board, 390, 82, '', { 'font-size': 38 });
+    const boardDots = el('g', null, board);
 
     // raft
     const raft = { x: 690, g: el('g', null, raftL) };
     raft.bobW = el('g', { class: 'pr-bob' }, raft.g);
-    drawRaft(raft.bobW, K);
+    drawRaft(raft.bobW, K, { fruit });
     raft.backL = el('g', null, raft.bobW);
     raft.frontL = el('g', null, raft.bobW);
-    raft.slots = [[-118, -8], [-10, -8], [98, -8], [-66, -28], [42, -28], [146, -28]].map(s => ({ x: s[0], y: s[1], t: null }));
+    raft.slots = (many ? [[-170, -8], [-95, -8], [-20, -8], [55, -8], [130, -8], [-150, -28], [-75, -28], [0, -28], [75, -28], [150, -28]]
+      : [[-118, -8], [-10, -8], [98, -8], [-66, -28], [42, -28], [146, -28]]).map(s => ({ x: s[0], y: s[1], t: null }));
     const spr = Spring({ y: WS - F, target: WS - F, w: 4.2, z: 0.45, apply: s => raft.g.setAttribute('transform', 'translate(' + f1(raft.x) + ' ' + f1(s.y) + ')') });
     sim.springs.push(spr);
     spr.apply(spr);
 
     // boatman on the jetty
     const man = boatman(jettyL);
-    man.g.setAttribute('transform', 'translate(398 540) scale(0.92)');
+    man.g.setAttribute('transform', 'translate(' + MAN.x + ' ' + MAN.y + ') scale(0.92)');
 
     // cargo
     const pool = GS.shuffle(['karung', 'keranjang', 'kantong', 'semangka', 'karung', 'keranjang', 'kantong', 'semangka']);
-    const homes = [[92, 566], [205, 566], [318, 566], [148, 506], [262, 506], [40, 506]];
+    const homes = many ? [[50, 566], [125, 566], [200, 566], [275, 566], [350, 566], [30, 506], [105, 506], [180, 506], [255, 506], [330, 506]]
+      : [[92, 566], [205, 566], [318, 566], [148, 506], [262, 506], [40, 506]];
     const order = GS.shuffle(P.ws.map((kg, j) => j));
     const cargo = P.ws.map((kg, j) => {
-      let name = pool[j];
-      if (kg <= 3 && Math.random() < 0.4) name = 'kelapa';
+      let name = P.names ? P.names[j] : pool[j];
+      if (!P.names && kg <= 3 && Math.random() < 0.4) name = 'kelapa';
       const C = CARGO[name];
-      const t = makeThing(jettyL, name, artItem(name), fitScale(name, C.size), { drag: true, aria: C.label + ' ' + kg + ' kilo' });
+      const t = makeThing(jettyL, name, artItem(name), fitScale(name, many ? 72 : C.size), { drag: true, aria: fruit ? 'kelapa' : C.label + ' ' + kg + ' kilo' });
       t.kg = kg; t.rho = C.rho; t.label = C.label; t.idx = j;
       const h = homes[order.indexOf(j)];
       void h;
       t.home = { x: h[0], y: h[1] };
       t.slot = null;
-      t.tagG = kgTag(t.g, kg, dots, -t.bb.h * t.base * 0.42);
+      if (!fruit) { t.tagG = kgTag(t.g, kg, dots, -t.bb.h * t.base * 0.42); if (many) t.tagG.setAttribute('transform', t.tagG.getAttribute('transform') + ' scale(0.8)'); }
       place(t, t.home.x, t.home.y);
       return t;
     });
@@ -872,8 +986,24 @@
       const on = raft.slots.filter(s => s.t).map(s => s.t.kg);
       const sum = load();
       let s;
+      if (fruit) {
+        // TK: the count is always shown with dots, nothing to read
+        sent.textContent = String(on.length);
+        boardDots.innerHTML = '';
+        for (let d = 0; d < on.length; d++) el('circle', { cx: 300 + d * 30, cy: 70, r: 11, fill: '#2F80C9', stroke: OUT, 'stroke-width': 2 }, boardDots);
+        sent.setAttribute('x', 250);
+        return;
+      }
       if (!on.length) s = '0 kg';
-      else s = on.join(' + ') + ' = ' + (hideSum && !reveal ? '?' : sum) + ' kg';
+      else {
+        let terms = on.map(String);
+        if (grouped) {
+          const cnt = new Map();
+          on.forEach(w => cnt.set(w, (cnt.get(w) || 0) + 1));
+          terms = [...cnt].map(([w, c]) => (c > 1 ? c + ' × ' + w : String(w)));
+        }
+        s = terms.join(' + ') + ' = ' + (hideSum && !reveal ? '?' : sum) + ' kg';
+      }
       sent.textContent = s;
       sent.setAttribute('font-size', 38);
       try { const L = sent.getComputedTextLength(); if (L > 440) sent.setAttribute('font-size', f1(38 * 440 / L)); } catch (e) { /* hidden */ }
@@ -942,7 +1072,8 @@
         tries++;
         GS.sfx.oops();
         GS.fx(man.fxw, 'gs-wobble');
-        if (exactLevel) await sayWait('Belum ' + K + ' kilo. Masih kurang ' + (K - l) + ' kilo.', 'oops');
+        if (fruit) await sayWait('Masih muat ' + U(K - l) + ' lagi.', 'oops');
+        else if (exactLevel) await sayWait('Belum ' + K + ' kilo. Masih kurang ' + (K - l) + ' kilo.', 'oops');
         else await sayWait('Masih bisa lebih berat, asal tidak lewat ' + K + ' kilo.', 'oops');
         if (my !== gen) return;
         if (!exactLevel && tries >= 2) hint();
@@ -1011,14 +1142,14 @@
         });
       }));
       if (my !== gen) return;
-      await sayWait('Rakit cuma kuat ' + K + ' kilo. Kurangi muatannya.', 'point');
+      await sayWait('Rakit cuma kuat ' + U(K) + '. Kurangi muatannya.', 'point');
     }
     async function cross(l) {
       const my = gen;
       hud.mood('happy');
-      say(exactLevel ? 'Tepat ' + K + ' kilo! Ayo menyeberang!' : l + ' kilo, paling banyak tanpa lewat ' + K + '!');
+      say(fruit ? 'Penuh! ' + U(K) + '. Ayo menyeberang!' : exactLevel ? 'Tepat ' + K + ' kilo! Ayo menyeberang!' : l + ' kilo, paling banyak tanpa lewat ' + K + '!');
       // hop on board at the stern
-      const from = { x: 398, y: 540 }, to = { x: raft.x - RV.hw + 36, y: spr.y - 20 };
+      const from = MAN, to = { x: raft.x - RV.hw + 36, y: spr.y - 20 };
       GS.sfx.boing();
       await T(520, (e, p) => {
         man.g.setAttribute('transform', 'translate(' + f1(GS.lerp(from.x, to.x, e)) + ' ' + f1(GS.lerp(from.y, to.y, e) - Math.sin(Math.PI * p) * 70) + ') scale(0.92)');
@@ -1048,20 +1179,22 @@
     }
 
     S.solve = () => {
+      const my = gen;
       cargo.forEach(t => { if (t.slot) toHome(t); });
       setTimeout(() => {
+        if (my !== gen) return;
         cargo.forEach(t => { if (P.bestMask & (1 << t.idx)) { S.dragLayer.appendChild(t.g); addToRaft(t); } });
-        setTimeout(() => dayung(), 400);
+        setTimeout(() => { if (my === gen) dayung(); }, 400);
       }, 300);
     };
-    S.over = () => { cargo.forEach(t => { if (!t.slot) { S.dragLayer.appendChild(t.g); addToRaft(t); } }); setTimeout(() => dayung(), 400); };
-    const intro = [
-      'Muat rakit tepat ' + K + ' kilo, lalu Dayung!',
-      'Rakit kuat ' + K + ' kilo. Muat tepat segitu!',
-      'Muat sebanyak mungkin, asal tidak lewat ' + K + ' kilo.',
-      'Muat paling banyak, jangan lewat ' + K + ' kilo. Hitung sendiri, ya!'
-    ];
-    say(intro[i - 4], 'think');
+    S.over = () => { const my = gen; cargo.forEach(t => { if (!t.slot) { S.dragLayer.appendChild(t.g); addToRaft(t); } }); setTimeout(() => { if (my === gen) dayung(); }, 400); };
+    let intro;
+    if (LV.say) intro = LV.say(K);
+    else if (LV.crates) intro = 'Satu peti ' + P.ws[0] + ' kilo. Rakit kuat ' + K + ' kilo. Muat sebanyak mungkin!';
+    else if (exactLevel) intro = 'Muat rakit tepat ' + K + ' kilo, lalu Dayung!';
+    else intro = 'Muat sebanyak mungkin, asal tidak lewat ' + K + ' kilo.';
+    if (hideSum) intro += ' Hitung sendiri, ya!';
+    say(intro, 'think');
   }
 
   /* =====================================================================
@@ -1129,20 +1262,26 @@
     el('path', { d: 'M-30 -86 v50', stroke: '#fff', 'stroke-width': 7, 'stroke-linecap': 'round', opacity: 0.6 }, g);
     el('rect', { x: -34, y: -118, width: 68, height: 18, rx: 7, fill: '#2F80C9', stroke: OUT, 'stroke-width': 3.5 }, g);
     el('path', { d: 'M-26 -112 h44', stroke: '#6FAEE3', 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
-    const w = target ? 150 : 100;
+    const w = target ? 176 : 100;
     el('rect', { x: -w / 2, y: 8, width: w, height: 28, rx: 10, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, g);
-    txt(g, 0, 29, target ? 'bawa ' + target + ' kelereng' : 'kelereng', { class: 't-body', 'font-size': 18, 'font-weight': 700 });
+    txt(g, 0, 29, target ? 'bawa ' + target + ' kelereng' : 'kelereng', { class: 't-body', 'font-size': target ? 17 : 18, 'font-weight': 700 });
     el('rect', { x: -62, y: -150, width: 124, height: 190, fill: '#fff', 'fill-opacity': 0 }, g);
     return g;
   }
 
-  function buildC(i) {
-    const L9 = i === 8;
-    const shapes = [];
-    if (L9) {
-      shapes.push({ k: 'bola', label: 'bola', N: 0 });
-      shapes.push({ k: 'perahu', label: 'perahu kecil', N: GS.rand(4, 6) });
-      shapes.push({ k: 'mangkuk', label: 'mangkuk lebar', N: GS.rand(9, 12) });
+  // Design mode (k4): bowl size s uses more plastisin but holds more water.
+  const DSZ = s => ({ V: 40 + 20 * s, M: 22 + 5 * s });
+  function buildC(LV) {
+    const mode = LV.mode, L9 = mode === 'predict', MMs = LV.m || MM;
+    const capOf = (s, m) => Math.floor((DSZ(s).V - DSZ(s).M) / m);
+    let shapes = [];
+    if (mode === 'predict' || mode === 'count') shapes = LV.shapes();
+    else if (mode === 'design') {
+      const caps = [1, 2, 3, 4, 5, 6].map(s => capOf(s, MMs));
+      const sMin = GS.rand(2, 5);
+      S.target = GS.rand(caps[sMin - 2] + 1, caps[sMin - 1]);
+      S.sMin = sMin;
+      shapes.push({ k: 'mangkuk', label: 'ukuran 1', s: 1 });
     } else {
       const nB = GS.rand(3, 5), nS = GS.rand(6, 8), nL = GS.rand(nS + 3, 12);
       shapes.push({ k: 'bola', label: 'bola', N: 0 });
@@ -1151,10 +1290,13 @@
       shapes.push({ k: 'mangkuk', label: 'mangkuk lebar', N: nL });
       S.target = GS.rand(nS + 1, nL);
     }
-    shapes.forEach(sh => {
-      if (sh.k === 'bola') { sh.r = 22; sh.W = 44; sh.D = 44; sh.H = 44; sh.rho0 = 1.5; }
-      else { sh.V = hullVolume(sh.N); sh.D = 46; sh.H = 46; sh.W = clamp(sh.V * 1.75, 84, 210); sh.rho0 = PM / sh.V; }
-    });
+    const sizeShape = sh => {
+      if (sh.k === 'bola') { sh.r = 22; sh.W = 44; sh.D = 44; sh.H = 44; sh.M = PM; sh.rho0 = 1.5; return; }
+      if (sh.s) { const d = DSZ(sh.s); sh.V = d.V; sh.M = d.M; sh.W = clamp(d.V * 1.2, 70, 210); sh.label = 'ukuran ' + sh.s; }
+      else { sh.V = hullVolume(sh.N); sh.M = PM; sh.W = clamp(sh.V * 1.75, 84, 210); }
+      sh.D = 46; sh.H = 46; sh.rho0 = sh.M / sh.V;
+    };
+    shapes.forEach(sizeShape);
     pierScene();
     const tank = drawTank(world);
     const jetty = el('g', null, world);
@@ -1162,13 +1304,19 @@
     S.dragLayer = el('g', null, world);
 
     // comparison chart: one row per shape, bars made of marbles
-    const rows = shapes.length, rowH = rows > 3 ? 46 : 56;
+    const rows = mode === 'design' ? 3 : shapes.length, rowH = rows > 3 ? 46 : 56;
     const chart = el('g', null, world);
     const ch = { x: 24, y: 18, w: 600, h: 84 + rows * rowH };
     el('rect', { x: ch.x, y: ch.y, width: ch.w, height: ch.h, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, chart);
     el('rect', { x: ch.x + 11, y: ch.y + 11, width: ch.w - 22, height: ch.h - 22, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, chart);
-    txt(chart, ch.x + ch.w / 2, ch.y + 48, 'Muat berapa kelereng?', { class: 't-display', 'font-size': 28 });
-    shapes.forEach((sh, r) => {
+    txt(chart, ch.x + ch.w / 2, ch.y + 48, mode === 'design' ? 'Rancang mangkuk' : 'Muat berapa kelereng?', { class: 't-display', 'font-size': 28 });
+    let info = null;
+    if (mode === 'design') {
+      info = [0, 1, 2].map(r => txt(chart, ch.x + ch.w / 2, ch.y + 98 + r * 50, '', { class: 't-body', 'font-size': 25, 'font-weight': 700 }));
+      info[1].textContent = 'Kelereng ' + MMs + ' g. Air: 1 ml = 1 g.';
+      info[2].textContent = 'Bawa ' + S.target + ' kelereng, plastisin sehemat mungkin.';
+    }
+    if (mode !== 'design') shapes.forEach((sh, r) => {
       const y = ch.y + 66 + r * rowH + rowH / 2;
       sh.rowY = y;
       const ic = el('g', { transform: 'translate(' + (ch.x + 70) + ' ' + (y + 14) + ') scale(' + f1(Math.min(0.5, 62 / sh.W) * 100) / 100 + ')' }, chart);
@@ -1189,6 +1337,7 @@
       sh.shadow = el('ellipse', { cx: 0, cy: 2, rx: sh.W * 0.42, ry: 7, fill: OUT, 'fill-opacity': 0.18 }, sh.g);
       sh.ringEl = el('rect', { class: 'pr-ring', x: -sh.W / 2 - 14, y: -sh.D - 40, width: sh.W + 28, height: sh.D + 84, rx: 14, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-dasharray': '10 7' }, sh.g);
       sh.art = drawShape(sh.g, sh);
+      sh.hitR = null;
       sh.tag = nameTag(sh.g, sh.label, shapes.length > 3 && j % 2 ? 32 : 0);
       el('rect', { x: -Math.max(40, sh.W / 2 + 10), y: -sh.D - 40, width: Math.max(80, sh.W + 20), height: sh.D + 84, fill: '#fff', 'fill-opacity': 0 }, sh.g);
       sh.x = sh.home.x; sh.y = sh.home.y;
@@ -1198,19 +1347,48 @@
       sh.g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     });
     const posShape = (sh, x, y) => { sh.x = x; sh.y = y; sh.g.setAttribute('transform', 'translate(' + f1(x) + ' ' + f1(y) + ')'); };
-    const jar = drawJar(jetty, 608, 570, L9 ? 0 : S.target);
+    const jar = drawJar(jetty, 608, 570, mode === 'target' || mode === 'design' ? S.target : 0);
+    // number sign on the jetty: the child's guess (count) or the bowl size (design)
+    let sign = null, guess = 0;
+    if (mode === 'count' || mode === 'design') {
+      sign = el('g', { transform: 'translate(400 520)' }, jetty);
+      el('rect', { x: -86, y: -44, width: 172, height: 88, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, sign);
+      txt(sign, 0, -16, mode === 'count' ? 'tebakanku' : 'ukuran', { class: 't-body', 'font-size': 20, 'font-weight': 700 });
+      sign.num = txt(sign, 0, 32, mode === 'count' ? '?' : '1', { 'font-size': 44 });
+    }
+    function setDesign(sz) {
+      const sh = shapes[0];
+      sh.s = clamp(sz, 1, 6); sizeShape(sh);
+      const old = sh.art; sh.art = drawShape(sh.g, sh); sh.g.insertBefore(sh.art, old); old.remove();
+      sh.sel.setAttribute('rx', sh.W / 2 + 16); sh.shadow.setAttribute('rx', f1(sh.W * 0.42));
+      sh.tag.querySelector('text').textContent = sh.label;
+      sign.num.textContent = sh.s;
+      info[0].textContent = 'Ukuran ' + sh.s + ': ruang ' + sh.V + ' ml, plastisin ' + sh.M + ' g';
+    }
 
     let choice = null;
     function choose(sh) {
-      if (S.locked) return;
+      if (S.locked || mode === 'count' || mode === 'design') return;
       choice = sh;
       shapes.forEach(s => s.sel.setAttribute('display', s === sh ? 'inline' : 'none'));
       GS.sfx.pop();
       btn.disabled = false;
       say(L9 ? 'Tebakanmu: ' + sh.label + '. Tekan Coba!' : 'Pakai ' + sh.label + '? Tekan Coba!', 'think');
     }
+    if (mode === 'count' || mode === 'design') {
+      const step = d => {
+        if (S.locked) return;
+        GS.sfx.tick();
+        if (mode === 'count') { guess = clamp(guess + d, 0, 20); sign.num.textContent = guess; btn.disabled = false; }
+        else setDesign(shapes[0].s + d);
+      };
+      button('−', 'alt', () => step(-1)).setAttribute('aria-label', 'Kurangi');
+      button('+', 'alt', () => step(1)).setAttribute('aria-label', 'Tambah');
+      S.step = step;
+    }
     const btn = button('Coba!', '', () => coba());
-    btn.disabled = true;
+    btn.disabled = mode !== 'design';
+    if (mode === 'design') { choice = shapes[0]; setDesign(1); }
 
     // marbles: drag from the jar (or tap / Enter) into the floating shape
     let loadSt = null;
@@ -1252,7 +1430,7 @@
       const sp = toScreen(b.x, b.y - sh.D - 46);
       GS.floatText(String(st.n), sp.x, sp.y);
       // heavier load: rho_eff = (plastisin + marbles) / hull volume
-      b.rho = (PM + st.n * MM) / sh.V;
+      b.rho = (sh.M + st.n * MMs) / sh.V;
       wake(b);
       if (b.rho > RHO_W) {
         // rim dips under the surface, water floods in, it sinks
@@ -1335,10 +1513,47 @@
     }
 
     async function coba() {
+      if (mode === 'count') choice = shapes[0];
       if (S.locked || !choice) return;
       const my = gen;
       S.locked = true; btn.disabled = true;
       shapes.forEach(s => s.g.classList.remove('pr-tap'));
+      if (mode === 'count') {
+        const sh = choice;
+        const r = await testShape(sh, 0);
+        if (my !== gen || !r) return;
+        await fillBar(sh, r.count);
+        if (my !== gen) return;
+        const diff = Math.abs(guess - r.count);
+        if (diff <= 1) sparkle(S.fxTop, 400, 470);
+        await sayWait('Muat ' + r.count + ' kelereng. Tebakanmu ' + guess + (diff === 0 ? '. Pas sekali!' : diff <= 1 ? '. Dekat sekali!' : '.'), diff <= 1 ? 'happy' : 'surprise');
+        if (my !== gen) return;
+        finish(diff <= 1 ? 3 : diff <= 3 ? 2 : 1, sh.label.charAt(0).toUpperCase() + sh.label.slice(1) + ' membawa ' + r.count + ' kelereng!');
+        return;
+      }
+      if (mode === 'design') {
+        const sh = choice;
+        const r = await testShape(sh, S.target);
+        if (my !== gen || !r) return;
+        let msg;
+        if (!r.sank && sh.s === S.sMin) {
+          sparkle(S.fxTop, sh.x, sh.y - sh.D - 30);
+          await sayWait(S.target + ' kelereng terbawa, plastisinnya hemat!', 'happy');
+          if (my !== gen) return;
+          finish(starsFor(tries), 'Rancangan mangkukmu pas!');
+          return;
+        }
+        tries++;
+        GS.sfx.oops();
+        msg = r.sank ? 'Tenggelam di kelereng ke-' + (r.count + 1) + '. Ruangnya kurang besar.' : 'Bisa! Tapi mangkuk lebih kecil juga cukup. Hemat plastisin, ya.';
+        await sayWait(msg, 'oops');
+        if (my !== gen) return;
+        await returnShape(sh);
+        if (my !== gen) return;
+        S.locked = false; btn.disabled = false;
+        hud.mood('think');
+        return;
+      }
       if (L9) {
         const pred = choice;
         for (const sh of shapes) {
@@ -1354,10 +1569,11 @@
         const best = shapes.reduce((a, s) => (s.result > a.result ? s : a));
         const ok = pred === best;
         sparkle(S.fxTop, ch.x + ch.w - 42, best.rowY);
-        if (ok) await sayWait('Tebakanmu pas! Ruang di dalam mangkuk paling besar.', 'happy');
-        else await sayWait('Mangkuk lebar paling banyak. Ruang di dalamnya paling besar!', 'surprise');
+        const cap1 = best.label.charAt(0).toUpperCase() + best.label.slice(1);
+        if (ok) await sayWait('Tebakanmu pas! Ruang di dalam ' + best.label + ' paling besar.', 'happy');
+        else await sayWait(cap1 + ' paling banyak. Ruang di dalamnya paling besar!', 'surprise');
         if (my !== gen) return;
-        finish(ok ? 3 : 2, 'Bentuk lebar dan berongga, muatannya banyak!');
+        finish(ok ? 3 : 2, 'Ruang berongga besar, muatannya banyak!');
       } else {
         const sh = choice;
         const r = await testShape(sh, S.target);
@@ -1383,8 +1599,9 @@
     }
 
     S.solve = () => {
-      const best = shapes[shapes.length - 1];
-      choose(best);
+      if (mode === 'count') { guess = shapes[0].N; sign.num.textContent = guess; }
+      else if (mode === 'design') setDesign(S.sMin);
+      else choose(shapes.reduce((a, s2) => (s2.N > a.N ? s2 : a)));
       coba();
       const my = gen;
       (function feed() {
@@ -1393,13 +1610,353 @@
         setTimeout(feed, 60);
       })();
     };
-    say(L9 ? 'Mana yang membawa kelereng paling banyak? Ketuk satu.' : 'Bawa ' + S.target + ' kelereng tanpa tenggelam. Pilih bentuknya!', 'think');
+    say(mode === 'predict' ? 'Mana yang membawa kelereng paling banyak? Ketuk satu.'
+      : mode === 'count' ? 'Tebak dulu: berapa kelereng muat? Pakai tombol tambah.'
+      : mode === 'design' ? 'Pilih ukuran mangkuk terkecil yang kuat membawa ' + S.target + ' kelereng.'
+      : 'Bawa ' + S.target + ' kelereng tanpa tenggelam. Pilih bentuknya!', 'think');
+  }
+
+
+  /* =====================================================================
+   * k3: two rafts, share the cargo so both carry the same weight
+   * ===================================================================== */
+  function buildTwin() {
+    let ws, mask = 0;
+    for (let tr = 0; tr < 600 && !mask; tr++) {
+      ws = Array.from({ length: GS.rand(4, 6) }, () => GS.rand(2, 9));
+      const tot = ws.reduce((a, b) => a + b, 0);
+      if (tot % 2) continue;
+      for (let m = 1; m < (1 << ws.length) - 1; m++) {
+        let sm = 0; for (let j = 0; j < ws.length; j++) if (m & (1 << j)) sm += ws[j];
+        if (sm * 2 === tot) { mask = m; break; }
+      }
+    }
+    if (!mask) { ws = [3, 5, 4, 4]; mask = 3; }
+    const total = ws.reduce((a, b) => a + b, 0);
+    const WS = RV.ws, F = RV.F, HW = 165;
+    const river = el('g', null, world);
+    drawRiver(river, WS);
+    drawPosts(river, [1170, 1260], 590);
+    const raftL = el('g', null, world);
+    drawWaterFront(el('g', null, world), 0, 1280, WS, 800, 0.5);
+    S.fxTop = el('g', null, world);
+    const land = el('g', null, world);
+    el('rect', { x: 0, y: 596, width: 432, height: 24, fill: OUT, 'fill-opacity': 0.22 }, land);
+    drawPosts(land, [40, 210, 380], 596);
+    drawWaterFront(land, 0, 434, WS, 800, 0.5);
+    drawPier(land, -10, 432, 470, 574);
+    drawPier(land, 1150, 1290, 540, 568);
+    const jettyL = el('g', null, world);
+    S.dragLayer = el('g', null, world);
+    const board = el('g', null, world);
+    el('rect', { x: 26, y: 22, width: 590, height: 110, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, board);
+    el('rect', { x: 38, y: 33, width: 566, height: 88, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, board);
+    const rafts = [520 + 105, 980].map((x, r) => {
+      const R = { x, g: el('g', null, raftL), r };
+      R.bob = el('g', { class: 'pr-bob' }, R.g);
+      drawRaft(R.bob, null, { hw: HW });
+      R.backL = el('g', null, R.bob); R.frontL = el('g', null, R.bob);
+      R.slots = [[-105, -8], [0, -8], [105, -8], [-52, -28], [52, -28], [130, -28]].map(q => ({ x: q[0], y: q[1], t: null }));
+      R.spr = Spring({ y: WS - F, target: WS - F, w: 4.2, z: 0.45, apply: sp => R.g.setAttribute('transform', 'translate(' + f1(R.x) + ' ' + f1(sp.y) + ')') });
+      sim.springs.push(R.spr); R.spr.apply(R.spr);
+      R.line = txt(board, 320, 70 + r * 38, '', { 'font-size': 30 });
+      return R;
+    });
+    const pool = GS.shuffle(['karung', 'keranjang', 'kantong', 'semangka', 'karung', 'keranjang']);
+    const homes = [[92, 566], [205, 566], [318, 566], [148, 506], [262, 506], [376, 506]];
+    const cargo = ws.map((kg, j) => {
+      const name = pool[j], C = CARGO[name];
+      const t = makeThing(jettyL, name, artItem(name), fitScale(name, 86), { drag: true, aria: C.label + ' ' + kg + ' kilo' });
+      t.kg = kg; t.idx = j; t.home = { x: homes[j][0], y: homes[j][1] }; t.raft = null; t.slot = null;
+      kgTag(t.g, kg, false, -t.bb.h * t.base * 0.42);
+      place(t, t.home.x, t.home.y);
+      return t;
+    });
+    cargo.filter(c => c.home.y < 540).concat(cargo.filter(c => c.home.y >= 540)).forEach(c => jettyL.appendChild(c.g));
+    const loadOf = R => R.slots.reduce((a, q) => a + (q.t ? q.t.kg : 0), 0);
+    function update() {
+      rafts.forEach((R, r) => {
+        const on = R.slots.filter(q => q.t).map(q => q.t.kg);
+        R.line.textContent = (r ? 'Kanan: ' : 'Kiri: ') + (on.length ? on.join(' + ') + ' = ' + loadOf(R) : '0') + ' kg';
+        // same raft, so the draft is proportional to its load: the heavier one sits deeper
+        R.spr.target = WS - F + loadOf(R) / total * F * 1.6; R.spr.asleep = false;
+      });
+      kick();
+      btn.disabled = cargo.some(c => !c.raft);
+    }
+    function onto(t, R) {
+      const q = R.slots.find(z => !z.t);
+      if (!q) return home(t);
+      q.t = t; t.slot = q; t.raft = R;
+      (q.y < -20 ? R.backL : R.frontL).appendChild(t.g);
+      place(t, t.x - R.x, t.y - R.spr.y);
+      t.shadow.setAttribute('display', 'none');
+      GS.sfx.drop();
+      flyTo(t, q.x, q.y, t.base, 180).then(() => squash(t, t.kg >= 5));
+      update();
+    }
+    function home(t) {
+      if (t.slot) { t.slot.t = null; t.slot = null; t.raft = null; }
+      jettyL.appendChild(t.g); t.shadow.removeAttribute('display');
+      GS.sfx.pop();
+      flyTo(t, t.home.x, t.home.y, t.base, 220);
+      update();
+    }
+    const overR = p => rafts.find(R => Math.abs(p.x - R.x) < HW + 20 && p.y > R.spr.y - 170 && p.y < R.spr.y + 70);
+    cargo.forEach(t => dragify(t, {
+      can: () => !S.locked,
+      worldPos: tt => tt.slot ? { x: tt.raft.x + tt.slot.x, y: tt.raft.spr.y + tt.slot.y } : { x: tt.x, y: tt.y },
+      pick: tt => { if (tt.slot) { tt.slot.t = null; tt.slot = null; tt.raft = null; update(); } tt.shadow.removeAttribute('display'); },
+      drop: (tt, p) => { const R = overR(p); if (R) onto(tt, R); else home(tt); },
+      key: tt => { const w = tt.slot ? { x: tt.raft.x + tt.slot.x, y: tt.raft.spr.y + tt.slot.y } : { x: tt.x, y: tt.y }; const nxt = !tt.raft ? rafts[0] : tt.raft === rafts[0] ? rafts[1] : null;
+        if (tt.slot) { tt.slot.t = null; tt.slot = null; tt.raft = null; } S.dragLayer.appendChild(tt.g); place(tt, w.x, w.y); if (nxt) onto(tt, nxt); else home(tt); }
+    }));
+    const btn = button('Dayung!', '', () => dayung());
+    btn.disabled = true;
+    update();
+    async function dayung() {
+      if (S.locked || cargo.some(c => !c.raft)) return;
+      const my = gen; S.locked = true; btn.disabled = true;
+      const a = loadOf(rafts[0]), b = loadOf(rafts[1]);
+      if (a === b) {
+        say('Sama berat! Kedua rakit sama dalamnya.', 'happy');
+        GS.sfx.whoosh();
+        const x0 = rafts.map(R => R.x);
+        await T(2400, (e, p) => {
+          rafts.forEach((R, r) => { R.x = x0[r] + 150 * e; R.spr.apply(R.spr); });
+          if (Math.floor(p * 20) % 3 === 0) rafts.forEach(R => ring(S.fxTop, R.x - HW - 6, WS + 4, 8, 50, 0.9));
+        }, 'inOutCubic');
+        if (my !== gen) return;
+        finish(starsFor(tries), 'Muatan terbagi sama berat!');
+        return;
+      }
+      tries++;
+      GS.sfx.oops();
+      const heavy = a > b ? 'kiri' : 'kanan';
+      rafts.forEach(R => GS.fx(R.bob, 'gs-wobble'));
+      await sayWait('Rakit ' + heavy + ' lebih berat ' + Math.abs(a - b) + ' kilo. Lihat, lebih dalam!', 'oops');
+      if (my !== gen) return;
+      S.locked = false; btn.disabled = false; hud.mood('think');
+    }
+    S.solve = () => {
+      cargo.forEach(t => { if (t.raft) home(t); });
+      const my = gen;
+      setTimeout(() => {
+        if (my !== gen) return;
+        cargo.forEach(t => { S.dragLayer.appendChild(t.g); onto(t, rafts[mask & (1 << t.idx) ? 0 : 1]); });
+        setTimeout(() => { if (my === gen) dayung(); }, 400);
+      }, 300);
+    };
+    say('Bagi muatan ke dua rakit. Harus sama berat!', 'think');
+  }
+
+  /* =====================================================================
+   * k4: fresh water vs salt water (egg 1.03, fresh 1.00, salt 1.10)
+   * ===================================================================== */
+  const RHO_SALT = 1.1, RHO_EGG = 1.03;
+  function choiceChips(parent, cx, y, onPick) {
+    const chips = ['float', 'sink'].map((k, j) => {
+      const g = el('g', { class: 'pr-tap pr-focus', tabindex: 0, role: 'button', 'aria-label': k === 'float' ? 'Terapung' : 'Tenggelam', transform: 'translate(' + (cx + (j ? 70 : -70)) + ' ' + y + ')' }, parent);
+      const col = k === 'float' ? '#2F80C9' : '#F28C28';
+      g.bg = el('rect', { x: -68, y: -28, width: 136, height: 56, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, g);
+      el('rect', { x: -68, y: -28, width: 136, height: 56, rx: 16, fill: k === 'float' ? 'url(#pr-dots)' : 'url(#pr-stripes)', opacity: 0 }, g).classList.add('pat');
+      el('circle', { cx: -46, cy: 0, r: 16, fill: col, stroke: OUT, 'stroke-width': 2.5 }, g);
+      if (k === 'float') el('path', { d: 'M-58 3 q3 -4 6 0 t6 0 t6 0 t6 0 M-52 -10 h12 v9 h-12z', fill: 'none', stroke: '#fff', 'stroke-width': 2.5, 'stroke-linejoin': 'round' }, g);
+      else el('path', { d: 'M-46 -9 V9 M-52 3 L-46 9 L-40 3', fill: 'none', stroke: '#fff', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+      txt(g, 14, 7, k === 'float' ? 'terapung' : 'tenggelam', { class: 't-body', 'font-size': 16, 'font-weight': 700 });
+      g.k = k; g.col = col;
+      const pick = () => onPick(k);
+      g.addEventListener('click', pick);
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      return g;
+    });
+    return { chips, set(k) { chips.forEach(c => { c.bg.setAttribute('fill', c.k === k ? c.col : '#FFF8EC'); c.bg.setAttribute('fill-opacity', c.k === k ? 0.35 : 1); c.bg.setAttribute('stroke-width', c.k === k ? 5 : 3); }); } };
+  }
+  function buildEgg() {
+    pierScene();
+    const tanks = [mkTank(650, 930, 'fresh'), mkTank(960, 1240, 'salt')];
+    const water = [RHO_W, RHO_SALT];
+    const T2 = tanks.map((tk, j) => {
+      const tt = drawTank(world, tk);
+      if (j) for (let k = 0; k < 6; k++) el('path', { d: 'M' + (tk.ix0 + 30 + k * 40) + ' ' + (tk.floor - 2) + ' l6 -8 l6 8z', fill: '#fff', stroke: '#B7C4C9', 'stroke-width': 1.5 }, tt.back);
+      tt.label = waterTag(tt.glass, tk, j ? 'air asin' : 'air tawar');
+      return tt;
+    });
+    const jetty = el('g', null, world);
+    S.fxTop = el('g', null, world);
+    // a bowl of salt and two eggs waiting on the jetty
+    const salt = el('g', { transform: 'translate(470 560)' }, jetty);
+    el('ellipse', { cx: 0, cy: 2, rx: 70, ry: 10, fill: OUT, 'fill-opacity': 0.18 }, salt);
+    el('path', { d: 'M-64 -40 Q-60 0 0 0 Q60 0 64 -40Z', fill: '#2F80C9', stroke: OUT, 'stroke-width': 4, 'stroke-linejoin': 'round' }, salt);
+    el('path', { d: 'M-58 -40 Q-30 -66 0 -60 Q34 -66 58 -40Z', fill: '#fff', stroke: OUT, 'stroke-width': 3 }, salt);
+    el('path', { d: 'M-52 -24 Q-30 -10 -8 -10', fill: 'none', stroke: '#6FAEE3', 'stroke-width': 6, 'stroke-linecap': 'round' }, salt);
+    nameTag(salt, 'garam');
+    const eggs = [0, 1].map(j => {
+      const t = makeThing(jetty, 'telur', artItem('telur'), fitScale('telur', MAT.telur.size), {});
+      t.home = { x: 140 + j * 150, y: 470 }; place(t, t.home.x, t.home.y);
+      return t;
+    });
+    const pred = [null, null];
+    const cc = tanks.map((tk, j) => choiceChips(world, tk.cx, 76, k => { if (S.locked) return; pred[j] = k; cc[j].set(k); GS.sfx.pop(); btn.disabled = pred.some(x => !x); }));
+    const btn = button('Cemplung!', '', () => cemplung());
+    btn.disabled = true;
+    let spoons = 0, fresh = null;
+    async function cemplung() {
+      if (S.locked || pred.some(x => !x)) return;
+      const my = gen; S.locked = true; btn.disabled = true;
+      let right = 0;
+      const bodies = await Promise.all(eggs.map(async (t, j) => {
+        const tk = tanks[j];
+        T2[j].items.appendChild(t.g); t.shadow.setAttribute('display', 'none');
+        GS.sfx.whoosh();
+        await flyTo(t, tk.cx, tk.top + 60, t.base, 520 + j * 200, 80);
+        const b = Body({ x: tk.cx, y: tk.top + 60, H: t.bb.h * t.base, w: t.bb.w * t.base, rho: RHO_EGG, rhoW: water[j], ws: tk.ws, floor: tk.floor, fxLayer: T2[j].fx,
+          render: bb => place(t, bb.x, bb.y), onEnter: bb => splash(T2[j].fx, bb.x, tk.ws, bb.w, bb.v) });
+        sim.bodies.push(b); kick();
+        return b;
+      }));
+      if (my !== gen) return;
+      fresh = bodies[0];
+      await waitUntil(() => bodies.every(b => b.calm), 9000);
+      if (my !== gen) return;
+      bodies.forEach((b, j) => { const fl = water[j] > RHO_EGG; if ((pred[j] === 'float') === fl) { right++; sparkle(S.fxTop, tanks[j].cx, b.y - b.H - 20); } });
+      S.right = right;
+      await sayWait('Di air tawar telur tenggelam. Di air asin telur terapung!', right === 2 ? 'happy' : 'surprise');
+      if (my !== gen) return;
+      say('Tambah garam ke air tawar. Berapa sendok sampai telur naik?', 'point');
+      btn.hidden = true;
+      saltBtn.disabled = false;
+      saltBtn.hidden = false;
+    }
+    const saltBtn = button('+ Garam', 'alt', () => addSalt());
+    saltBtn.hidden = true; saltBtn.disabled = true;
+    async function addSalt() {
+      if (!fresh || saltBtn.disabled) return;
+      const my = gen;
+      spoons++;
+      // each spoon of salt makes the fresh tank a little denser (capped near saturation)
+      water[0] = Math.min(1.2, RHO_W + 0.03 * spoons);
+      fresh.rhoW = water[0]; fresh.onBottom = fresh.y >= fresh.floor; wake(fresh);
+      T2[0].label.set('garam ' + spoons + ' sendok');
+      GS.sfx.count(spoons);
+      const tk = tanks[0];
+      for (let k = 0; k < 6; k++) bubble(T2[0].fx, tk.cx - 40 + k * 16, tk.ws + 60, tk.ws);
+      if (water[0] > RHO_EGG) {
+        saltBtn.disabled = true;
+        await waitUntil(() => fresh.y - fresh.ws < fresh.H && fresh.calm, 15000);
+        if (my !== gen) return;
+        sparkle(S.fxTop, tk.cx, fresh.y - fresh.H - 20);
+        await sayWait(spoons + ' sendok garam! Air jadi lebih padat dari telur, telur naik.', 'happy');
+        if (my !== gen) return;
+        finish(S.right === 2 ? 3 : S.right === 1 ? 2 : 1, 'Air asin lebih kuat mengangkat!');
+      }
+    }
+    S.solve = () => {
+      pred[0] = 'sink'; pred[1] = 'float'; cc[0].set('sink'); cc[1].set('float');
+      cemplung();
+      const my = gen;
+      (function feed() { if (my !== gen) return; if (!saltBtn.disabled && !saltBtn.hidden) addSalt(); setTimeout(feed, 300); })();
+    };
+    say('Telur di air tawar dan air asin. Terapung atau tenggelam?', 'think');
+  }
+
+  /* =====================================================================
+   * k4: order floaters by how much of them sits under water (= density)
+   * ===================================================================== */
+  function buildRank() {
+    pierScene();
+    const tank = drawTank(world);
+    const rack = el('g', null, world);
+    const jetty = el('g', null, world);
+    S.fxTop = el('g', null, world);
+    S.dragLayer = el('g', null, world);
+    const names = GS.shuffle(GS.shuffle(['botol', 'daun', 'kayu', 'apel', 'es']).slice(0, 4));
+    const items = names.map(n => {
+      const t = makeThing(jetty, n, artItem(n), fitScale(n, Math.min(90, MAT[n].size)), { drag: true, aria: labelOf(n) });
+      t.rho = density(n); t.label = labelOf(n); t.slot = null; t.air = MAT[n].air || 0;
+      t.tag = nameTag(t.g, t.label);
+      return t;
+    });
+    layoutRow(items.map(t => t.bb.w * t.base), 40, 630).forEach((x, j) => { items[j].home = { x, y: 380 }; place(items[j], x, 380); });
+    const slots = [110, 250, 390, 530].map((x, k) => {
+      const g = el('g', { transform: 'translate(' + x + ' 572)' }, rack);
+      el('rect', { x: -62, y: -26, width: 124, height: 50, rx: 14, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, g);
+      el('rect', { x: -14, y: -18, width: 28, height: 34, rx: 4, fill: '#fff', stroke: OUT, 'stroke-width': 2.5 }, g);
+      const h = 32 * (k + 1) / 5;
+      el('rect', { x: -12.5, y: 15 - h, width: 25, height: h, fill: '#3FA7C4' }, g);
+      txt(g, -38, 8, String(k + 1), { 'font-size': 24 });
+      return { x, y: 548, t: null, g };
+    });
+    txt(rack, 110, 622, 'sedikit terendam', { class: 't-body', 'font-size': 17, 'font-weight': 700 });
+    txt(rack, 530, 622, 'banyak terendam', { class: 't-body', 'font-size': 17, 'font-weight': 700 });
+    function put(t, q) {
+      if (t.slot) t.slot.t = null;
+      if (q && q.t && q.t !== t) { const o = q.t; o.slot = null; if (t.slot0) { put(o, t.slot0); } else { o.tag.removeAttribute('display'); flyTo(o, o.home.x, o.home.y, o.base, 200); } }
+      t.slot = q || null;
+      if (q) { q.t = t; t.tag.setAttribute('display', 'none'); flyTo(t, q.x, q.y, t.base * 0.8, 160).then(() => squash(t, false)); GS.sfx.drop(); }
+      else { t.tag.removeAttribute('display'); flyTo(t, t.home.x, t.home.y, t.base, 220); GS.sfx.pop(); }
+      jetty.appendChild(t.g);
+      btn.disabled = slots.some(z => !z.t);
+    }
+    const overSlot = p => slots.find(q => Math.abs(p.x - q.x) < 70 && Math.abs(p.y - q.y) < 90);
+    items.forEach(t => dragify(t, {
+      can: () => !S.locked,
+      pick: tt => { tt.slot0 = tt.slot; tt.tag.setAttribute('display', 'none'); },
+      drop: (tt, p) => { const q = overSlot(p); put(tt, q || (tt.slot0 || null)); tt.slot0 = null; },
+      key: tt => { tt.slot0 = tt.slot; const k = tt.slot ? slots.indexOf(tt.slot) + 1 : 0; put(tt, slots[k] || null); tt.slot0 = null; }
+    }));
+    const btn = button('Cemplung!', '', () => cemplung());
+    btn.disabled = true;
+    async function cemplung() {
+      if (S.locked || slots.some(z => !z.t)) return;
+      const my = gen; S.locked = true; btn.disabled = true;
+      const order = slots.map(q => q.t);
+      const xs = layoutRow(order.map(t => t.bb.w * t.base), TK.ix0 + 30, TK.ix1 - 30);
+      const sorted = order.slice().sort((a, b) => a.rho - b.rho);
+      let wrong = 0;
+      for (let j = 0; j < order.length; j++) {
+        const t = order[j];
+        tank.items.appendChild(t.g); t.shadow.setAttribute('display', 'none');
+        GS.sfx.whoosh();
+        await flyTo(t, xs[j], TK.top + 52, t.base, 480, 80);
+        if (my !== gen) return;
+        const b = Body({ x: xs[j], y: TK.top + 52, H: t.bb.h * t.base, w: t.bb.w * t.base, rho: t.rho, air: t.air, ws: TK.ws, floor: TK.floor, fxLayer: tank.fx,
+          render: bb => place(t, bb.x, bb.y), onEnter: bb => splash(tank.fx, bb.x, TK.ws, bb.w, bb.v) });
+        sim.bodies.push(b); kick();
+        await waitUntil(() => b.calm, 6000);
+        if (my !== gen) return;
+        // gauge: tenths of the height under water (= density / water density)
+        const tenth = Math.round(t.rho * 10);
+        const gx = xs[j] + t.bb.w * t.base / 2 + 8, gy = TK.ws + 150;
+        const gg = el('g', { transform: 'translate(' + f1(Math.min(gx, TK.ix1 - 24)) + ' ' + gy + ')' }, S.fxTop);
+        for (let c = 0; c < 10; c++) el('rect', { x: -9, y: -c * 9 - 9, width: 18, height: 8, rx: 2, fill: c < tenth ? '#2F80C9' : '#FFF8EC', stroke: OUT, 'stroke-width': 1.5 }, gg);
+        txt(gg, 0, 26, tenth + '/10', { 'font-size': 20 });
+        const ok = sorted[j] === t;
+        if (!ok) wrong++;
+        if (ok) sparkle(S.fxTop, xs[j], b.y - b.H - 20);
+        await sayWait(t.label.charAt(0).toUpperCase() + t.label.slice(1) + ': ' + tenth + ' dari 10 bagian terendam.', ok ? 'happy' : 'surprise');
+        if (my !== gen) return;
+      }
+      await sayWait('Makin padat bahannya, makin banyak yang terendam.', 'point');
+      if (my !== gen) return;
+      finish(wrong === 0 ? 3 : wrong <= 2 ? 2 : 1, wrong === 0 ? 'Urutanmu pas!' : 'Semua benda sudah diamati!');
+    }
+    S.solve = () => {
+      const sorted = items.slice().sort((a, b) => a.rho - b.rho);
+      sorted.forEach((t, k) => { if (t.slot !== slots[k]) { t.slot0 = t.slot; put(t, slots[k]); t.slot0 = null; } });
+      const my = gen;
+      setTimeout(() => { if (my === gen) cemplung(); }, 400);
+    };
+    say('Urutkan: yang sedikit terendam sampai yang banyak terendam.', 'think');
   }
 
   /* ---------------- debug hook (harmless) ---------------- */
   window.__game = {
     go: i => run.go(i),
-    solve: () => S.solve && S.solve(),
+    solve: () => { if (S.solve && !S.solving) { S.solving = true; S.solve(); } },
+    count: () => LEVELS.length,
+    tier: () => TIER,
+    speed: n => { DBG.fast = n > 1; },
     over: () => S.over && S.over(),
     set fast(v) { DBG.fast = !!v; },
     get state() { return { level: S.level, tries, locked: S.locked, bodies: sim.bodies.length, fx: sim.fx.length, raf: !!sim.raf }; }

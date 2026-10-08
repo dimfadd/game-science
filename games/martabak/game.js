@@ -7,6 +7,7 @@
 (function () {
   'use strict';
   const GAME = 'martabak';
+  const TIER = (window.GS && GS.tier) ? GS.tier() : 'k1';   // tk | k1 | k2 | k3 | k4 (shared/curriculum.js)
   const OUT = '#3B2A20';
   const TOL = 0.06;                 // fairness tolerance, relative to each target share
   const LIFT = 40;                  // dragged pieces float this far above the finger
@@ -107,11 +108,14 @@
     martabak: { shape: 'circle', r: 145, label: 'martabak' },
     lapis: { shape: 'rect', w: 390, h: 234, layers: 9, label: 'kue lapis' },
     lapisKecil: { shape: 'rect', w: 200, h: 120, layers: 5, label: 'kue lapis' },
-    roti: { shape: 'round', w: 372, h: 252, rr: 46, label: 'roti bakar' }
+    roti: { shape: 'round', w: 372, h: 252, rr: 46, label: 'roti bakar' },
+    martabakKecil: { shape: 'circle', r: 112, label: 'martabak' },
+    klepon: { shape: 'ball', r: 30, label: 'klepon' }
   };
   function foodPoly(def) {
     if (def.shape === 'circle') return Geo.circle(def.r, 64);
     if (def.shape === 'rect') return Geo.rect(def.w, def.h);
+    if (def.shape === 'ball') return Geo.circle(def.r, 24);
     return Geo.roundRect(def.w, def.h, def.rr, 8);
   }
   /** Line snapping, applied in the food's own frame, never to the math of the answer.
@@ -205,6 +209,15 @@
     }
     return s;
   }
+  function kleponArt(r) {
+    let s = '<circle r="' + r + '" fill="#4DAA57"/>' +
+      '<circle cx="' + (-r * 0.28) + '" cy="' + (-r * 0.3) + '" r="' + (r * 0.5) + '" fill="#86CC8C" opacity=".8"/>' +
+      '<path d="M' + (r * 0.8) + ' ' + (r * 0.3) + 'A' + r + ' ' + r + ' 0 0 1 ' + (-r * 0.25) + ' ' + (r * 0.92) + '" fill="none" stroke="#357F40" stroke-width="' + (r * 0.24) + '" opacity=".6"/>';
+    [[-0.45, -0.55, 20], [0.05, -0.7, -30], [0.45, -0.45, 60], [-0.6, -0.1, -70], [0.3, -0.05, 15], [-0.15, -0.25, 80], [0.6, 0.2, -20], [-0.3, 0.35, 40], [0.1, 0.5, -60]].forEach(([x, y, a]) => {
+      s += '<rect x="' + (-r * 0.17).toFixed(1) + '" y="' + (-r * 0.05).toFixed(1) + '" width="' + (r * 0.34).toFixed(1) + '" height="' + (r * 0.1).toFixed(1) + '" rx="' + (r * 0.05).toFixed(1) + '" fill="#FFFAEC" transform="translate(' + (x * r).toFixed(1) + ' ' + (y * r).toFixed(1) + ') rotate(' + a + ')"/>';
+    });
+    return s + '<circle cx="' + (-r * 0.42) + '" cy="' + (-r * 0.45) + '" r="' + (r * 0.1) + '" fill="#fff" opacity=".9"/>';
+  }
   function knifeMarkup() {
     // Tip at (0,0), edge along +x direction ending at the tip, handle trailing to -x.
     return '<g>' +
@@ -232,10 +245,10 @@
       '<line x1="' + (-fs * 0.36).toFixed(1) + '" x2="' + (fs * 0.36).toFixed(1) + '" y1="' + (fs * 0.07).toFixed(1) + '" y2="' + (fs * 0.07).toFixed(1) + '" stroke="' + color + '" stroke-width="' + (fs * 0.1).toFixed(1) + '" stroke-linecap="round"/>' +
       '<text x="0" y="' + (fs * 0.83).toFixed(1) + '" text-anchor="middle" font-size="' + fs + '" fill="' + color + '" class="gs-num">' + d + '</text>';
   }
-  function tagMarkup(d) {
+  function tagMarkup(d, n) {
     return '<rect x="-23" y="-34" width="46" height="70" rx="14" fill="' + OUT + '" opacity=".2" transform="translate(2 4)"/>' +
       '<rect x="-23" y="-34" width="46" height="70" rx="14" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
-      '<g transform="translate(0 -1)">' + fracMarkup(1, d, 28, '#2B1D14') + '</g>';
+      '<g transform="translate(0 -1)">' + fracMarkup(n || 1, d, 28, '#2B1D14') + '</g>';
   }
   function faceMarkup(kind) {
     // A round friend-face emoji used inside the reaction bubble.
@@ -289,8 +302,6 @@
   /* ================= stage setup ================= */
   const svg = document.getElementById('stage');
   const dock = document.getElementById('dock');
-  const hud = GS.hud({ gameId: GAME, title: 'Bagi Martabak', levelCount: 10, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: 10, hud, start: buildLevel });
 
   const sceneG = GS.el('g', { class: 'mk-scene' }, svg);
   try { GS.markup(sceneG, hasArt('scene') ? GS.art.scene('warung', 1280, 390) : fallbackScene(1280, 390)); }
@@ -323,7 +334,7 @@
   let knives = 0, cutsMade = 0, tries = 0, busy = false;
   let pieceSeq = 0, foodSeq = 0;
   let btnGo = null, btnReset = null, knifeRack = null, steamG = null, guideG = null;
-  let hintedDrag = false, guidesShown = false;
+  let hintedDrag = false, guidesShown = false, solving = 0, artCache = {};
   const timers = new Set();
   function later(ms, fn) { const my = tok; const t = setTimeout(() => { timers.delete(t); if (my === tok) fn(); }, ms); timers.add(t); }
   async function pause(ms) { const my = tok; await GS.wait(ms); return my === tok; }
@@ -335,47 +346,125 @@
     return idx.map(i => ({ person: i, name: NAMES[i] }));
   };
   const F = (n, d) => ({ n, d, v: n / d });
-  function makeLevel(i) {
-    switch (i) {
-      case 0: return { kind: 'cut', food: 'martabak', people: pickPeople(2), knives: 2, say: 'Potong martabak jadi dua. Sama besar ya!' };
-      case 1: return { kind: 'cut', food: 'lapis', people: pickPeople(2), knives: 2, say: 'Potong kue lapis untuk dua teman.' };
-      case 2: return { kind: 'cut', food: 'martabak', people: pickPeople(4), knives: 3, say: 'Martabak untuk empat teman. Potong sama besar!' };
-      case 3: return { kind: 'cut', food: 'lapis', people: pickPeople(4), knives: 4, say: 'Kue lapis untuk empat teman. Bentuknya boleh beda!' };
-      case 4: return { kind: 'cut', food: 'lapis', people: pickPeople(3), knives: 3, labels: true, say: 'Kue lapis untuk tiga teman. Potong dua kali.' };
-      case 5: {
-        const p = pickPeople(2);
-        return { kind: 'pick', people: p, orders: [F(1, 4), F(1, 4)], cards: true, plateScale: 0.9, say: p[0].name + ' dan ' + p[1].name + ' minta seperempat. Pilih yang pas!' };
-      }
-      case 6: {
-        const p = pickPeople(2), h = GS.rand(0, 1);
-        return { kind: 'hungry', people: p, hungry: h, labels: true, say: p[h].name + ' lapar sekali. Setengah atau seperempat? Beri yang lebih besar!' };
-      }
-      case 7: {
-        const p = GS.shuffle(pickPeople(3, ['Siti', 'Budi', 'Ani']).map((q, k) => Object.assign(q, { order: [F(1, 2), F(1, 4), F(1, 4)][k] })));
-        return { kind: 'cut', food: 'martabak', people: p, orders: p.map(q => q.order), cards: true, knives: 3, labels: true, say: 'Lihat pesanan di kartu. Potong, lalu bagikan!' };
-      }
-      case 8: return { kind: 'order', people: pickPeople(3), labels: true, plateScale: 0.9, say: 'Urutkan teman dari potongan terbesar.' };
-      default: {
-        const food = Math.random() < 0.5 ? 'roti' : 'lapis';
-        const p = pickPeople(3);
-        const ord = GS.shuffle([F(1, 2), F(1, 4), F(1, 4)]);
-        return { kind: 'cut', food, people: p, orders: ord, cards: true, knives: 3, labels: true, say: 'Tantangan! Baca kartu pesanan, lalu potong.' };
-      }
+  const WORD = { 2: 'setengah', 3: 'sepertiga', 4: 'seperempat', 5: 'seperlima', 6: 'seperenam', 8: 'seperdelapan' };
+  const NUM = { 1: 'satu', 2: 'dua', 3: 'tiga', 4: 'empat', 5: 'lima', 6: 'enam', 7: 'tujuh', 8: 'delapan' };
+  const fracWords = (n, d) => (n === 1 ? WORD[d] : NUM[n] + ' per ' + NUM[d]);
+  const orderWords = o => o.words || fracWords(o.n, o.d);
+  const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+  /** An order written as a small sum on the card, e.g. 1/4 + 1/4 (k4). */
+  const Ex = (a, op, b) => {
+    const v = op === '+' ? a[0] / a[1] + b[0] / b[1] : a[0] / a[1] - b[0] / b[1];
+    return { n: 0, d: 0, v, expr: [a, op, b], words: fracWords(a[0], a[1]) + (op === '+' ? ' tambah ' : ' kurang ') + fracWords(b[0], b[1]) };
+  };
+  const withOrders = (orders, fixedNames) => {
+    if (fixedNames) {   // names keep their order, seats are shuffled
+      const pairs = GS.shuffle(pickPeople(orders.length, fixedNames).map((q, k) => [q, orders[k]]));
+      return { people: pairs.map(x => x[0]), orders: pairs.map(x => x[1]) };
     }
-  }
+    return { people: pickPeople(orders.length), orders: GS.shuffle(orders.slice()) };
+  };
+  const diagWin = ps => (ps.some(list => list.some(p => p.poly.length === 3)) ? 'Potongan miring juga adil!' : 'Setengah dan setengah. Adil!');
+  const shapeWin = ps => (new Set(ps.map(list => (list.length === 1 ? (list[0].bb.w / list[0].bb.h).toFixed(1) + list[0].poly.length : 'x'))).size > 1 ? 'Bentuknya beda, tetap seperempat!' : 'Seperempat semua. Adil!');
+
+  /* Reusable level builders (parameterised); the tier tables below pick from them. */
+  const LV = {
+    cutEqual: (food, n, knives, say, win, extra) => Object.assign({ kind: 'cut', food, people: pickPeople(n), knives, say, win }, extra || {}),
+    cutOrders: (food, orders, knives, say, win, extra) => Object.assign({ kind: 'cut', food, knives, labels: true, tagAfter: true, say, win: win || 'Pesanan pas semua. Hebat!' }, withOrders(orders, extra && extra.names), extra || {}),
+    pick: () => {
+      const p = pickPeople(2);
+      return { kind: 'pick', people: p, orders: [F(1, 4), F(1, 4)], plateScale: 0.9, tagAfter: true, say: p[0].name + ' dan ' + p[1].name + ' minta seperempat. Pilih yang pas!', win: 'Bentuknya beda, sama-sama seperempat!' };
+    },
+    hungry: () => {
+      const p = pickPeople(2), h = GS.rand(0, 1);
+      return { kind: 'hungry', people: p, hungry: h, labels: true, say: p[h].name + ' lapar sekali. Setengah atau seperempat? Beri yang lebih besar!', win: 'Setengah lebih besar dari seperempat!' };
+    },
+    compare: pair => {
+      const p = pickPeople(2), h = GS.rand(0, 1), pr = GS.shuffle(pair);
+      const big = pr[0].v > pr[1].v ? pr[0] : pr[1], small = big === pr[0] ? pr[1] : pr[0];
+      return { kind: 'hungry', pair: pr, people: p, hungry: h, plateScale: 0.8, say: p[h].name + ' lapar sekali. ' + cap(fracWords(pr[0].n, pr[0].d)) + ' atau ' + fracWords(pr[1].n, pr[1].d) + '?', win: cap(fracWords(big.n, big.d)) + ' lebih besar dari ' + fracWords(small.n, small.d) + '!' };
+    },
+    sort: ds => ({ kind: 'order', ds, people: pickPeople(ds.length), labels: true, plateScale: 0.9, say: ds.length > 3 ? 'Urutkan empat potongan dari yang terbesar.' : 'Urutkan teman dari potongan terbesar.' }),
+    set: (count, orders, say, win, extra) => Object.assign({ kind: 'set', count, plateScale: 0.8, say, win }, orders ? withOrders(orders) : { people: pickPeople(2) }, extra || {}),
+    match: () => {
+      const p = pickPeople(2);
+      return { kind: 'match', people: p, equalShares: true, tol: 0.12, plateScale: 0.9, say: p[1].name + ' mau sama besar dengan ' + p[0].name + '. Pilih yang pas!', win: 'Sama besar. Adil!' };
+    }
+  };
+  const TK = { tol: 0.12 };
+  const TIERS = {
+    tk: [
+      () => LV.cutEqual('martabak', 2, 2, 'Potong martabaknya untuk dua teman. Sama besar!', 'Sama besar. Semua senang!', TK),
+      () => LV.cutEqual('roti', 2, 2, 'Sekarang roti. Potong jadi dua sama besar!', 'Dua bagian sama besar!', TK),
+      () => LV.cutEqual('lapis', 2, 2, 'Kue lapis untuk dua teman. Potong ya!', diagWin, TK),
+      () => LV.match(),
+      () => LV.set(4, null, 'Ada empat klepon. Bagi sama banyak untuk dua teman!', 'Dua dan dua. Sama banyak!', { tol: 0.12, ballR: 36 }),
+      () => LV.cutEqual(Math.random() < 0.5 ? 'martabak' : 'roti', 2, 1, 'Pisaunya cuma satu. Potong yang pas, ya!', 'Hebat! Sekali potong, adil!', TK)
+    ],
+    k1: [
+      () => LV.cutEqual('martabak', 2, 2, 'Potong martabak jadi dua. Sama besar ya!', 'Dua bagian sama besar. Setengah!'),
+      () => LV.cutEqual('lapis', 2, 2, 'Potong kue lapis untuk dua teman.', diagWin),
+      () => LV.cutEqual('martabak', 4, 3, 'Martabak untuk empat teman. Potong sama besar!', 'Empat bagian sama. Seperempat!'),
+      () => LV.cutEqual('lapis', 4, 4, 'Kue lapis untuk empat teman. Bentuknya boleh beda!', shapeWin),
+      () => LV.pick(),
+      () => LV.hungry(),
+      () => LV.cutOrders('roti', [F(1, 2), F(1, 2)], 2, 'Lihat kartu pesanan. Potong rotinya!', 'Setengah dan setengah. Pas!'),
+      () => LV.cutOrders('martabak', [F(1, 4), F(1, 4), F(1, 4), F(1, 4)], 3, 'Tantangan! Empat teman, lihat kartu pesanan.', 'Seperempat semua. Hebat!')
+    ],
+    k2: [
+      () => LV.cutEqual('lapis', 3, 3, 'Kue lapis untuk tiga teman. Potong dua kali.', 'Tiga bagian sama. Sepertiga!', { labels: true, tagAfter: true }),
+      () => LV.sort(GS.shuffle([2, 3, 4])),
+      () => LV.cutOrders('martabak', [F(1, 2), F(1, 4), F(1, 4)], 3, 'Lihat pesanan di kartu. Potong, lalu bagikan!', null, { names: ['Siti', 'Budi', 'Ani'] }),
+      () => LV.cutEqual('lapis', 6, 4, 'Kue lapis untuk enam teman. Potong sama besar!', 'Enam bagian sama. Seperenam!', { labels: true, tagAfter: true }),
+      () => LV.sort(GS.shuffle([2, 3, 4, 6])),
+      () => { const n = [6, 8, 10][GS.rand(0, 2)]; const c = LV.set(n, [F(1, 2)], '', 'Setengah dari ' + n + ' adalah ' + n / 2 + '!'); c.say = c.people[0].name + ' minta setengah dari ' + n + ' klepon.'; return c; },
+      () => (Math.random() < 0.5
+        ? LV.cutOrders('martabak', [F(1, 2), F(1, 4), F(1, 4)], 3, 'Lihat kartu pesanan, lalu potong.')
+        : LV.cutOrders('lapis', [F(1, 3), F(1, 3), F(1, 3)], 3, 'Lihat kartu pesanan, lalu potong.')),
+      () => LV.cutOrders(Math.random() < 0.5 ? 'roti' : 'lapis', [F(1, 2), F(1, 4), F(1, 4)], 3, 'Tantangan! Baca kartu pesanan, lalu potong.')
+    ],
+    k3: [
+      () => LV.cutOrders('martabak', [F(3, 4), F(1, 4)], 3, 'Ada pesanan tiga per empat. Potong, lalu bagikan!', 'Tiga per empat dan seperempat. Pas!'),
+      () => Object.assign(LV.cutOrders('martabak', [F(1, 2), F(2, 4)], 3, 'Setengah dan dua per empat. Mana yang lebih banyak?', 'Dua per empat sama dengan setengah!'), { stackDemo: true, demoSay: 'Kita tumpuk. Sama besar!' }),
+      () => LV.sort(GS.shuffle([3, 4, 5, 6, 8]).slice(0, 3)),
+      r => (r === 0
+        ? LV.cutEqual('lapis', 3, 3, 'Kue lapis untuk tiga teman.', '', { labels: true, tagAfter: true, rounds: 2 })
+        : LV.cutEqual('lapis', 6, 4, 'Sekarang untuk enam teman. Kue lapisnya sama besar!', 'Makin banyak teman, makin kecil potongannya!', { labels: true, tagAfter: true, rounds: 2 })),
+      () => LV.set(12, [F(1, 4), F(3, 4)], 'Ada 12 klepon. Lihat kartu pesanan!', 'Seperempat dari 12 adalah 3!'),
+      () => LV.compare([F(2, 3), F(3, 4)]),
+      () => LV.cutOrders('lapis', [F(2, 4), F(1, 4), F(1, 4)], 3, 'Lihat kartu pesanan, lalu potong.'),
+      () => LV.cutOrders('lapis', [F(3, 6), F(2, 6), F(1, 6)], 4, 'Tantangan! Tiga pesanan berbeda.')
+    ],
+    k4: [
+      () => Object.assign(LV.cutOrders('martabak', [F(1, 2), F(4, 8)], 4, 'Setengah dan empat per delapan. Potong ya!', 'Setengah sama dengan empat per delapan!'), { stackDemo: true, demoSay: 'Kita tumpuk. Sama besar!' }),
+      () => Object.assign(LV.cutOrders('martabak', [Ex([1, 4], '+', [1, 4]), F(1, 2)], 3, 'Seperempat tambah seperempat itu berapa? Potong ya!', 'Seperempat tambah seperempat sama dengan setengah!'), { stackDemo: true, demoSay: 'Kita tumpuk. Sama besar!' }),
+      () => LV.cutOrders('martabak', [Ex([3, 4], '-', [1, 4]), F(1, 4), F(1, 4)], 3, 'Hitung dulu pesanan di kartu, lalu potong.'),
+      () => { const n = [9, 12][GS.rand(0, 1)]; return LV.set(n, [F(2, 3), F(1, 3)], 'Ada ' + n + ' klepon. Lihat kartu pesanan!', 'Dua per tiga dari ' + n + ' adalah ' + (2 * n / 3) + '!'); },
+      () => LV.cutOrders('martabakKecil', [F(1, 2), F(1, 2), F(1, 2)], 2, 'Ada satu setengah martabak untuk tiga teman.', 'Masing-masing setengah. Pas!', { extraHalf: true, center: { x: 450, y: 590 } }),
+      () => LV.compare([[F(2, 3), F(3, 5)], [F(3, 4), F(2, 3)], [F(3, 5), F(1, 2)], [F(5, 8), F(3, 4)], [F(2, 5), F(1, 3)]][GS.rand(0, 4)]),
+      () => LV.cutOrders('lapis', [F(1, 2), F(1, 3), F(1, 6)], 4, 'Tiga pesanan berbeda. Potong yang pas!'),
+      () => LV.cutOrders('roti', [Ex([3, 4], '-', [1, 2]), Ex([1, 4], '+', [1, 4]), F(1, 4)], 3, 'Tantangan! Hitung pesanan, lalu potong.')
+    ]
+  };
+  function tierCount() { return (TIERS[TIER] || TIERS.k1).length; }
+  function makeLevel(i, round) { return (TIERS[TIER] || TIERS.k1)[i](round || 0); }
+  const hud = GS.hud({ gameId: GAME, title: 'Bagi Martabak', levelCount: tierCount(), onLevelPick: i => run.go(i) });
+  const run = GS.runner({ gameId: GAME, count: tierCount(), hud, start: i => buildLevel(i) });
 
   function seatXs(n) {
-    return { 1: [640], 2: [430, 850], 3: [330, 640, 950], 4: [262, 514, 766, 1018] }[n];
+    return { 1: [640], 2: [430, 850], 3: [330, 640, 950], 4: [262, 514, 766, 1018], 6: [150, 346, 542, 738, 934, 1130] }[n];
   }
 
   /* ================= build ================= */
-  function buildLevel(i) {
-    tok++;
+  let roundIdx = 0, keepTries = 0;
+  function buildLevel(i, nextRound) {
+    tok++; solving = 0;
+    roundIdx = nextRound ? roundIdx + 1 : 0;
     timers.forEach(t => clearTimeout(t)); timers.clear();
     world.innerHTML = ''; friendsG.innerHTML = ''; dock.innerHTML = '';
     pieces = []; friends = []; foods = [];
-    busy = false; tries = 0; cutsMade = 0; hintedDrag = false; guidesShown = false;
-    L = makeLevel(i);
+    busy = false; tries = nextRound ? keepTries : 0; cutsMade = 0; hintedDrag = false; guidesShown = false;
+    artCache = {};
+    L = makeLevel(i, roundIdx);
     L.index = i;
     if (!L.plateScale) L.plateScale = 0.5;
 
@@ -394,6 +483,8 @@
     if (L.kind === 'cut') buildCutLevel();
     else if (L.kind === 'pick') buildPickLevel();
     else if (L.kind === 'hungry') buildHungryLevel();
+    else if (L.kind === 'set') buildSetLevel();
+    else if (L.kind === 'match') buildMatchLevel();
     else buildOrderLevel();
     buildDock();
     updateButtons();
@@ -419,7 +510,7 @@
       // plate
       f.plate = { x: f.x, y: PLATE_Y, pieces: [], friend: f };
       f.plate.el = GS.el('g', { class: 'mk-plate', transform: 'translate(' + f.x + ' ' + PLATE_Y + ')' }, layers.plates);
-      GS.markup(f.plate.el, plateMarkup());
+      GS.markup(L.people.length > 4 ? GS.el('g', { transform: 'scale(.9)' }, f.plate.el) : f.plate.el, plateMarkup());
       friends.push(f);
     });
   }
@@ -432,7 +523,14 @@
         '<rect x="' + (-w / 2 + 4) + '" y="' + (y0 + 6) + '" width="' + w + '" height="' + h + '" rx="16" fill="' + OUT + '" opacity=".18"/>' +
         '<rect x="' + (-w / 2) + '" y="' + y0 + '" width="' + w + '" height="' + h + '" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>' +
         '<circle cx="0" cy="' + (y0 + 10) + '" r="5" fill="#E2453C" stroke="' + OUT + '" stroke-width="2"/>');
-      if (f.order) GS.markup(sw, '<g transform="translate(0 ' + (y0 + 62) + ')">' + fracMarkup(f.order.n, f.order.d, 46, '#2B1D14') + '</g>');
+      if (f.order && f.order.expr) {
+        const [a, op, b] = f.order.expr;
+        GS.markup(sw, '<rect x="' + (-w / 2 - 20) + '" y="' + y0 + '" width="' + (w + 40) + '" height="' + h + '" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>' +
+          '<circle cx="0" cy="' + (y0 + 10) + '" r="5" fill="#E2453C" stroke="' + OUT + '" stroke-width="2"/>' +
+          '<g transform="translate(-40 ' + (y0 + 60) + ')">' + fracMarkup(a[0], a[1], 36, '#2B1D14') + '</g>' +
+          '<text x="0" y="' + (y0 + 72) + '" text-anchor="middle" font-size="38" fill="#2B1D14" class="gs-num">' + (op === '+' ? '+' : '−') + '</text>' +
+          '<g transform="translate(40 ' + (y0 + 60) + ')">' + fracMarkup(b[0], b[1], 36, '#2B1D14') + '</g>');
+      } else if (f.order) GS.markup(sw, '<g transform="translate(0 ' + (y0 + 62) + ')">' + fracMarkup(f.order.n, f.order.d, 46, '#2B1D14') + '</g>');
       else {
         const hungry = f.k === L.hungry;
         GS.markup(sw, '<g transform="translate(0 ' + (y0 + 68) + ') scale(1.15)">' + faceMarkup(hungry ? 'hungry' : 'happy') + '</g>' +
@@ -451,10 +549,10 @@
     }
   }
 
-  function boardCenter() { return { x: 640, y: 590 }; }
+  function boardCenter() { return { x: 600, y: 590 }; }   // a bit left of centre: the dock sits bottom-right on phones
 
-  function drawLoyang(c) {
-    const g = GS.el('g', { transform: 'translate(' + c.x + ' ' + c.y + ')' }, layers.board);
+  function drawLoyang(c, k) {
+    const g = GS.el('g', { transform: 'translate(' + c.x + ' ' + c.y + ') scale(' + (k || 1) + ')' }, layers.board);
     let s = '<circle cx="9" cy="12" r="174" fill="' + OUT + '" opacity=".18"/>';
     [-1, 1].forEach(sd => {
       s += '<rect x="' + (sd > 0 ? 158 : -202) + '" y="-15" width="44" height="30" rx="13" fill="#5C6169" stroke="' + OUT + '" stroke-width="4"/>' +
@@ -498,21 +596,23 @@
   }
   function updateSteam() {
     if (!steamG) return;
-    const any = pieces.some(p => !p.plate && p.food.def === FOOD.martabak);
+    const any = pieces.some(p => !p.plate && p.food.def.shape === 'circle');
     steamG.style.display = any ? '' : 'none';
   }
 
-  function makeFood(type, ox, oy) {
-    const def = FOOD[type];
+  function makeFood(type, ox, oy, over) {
+    const def = over ? Object.assign({}, FOOD[type], over) : FOOD[type];
     const f = { id: ++foodSeq, type, def, ox, oy, poly: foodPoly(def) };
     f.area = Geo.absArea(f.poly);
+    foods.push(f);
+    if (def.shape === 'ball' && artCache['ball' + def.r]) { f.artId = artCache['ball' + def.r]; return f; }
     f.artId = 'mkart' + f.id;
     const g = GS.el('g', { id: f.artId }, defs);
     const seed = (Math.random() * 1e9) | 0;
+    if (def.shape === 'ball') { GS.markup(g, kleponArt(def.r)); artCache['ball' + def.r] = f.artId; return f; }
     if (def.shape === 'circle') GS.markup(g, martabakArt(def.r, seed));
     else if (def.shape === 'rect') GS.markup(g, lapisArt(def.w, def.h, def.layers));
     else GS.markup(g, rotiArt(def.w, def.h, def.rr, seed, f.id));
-    foods.push(f);
     return f;
   }
 
@@ -612,20 +712,21 @@
   function centerOf(p) { return toWorld(p, { x: p.bb.cx, y: p.bb.cy }); }
   function fracOf(p) {
     const unit = L.unit;
-    for (const d of [2, 3, 4]) if (Math.abs((p.area / unit) * d - 1) <= TOL) return d;
+    if (p.food.def.shape === 'ball') return 0;
+    for (const d of [2, 3, 4, 5, 6, 8]) if (Math.abs((p.area / unit) * d - 1) <= TOL) return d;
     return 0;
   }
-  function setTag(p, d) {
+  function setTag(p, d, n) {
     if (p.tag) { p.tag.remove(); p.tag = null; }
-    p.tagD = d || 0;
+    p.tagD = d ? (n > 1 ? -1 : d) : 0;
     if (!d) return;
     p.tag = GS.el('g', { 'pointer-events': 'none' }, p.el);
     const inner = GS.el('g', null, p.tag);
-    GS.markup(inner, tagMarkup(d));
+    GS.markup(inner, tagMarkup(d, n));
     applyT(p);
     tw(320, e => inner.setAttribute('transform', 'scale(' + e.toFixed(3) + ')'), 'outBack');
   }
-  function refreshTags() { if (!L.labels) return; pieces.forEach(p => { const d = fracOf(p); if (d !== p.tagD) setTag(p, d); }); }
+  function refreshTags() { if (!L.labels) return; pieces.forEach(p => { if (p.tagD < 0) return; const d = fracOf(p); if (d !== p.tagD) setTag(p, d); }); }
 
   /* ================= dragging pieces ================= */
   let drag = null;
@@ -706,9 +807,13 @@
   }
   function layoutPlate(pl, animate) {
     const k = pl.pieces.length;
+    const balls = k && pl.pieces.every(p => p.food.def.shape === 'ball');
+    const cols = k <= 3 ? k : k <= 6 ? 3 : 4, rows = Math.ceil(k / Math.max(1, cols));
     pl.pieces.forEach((p, i) => {
       const spread = k > 1 ? Math.min(64, 150 / (k - 1)) : 0;
-      const t = { x: pl.x + (i - (k - 1) / 2) * spread, y: pl.y - 12 + (k > 1 ? (i % 2 ? 7 : -5) : 0) };
+      const t = balls
+        ? { x: pl.x + ((i % cols) - (cols - 1) / 2) * 38 + (Math.floor(i / cols) % 2 ? 10 : 0), y: pl.y - 10 + (Math.floor(i / cols) - (rows - 1) / 2) * 17 }
+        : { x: pl.x + (i - (k - 1) / 2) * spread, y: pl.y - 12 + (k > 1 ? (i % 2 ? 7 : -5) : 0) };
       // tall pieces lie down on the plate (rotation never changes area)
       const r1 = p.bb.h > p.bb.w * 1.3 ? 90 : 0;
       const s0 = p.s, r0 = p.rot, c0 = centerOf(p);
@@ -723,16 +828,26 @@
 
   /* ================= cutting ================= */
   let cutting = null;
+  function freshPieces() {
+    const food = L.foodRef;
+    makePiece(food, food.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
+    if (L.extraFood) {
+      // the "½" of 1½ martabak: one half already cut (k4)
+      const ef = L.extraFood, half = Geo.split(ef.poly.map(q => ({ x: q.x, y: q.y, cut: false })), { x: 0, y: -400 }, { x: 0, y: 400 })[0];
+      makePiece(ef, half);
+    }
+  }
   function buildCutLevel() {
-    const c = boardCenter();
+    const c = L.center || boardCenter();
     const def = FOOD[L.food];
-    if (def.shape === 'circle') { drawLoyang(c); }
+    if (def.shape === 'circle') { drawLoyang(c, def.r / 145); }
     else drawTalenan(c, def.w + 100, def.h + 84, def.shape === 'rect' ? { w: def.w + 34, h: def.h + 30 } : null);
     guideG = GS.el('g', { opacity: 0 }, layers.board);
     const food = makeFood(L.food, c.x, c.y);
     L.unit = food.area;
     L.foodRef = food;
-    makePiece(food, food.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
+    if (L.extraHalf) { const c2 = { x: 870, y: c.y }; drawLoyang(c2, def.r / 145); L.extraFood = makeFood(L.food, c2.x, c2.y); }
+    freshPieces();
     if (def.shape === 'circle') drawSteam(c);
     knives = L.knives;
     drawKnifeRack();
@@ -854,22 +969,31 @@
     if (guidesShown || !guideG || L.kind !== 'cut') return;
     guidesShown = true;
     const food = L.foodRef, def = food.def, c = { x: food.ox, y: food.oy };
-    const n = L.orders ? (L.orders.some(o => o.d === 3) ? 3 : 4) : L.people.length;
+    const n = partsNeeded();
     let s = '';
     const dot = (x, y) => '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="8" fill="#FFC83D" stroke="' + OUT + '" stroke-width="3"/>';
     if (def.shape === 'circle') {
-      const steps = n === 2 ? 2 : 4;
+      const steps = n <= 2 ? 2 : 4;
       for (let k = 0; k < steps; k++) { const t = (k / steps) * Math.PI * 2 - Math.PI / 2; s += dot(c.x + Math.cos(t) * (def.r + 18), c.y + Math.sin(t) * (def.r + 18)); }
     } else {
       const hw = def.w / 2, hh = def.h / 2;
-      const parts = n === 3 ? [1 / 3, 2 / 3] : n === 2 ? [0.5] : [0.5];
-      parts.forEach(f => {
-        s += dot(c.x - hw - 20, c.y - hh + def.h * f) + dot(c.x + hw + 20, c.y - hh + def.h * f);
-        if (n !== 3) s += dot(c.x - hw + def.w * f, c.y - hh - 20) + dot(c.x - hw + def.w * f, c.y + hh + 20);
-      });
+      const g = { 2: [[0.5], [0.5]], 3: [[1 / 3, 2 / 3], []], 4: [[0.5], [0.5]], 6: [[0.5], [1 / 3, 2 / 3]], 8: [[0.5], [0.25, 0.5, 0.75]] }[n] || [[0.5], [0.5]];
+      g[0].forEach(f => { s += dot(c.x - hw - 20, c.y - hh + def.h * f) + dot(c.x + hw + 20, c.y - hh + def.h * f); });
+      g[1].forEach(f => { s += dot(c.x - hw + def.w * f, c.y - hh - 20) + dot(c.x - hw + def.w * f, c.y + hh + 20); });
     }
     GS.markup(guideG, s);
     tw(400, e => guideG.setAttribute('opacity', e.toFixed(2)));
+  }
+
+  function targetsOf() {
+    const n = friends.length;
+    if (L.equalShares) { const m = friends.reduce((a, f) => a + shareOf(f), 0) / n; return friends.map(() => m || 1); }
+    return friends.map(f => (f.order ? f.order.v : 1 / n));
+  }
+  /** Smallest number of equal parts that serves every order (2, 3, 4, 6 or 8). */
+  function partsNeeded() {
+    const t = friends.map(f => (f.order ? f.order.v : 1 / friends.length));
+    return [2, 3, 4, 6, 8].find(D => t.every(v => Math.abs(v * D - Math.round(v * D)) < 1e-6)) || 4;
   }
 
   /* ================= pre-cut levels ================= */
@@ -911,6 +1035,7 @@
     L.cakes = cakes;
   }
   function buildHungryLevel() {
+    if (L.pair) return buildCompareLevel();
     const c = boardCenter();
     drawLoyang(c);
     const food = makeFood('martabak', c.x, c.y);
@@ -930,25 +1055,88 @@
     refreshTags();
     L.half = ps[0]; L.quarter = ps[1];
   }
+  /** Two equal cakes; from each a piece of n/d is cut (one along, one across), the rest stays. */
+  function buildCompareLevel() {
+    const c = { x: 500, y: 585 };
+    drawTalenan(c, 700, 250, null);
+    const xs = [340, 660], w = 240, h = 140, across = GS.rand(0, 1);
+    L.pairPieces = L.pair.map((fr, i) => {
+      const food = makeFood('lapisKecil', xs[i], c.y, { w, h, layers: 5 });
+      const poly = food.poly.map(q => ({ x: q.x, y: q.y, cut: false }));
+      const vert = i !== across;
+      const parts = vert ? Geo.split(poly, { x: -w / 2 + w * fr.v, y: -500 }, { x: -w / 2 + w * fr.v, y: 500 }) : Geo.split(poly, { x: -500, y: -h / 2 + h * fr.v }, { x: 500, y: -h / 2 + h * fr.v });
+      const frac = vert ? parts[0] : parts[1], rest = vert ? parts[1] : parts[0];
+      const ps = placePrecut(food, [frac, rest], 8);
+      ps[1].locked = true; ps[1].el.setAttribute('opacity', 0.45); ps[1].el.style.pointerEvents = 'none';
+      L.unit = food.area;
+      setTag(ps[0], fr.d, fr.n);
+      return ps[0];
+    });
+  }
+  /** Fractions of a set: klepon on a tampah, dragged one by one onto plates. */
+  function buildSetLevel() {
+    const c = { x: 600, y: 588 }, N = L.count, r = L.ballR || 30;
+    const cols = N <= 4 ? 2 : N <= 6 ? 3 : 4, rows = Math.ceil(N / cols), sp = 2 * r + 18;
+    const rx = cols * sp / 2 + 46, ry = Math.min(190, rows * sp / 2 + 40);
+    let s = '<ellipse cx="' + (c.x + 8) + '" cy="' + (c.y + 12) + '" rx="' + (rx + 4) + '" ry="' + (ry + 4) + '" fill="' + OUT + '" opacity=".18"/>' +
+      '<ellipse cx="' + c.x + '" cy="' + c.y + '" rx="' + rx + '" ry="' + ry + '" fill="#E8C987" stroke="' + OUT + '" stroke-width="4"/>' +
+      '<ellipse cx="' + c.x + '" cy="' + c.y + '" rx="' + (rx - 16) + '" ry="' + (ry - 16) + '" fill="#F5E2B5" stroke="#C49E5A" stroke-width="3"/>';
+    for (let k = -6; k <= 6; k++) s += '<path d="M' + (c.x + k * (rx / 7)) + ' ' + (c.y - ry + 20) + 'V' + (c.y + ry - 20) + '" stroke="#C49E5A" stroke-width="2" opacity=".35"/>';
+    s += '<ellipse cx="' + c.x + '" cy="' + c.y + '" rx="' + (rx - 30) + '" ry="' + (ry - 30) + '" fill="#FFF8EC" stroke="#E0C48E" stroke-width="2"/>';
+    GS.markup(layers.board, s);
+    let unit = 0;
+    for (let k = 0; k < N; k++) {
+      const x = c.x + ((k % cols) - (cols - 1) / 2) * sp, y = c.y + (Math.floor(k / cols) - (rows - 1) / 2) * sp * 0.85;
+      const food = makeFood('klepon', x, y, { r });
+      const p = makePiece(food, food.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
+      p.home = { ...p.pos };
+      unit += p.area;
+    }
+    L.unit = unit;
+  }
+  /** TK: one friend already has a piece; give the other friend one that is just as big. */
+  function buildMatchLevel() {
+    const c = { x: 510, y: 575 };
+    drawTalenan(c, 680, 250, null);
+    const W = 130, H = 110;
+    const ref = makeFood('lapisKecil', friends[0].x, PLATE_Y, { w: W, h: H, layers: 4 });
+    L.unit = ref.area;
+    const rp = makePiece(ref, ref.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
+    rp.locked = true; rp.el.style.cursor = 'default';
+    putOnPlate(rp, friends[0].plate); layoutPlate(friends[0].plate, false);
+    const sizes = GS.shuffle([{ w: W, eq: true }, { w: Math.round(W * (0.5 + Math.random() * 0.1)) }, { w: Math.round(W * (1.5 + Math.random() * 0.15)) }]);
+    [290, 510, 730].forEach((x, i) => {
+      const f = makeFood('lapisKecil', x, c.y, { w: sizes[i].w, h: H, layers: 4 });
+      const p = makePiece(f, f.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
+      p.home = { ...p.pos };
+      if (sizes[i].eq) L.equalPiece = p;
+    });
+  }
   function buildOrderLevel() {
+    const n = L.ds.length;
     const c = { x: 480, y: 590 };
-    drawTalenan(c, 760, 220, null);
+    drawTalenan(c, n > 3 ? 820 : 760, 220, null);
     // "besar -> kecil" sign between the plates and the board
-    const xs = seatXs(3);
-    let s = '<rect x="' + (xs[0] - 70) + '" y="424" width="' + (xs[2] - xs[0] + 140) + '" height="40" rx="20" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
-      '<path d="M' + (xs[0] + 60) + ' 444H' + (xs[2] - 60) + '" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round"/>' +
-      '<path d="M' + (xs[2] - 74) + ' 432L' + (xs[2] - 58) + ' 444L' + (xs[2] - 74) + ' 456" fill="none" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' +
+    const xs = seatXs(n);
+    let s = '<rect x="' + (xs[0] - 70) + '" y="424" width="' + (xs[n - 1] - xs[0] + 140) + '" height="40" rx="20" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
+      '<path d="M' + (xs[0] + 60) + ' 444H' + (xs[n - 1] - 60) + '" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round"/>' +
+      '<path d="M' + (xs[n - 1] - 74) + ' 432L' + (xs[n - 1] - 58) + ' 444L' + (xs[n - 1] - 74) + ' 456" fill="none" stroke="#1F6FD1" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' +
       '<circle cx="' + (xs[0] - 46) + '" cy="444" r="14" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>' +
-      '<circle cx="' + (xs[2] + 52) + '" cy="444" r="6" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>';
+      '<circle cx="' + (xs[n - 1] + 52) + '" cy="444" r="6" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>';
     GS.markup(layers.signs, s);
     const lbl = (x, t, a) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': a, 'font-size': 22, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
-    lbl(xs[0] - 26, 'besar', 'start'); lbl(xs[2] + 40, 'kecil', 'end');
-    const cxs = [245, 480, 715];
-    const ds = GS.shuffle([2, 3, 4]);
-    const opts = { 2: [[V(0)], [Hz(0)]], 3: [[V(-100 / 3), V(100 / 3)], [Hz(-20), Hz(20)]], 4: [[V(-50), V(0), V(50)], [V(0), Hz(0)]] };
+    lbl(xs[0] - 26, 'besar', 'start'); lbl(xs[n - 1] + 40, 'kecil', 'end');
+    const cxs = n > 3 ? [175, 375, 575, 775] : [245, 480, 715];
+    const over = n > 3 ? { w: 168, h: 104 } : null, w = over ? over.w : 200, h = over ? over.h : 120;
+    const ds = L.ds;
+    const opts = {
+      2: [[V(0)], [Hz(0)]], 3: [[V(-w / 6), V(w / 6)], [Hz(-h / 6), Hz(h / 6)]], 4: [[V(-w / 4), V(0), V(w / 4)], [V(0), Hz(0)]],
+      5: [[V(-3 * w / 10), V(-w / 10), V(w / 10), V(3 * w / 10)]], 6: [[V(-w / 6), V(w / 6), Hz(0)]],
+      8: [[V(-w / 4), V(0), V(w / 4), Hz(0)], [V(-3 * w / 8), V(-w / 4), V(-w / 8), V(0), V(w / 8), V(w / 4), V(3 * w / 8)]]
+    };
     const given = [];
     ds.forEach((d, i) => {
-      const food = makeFood('lapisKecil', cxs[i], c.y + 4);
+      const food = makeFood('lapisKecil', cxs[i], c.y + 4, over);
       const choice = opts[d][GS.rand(0, opts[d].length - 1)];
       const ps = placePrecut(food, cutAll(food.poly, choice), 6);
       ps.forEach(p => { p.locked = true; p.el.style.pointerEvents = 'none'; });
@@ -957,9 +1145,9 @@
     L.unit = foods[0].area;
     refreshTags();
     // make sure the starting order is not already sorted
-    let order = GS.shuffle([0, 1, 2]);
-    const sorted = o => given[o[0]].area > given[o[1]].area && given[o[1]].area > given[o[2]].area;
-    while (sorted(order)) order = GS.shuffle([0, 1, 2]);
+    let order = GS.shuffle(ds.map((d, k) => k));
+    const sorted = o => o.every((g, k) => k === 0 || given[o[k - 1]].area > given[g].area);
+    while (sorted(order)) order = GS.shuffle(order);
     order.forEach((gi, seat) => { const p = given[gi]; putOnPlate(p, friends[seat].plate); layoutPlate(friends[seat].plate, false); });
     friends.forEach(f => {
       f.hit = GS.el('rect', { x: -110, y: -100, width: 220, height: 150, fill: '#000', 'fill-opacity': 0 }, layers.top);
@@ -1051,7 +1239,7 @@
       pieces.slice().forEach(removePiece);
       friends.forEach(f => { f.plate.pieces = []; });
       const food = L.foodRef;
-      makePiece(food, food.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
+      freshPieces();
       knives = L.knives; cutsMade = 0;
       updateKnives(); updateSteam();
       GS.sfx.whoosh();
@@ -1061,6 +1249,7 @@
       GS.sfx.whoosh();
     } else {
       pieces.forEach(p => {
+        if (p.locked || !p.home) return;
         if (p.plate) { p.plate.pieces = p.plate.pieces.filter(q => q !== p); p.plate = null; }
         const s0 = p.s, p0 = { ...p.pos };
         tw(260, e => { p.s = GS.lerp(s0, 1, e); p.pos = { x: GS.lerp(p0.x, p.home.x, e), y: GS.lerp(p0.y, p.home.y, e) }; applyT(p); });
@@ -1079,18 +1268,18 @@
     const my = tok;
     if (L.kind === 'order') return judgeOrder(my);
     if (L.kind === 'hungry') return judgeHungry(my);
-    const n = friends.length;
+    const tol = L.tol || TOL;
     const shares = friends.map(shareOf);
-    const targets = friends.map(f => (f.order ? f.order.v : 1 / n));
+    const targets = targetsOf();
     const ratios = shares.map((s, i) => s / targets[i]);
-    const fair = ratios.every(r => Math.abs(r - 1) <= TOL);
+    const fair = ratios.every(r => Math.abs(r - 1) <= tol);
     hud.mood('think');
     if (!(await pause(350))) return;
     if (fair) return celebrateFair(my);
     tries++;
     const iMin = ratios.indexOf(Math.min(...ratios)), iMax = ratios.lastIndexOf(Math.max(...ratios));
     const fMin = friends[iMin], fMax = friends[iMax];
-    const equalButShort = L.kind === 'cut' && ratios[iMax] / ratios[iMin] <= 1 + TOL && ratios[iMax] < 1;
+    const equalButShort = L.kind === 'cut' && ratios[iMax] / ratios[iMin] <= 1 + tol && ratios[iMax] < 1;
     GS.sfx.oops(); hud.mood('oops');
     if (equalButShort) {
       GS.say('Masih ada sisa. Bagi habis ya!');
@@ -1098,15 +1287,15 @@
       pieces.filter(p => !p.plate).forEach(p => squash(p));
       if (!(await pause(1400))) return;
     } else {
-      if (ratios[iMin] < 1 - TOL) sulk(fMin); else mood(fMax, 'puzzled', 2600);
+      if (ratios[iMin] < 1 - tol) sulk(fMin); else mood(fMax, 'puzzled', 2600);
       let line;
       if (L.orders) {
-        if (ratios[iMin] < 1 - TOL) line = fMin.name + ' minta ' + FR[fMin.order.d] + '. Dapatnya kurang.';
-        else line = fMax.name + ' dapat lebih dari ' + FR[fMax.order.d] + '.';
+        if (ratios[iMin] < 1 - tol) line = fMin.name + ' minta ' + orderWords(fMin.order) + '. Dapatnya kurang.';
+        else line = fMax.name + ' dapat lebih dari ' + orderWords(fMax.order) + '.';
       } else line = fMin.name + ' dapat lebih sedikit. Lihat bedanya!';
       GS.say(line);
       const big = shares[iMax] >= shares[iMin] ? fMax : fMin, small = big === fMax ? fMin : fMax;
-      if (fMin !== fMax && Math.abs(shares[iMax] - shares[iMin]) > TOL * Math.min(shares[iMax], shares[iMin])) {
+      if (fMin !== fMax && Math.abs(shares[iMax] - shares[iMin]) > tol * Math.min(shares[iMax], shares[iMin])) {
         await stackCompare(big.plate.pieces.slice(), small.plate.pieces.slice(), my);
       } else if (!(await pause(2000))) return;
       if (my !== tok) return;
@@ -1122,7 +1311,7 @@
     const fh = friends[L.hungry], fo = friends[1 - L.hungry];
     const sh = shareOf(fh), so = shareOf(fo);
     if (!(await pause(350))) return;
-    if (sh > so * (1 + TOL)) return celebrateFair(my);
+    if (sh > so * (1 + (L.tol || TOL))) return celebrateFair(my);
     tries++;
     GS.sfx.oops(); hud.mood('oops');
     sulk(fh);
@@ -1183,7 +1372,7 @@
   function groupBox(group) {
     return Geo.bbox([].concat(...group.map(p => p.poly.map(q => ({ x: p.food.ox + q.x, y: p.food.oy + q.y })))));
   }
-  async function stackCompare(big, small, my) {
+  async function stackCompare(big, small, my, color) {
     if (!big.length || !small.length) { await pause(1200); return; }
     const C = { x: 640, y: 590 };
     const dim = GS.el('rect', { x: -420, y: 306, width: 2120, height: 594, fill: '#FFF8EC', opacity: 0 }, layers.dim);
@@ -1234,7 +1423,7 @@
     smallT.forEach(({ p }) => squash(p));
     // highlight the part of the bigger share that sticks out
     const out = GS.el('g', null, layers.top);
-    bigPolys.forEach(pl => GS.el('polygon', { class: 'mk-diff', points: pts(pl), fill: 'none', stroke: '#F2A900', 'stroke-width': 7, 'stroke-dasharray': '16 10', 'stroke-linejoin': 'round' }, out));
+    bigPolys.forEach(pl => GS.el('polygon', { class: 'mk-diff', points: pts(pl), fill: 'none', stroke: color || '#F2A900', 'stroke-width': 7, 'stroke-dasharray': '16 10', 'stroke-linejoin': 'round' }, out));
     if (!(await pause(2300))) return;
     out.remove();
     tw(250, e => dim.setAttribute('opacity', (0.72 * (1 - e)).toFixed(2))).then(() => dim.remove());
@@ -1282,26 +1471,28 @@
   }
   async function celebrateFair(my) {
     hud.mood('happy');
-    let text = 'Adil! Semua sama besar!';
     const shapes = friends.map(f => f.plate.pieces);
-    if (L.index === 1) text = shapes.some(ps => ps.some(p => p.poly.length === 3)) ? 'Potongan miring juga adil!' : 'Setengah dan setengah. Adil!';
-    else if (L.index === 0) text = 'Dua bagian sama besar. Setengah!';
-    else if (L.index === 2) text = 'Empat bagian sama. Seperempat!';
-    else if (L.index === 3) {
-      const asp = shapes.map(ps => ps.length === 1 ? (ps[0].bb.w / ps[0].bb.h).toFixed(1) + ps[0].poly.length : 'x');
-      text = new Set(asp).size > 1 ? 'Bentuknya beda, tetap seperempat!' : 'Seperempat semua. Adil!';
-    } else if (L.index === 4) text = 'Tiga bagian sama. Sepertiga!';
-    else if (L.kind === 'pick') text = 'Bentuknya beda, sama-sama seperempat!';
-    else if (L.kind === 'hungry') text = 'Setengah lebih besar dari seperempat!';
-    else if (L.kind === 'order') text = 'Setengah, sepertiga, seperempat. Pas!';
-    else if (L.orders) text = 'Pesanan pas semua. Hebat!';
-    GS.say(text);
+    let text = typeof L.win === 'function' ? L.win(shapes) : L.win;
+    if (L.kind === 'order') text = L.ds.slice().sort((a, b) => a - b).map(d => WORD[d]).join(', ') + '. Urutannya pas!';
+    if (!text) text = L.orders ? 'Pesanan pas semua. Hebat!' : 'Adil! Semua sama besar!';
+    const lastRound = !L.rounds || roundIdx >= L.rounds - 1;
+    GS.say(lastRound ? text : 'Adil! Semua sama besar!');
     // labels appear after the child made the pieces (concreteness fading)
-    if (L.index >= 4) friends.forEach(f => f.plate.pieces.forEach(p => { if (!p.tag) { const d = fracOf(p); if (d) setTag(p, d); } }));
+    if (L.tagAfter) friends.forEach(f => f.plate.pieces.forEach(p => { if (!p.tag) { const d = fracOf(p); if (d) setTag(p, d); } }));
     if (L.kind === 'pick') await pickDemo(my);
+    if (L.stackDemo && friends.length >= 2) {
+      if (!(await pause(700))) return;
+      GS.say(L.demoSay || 'Sama besar!');
+      const a = friends[0].plate.pieces.slice(), b = friends[1].plate.pieces.slice();
+      const A = a.reduce((x, p) => x + p.area, 0), B = b.reduce((x, p) => x + p.area, 0);
+      await stackCompare(A >= B ? a : b, A >= B ? b : a, my, '#0F8C7A');
+      if (my !== tok) return;
+      GS.say(text);
+    }
     if (my !== tok) return;
     for (const f of friends) { eat(f, my); if (!(await pause(320))) return; }
     if (!(await pause(1200))) return;
+    if (!lastRound) { keepTries = tries; buildLevel(run.current, true); return; }
     const stars = tries === 0 ? 3 : tries <= 2 ? 2 : 1;
     busy = true;
     run.win(stars, text);
@@ -1349,6 +1540,8 @@
   /* ================= debug / test hook ================= */
   async function solve() {
     const my = tok;
+    if (solving === my) return;
+    solving = my;
     while (busy) { await GS.wait(100); if (my !== tok) return; }
     const wait = ms => GS.wait(ms);
     const boardPieces = () => pieces.filter(p => !p.plate && !p.locked);
@@ -1356,47 +1549,47 @@
       const A = toWorld(p, a), B = toWorld(p, b);
       const dx = B.x - A.x, dy = B.y - A.y, ln = Math.hypot(dx, dy);
       const ok = performCut({ x: A.x - dx / ln * 400, y: A.y - dy / ln * 400 }, { x: B.x + dx / ln * 400, y: B.y + dy / ln * 400 });
-      await wait(500);
+      await wait(450);
       return ok;
     };
-    const give = async (p, f) => { putOnPlate(p, f.plate); updateButtons(); await wait(200); };
+    const give = async (p, f) => { putOnPlate(p, f.plate); updateButtons(); await wait(120); };
     if (L.kind === 'cut') {
-      const def = L.foodRef.def, n = friends.length;
-      const p0 = boardPieces()[0];
-      if (L.orders) {
-        // half + two quarters
-        await cutThrough(p0, { x: 0, y: -10 }, { x: 0, y: 10 });
-        const halves = boardPieces().sort((a, b) => a.c.x - b.c.x);
-        const fh = friends.find(f => f.order.d === 2), fq = friends.filter(f => f.order.d === 4);
-        await give(halves[0], fh);
-        await cutThrough(halves[1], { x: -10, y: 0 }, { x: 10, y: 0 });
-        const qs = boardPieces();
-        await give(qs[0], fq[0]); await give(qs[1], fq[1]);
-      } else if (n === 2) {
-        await cutThrough(p0, { x: 0, y: -10 }, { x: 0, y: 10 });
-        const hs = boardPieces(); await give(hs[0], friends[0]); await give(hs[1], friends[1]);
-      } else if (n === 4) {
-        await cutThrough(p0, { x: 0, y: -10 }, { x: 0, y: 10 });
-        const hs = boardPieces();
-        await cutThrough(hs[0], { x: -10, y: 0 }, { x: 10, y: 0 });
-        const rest = boardPieces().filter(p => Math.abs(p.area / L.unit - 0.5) < 0.05);
-        if (rest[0]) await cutThrough(rest[0], { x: -10, y: 0 }, { x: 10, y: 0 });
-        const qs = boardPieces(); for (let k = 0; k < 4; k++) await give(qs[k], friends[k]);
-      } else if (n === 3) {
-        const h = def.h, y1 = -h / 2 + h / 3, y2 = -h / 2 + 2 * h / 3;
-        await cutThrough(p0, { x: -10, y: y1 }, { x: 10, y: y1 });
-        const big = boardPieces().sort((a, b) => b.area - a.area)[0];
-        await cutThrough(big, { x: -10, y: y2 }, { x: 10, y: y2 });
-        const qs = boardPieces(); for (let k = 0; k < 3; k++) await give(qs[k], friends[k]);
+      const D = partsNeeded(), def = L.foodRef.def, w = def.w, h = def.h;
+      const v = x => [{ x, y: -10 }, { x, y: 10 }], hz = y => [{ x: -10, y }, { x: 10, y }];
+      const plan = def.shape === 'circle' ? { 2: [v(0)], 4: [v(0), hz(0)] }[D]
+        : { 2: [v(0)], 3: [hz(-h / 6), hz(h / 6)], 4: [v(0), hz(0)], 6: [hz(0), v(-w / 6), v(w / 6)], 8: [v(0), hz(0), v(-w / 4), v(w / 4)] }[D];
+      const splits = (q, ln) => { const pr = Geo.split(q.poly, ln[0], ln[1]); return pr[0] && pr[1] && Math.min(Geo.absArea(pr[0]), Geo.absArea(pr[1])) > 0.01 * L.unit; };
+      for (const ln of plan) {
+        const q = boardPieces().find(x => x.food === L.foodRef && splits(x, ln));
+        if (q) await cutThrough(q, ln[0], ln[1]);
+        if (my !== tok) return;
+      }
+      const pool = boardPieces().filter(p => Math.abs(p.area / L.unit * D - Math.round(p.area / L.unit * D)) < 0.02);
+      for (const f of friends) {
+        let need = (f.order ? f.order.v : 1 / friends.length);
+        while (need > 1e-6 && pool.length) {
+          const i = pool.findIndex(p => p.area / L.unit <= need + 1e-3);
+          if (i < 0) break;
+          const p = pool.splice(i, 1)[0]; need -= p.area / L.unit; await give(p, f);
+        }
       }
     } else if (L.kind === 'pick') {
       const grid = L.cakes.find(c => c.k === 'grid').pieces[0], strip = L.cakes.find(c => c.k === 'strip4').pieces[0];
       await give(grid, friends[0]); await give(strip, friends[1]);
+    } else if (L.kind === 'match') {
+      await give(L.equalPiece, friends[1]);
+    } else if (L.kind === 'set') {
+      const pool = boardPieces();
+      const t = targetsOf();
+      for (let k = 0; k < friends.length; k++) for (let j = Math.round(t[k] * L.count); j > 0; j--) await give(pool.shift(), friends[k]);
     } else if (L.kind === 'hungry') {
-      await give(L.half, friends[L.hungry]); await give(L.quarter, friends[1 - L.hungry]);
+      if (L.pair) {
+        const [a, b] = L.pairPieces, big = a.area > b.area ? a : b;
+        await give(big, friends[L.hungry]); await give(big === a ? b : a, friends[1 - L.hungry]);
+      } else { await give(L.half, friends[L.hungry]); await give(L.quarter, friends[1 - L.hungry]); }
     } else if (L.kind === 'order') {
-      for (let k = 0; k < 3; k++) {
-        const xs = seatXs(3);
+      const n = friends.length, xs = seatXs(n);
+      for (let k = 0; k < n; k++) {
         const seated = xs.map(x => friends.find(f => f.x === x));
         const want = seated.slice().sort((a, b) => shareOf(b) - shareOf(a))[k];
         const i = seatIndex(want);
@@ -1405,11 +1598,14 @@
     }
     await wait(300);
     if (my !== tok) return;
+    solving = 0;
     onGo();
   }
   window.__game = {
     go: i => run.go(i),
     solve,
+    count: () => tierCount(),
+    tier: TIER,
     get state() { return { level: run.current, kind: L && L.kind, tries, knives, busy, pieces: pieces.map(p => ({ area: +(p.area / L.unit).toFixed(4), plate: p.plate ? friends.indexOf(p.plate.friend) : -1, tag: p.tagD })) }; },
     cut: (a, b) => performCut(a, b),
     give: (pi, fi) => { putOnPlate(pieces[pi], friends[fi].plate); updateButtons(); },
@@ -1420,5 +1616,5 @@
     geo: Geo
   };
 
-  run.go(GS.store.nextLevel(GAME, 10));
+  run.go(GS.store.nextLevel(GAME, tierCount()));
 })();
