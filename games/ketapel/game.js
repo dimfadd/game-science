@@ -96,7 +96,7 @@
         if (c) {
           gone[t.id] = true;
           events.push({ step: i, type: 'hit', id: t.id, vx: s.vx, vy: s.vy });
-          respond(s, c, 0.3, 0.6);
+          if (t.soft) respond(s, c, 0, 0.15); else respond(s, c, 0.3, 0.6); // the tampah catches it
         }
       }
       if (!caught) {
@@ -155,6 +155,9 @@
   // Free flight range in the current level geometry (same simulator as every shot).
   const rangeNow = (proj, pull, deg) => { const r = simulate(geoWorld([]), proj, pull, deg); return r.landing ? r.landing.x : 99; };
   const bestRange = (proj, pull) => { let b = 0; for (let d = 12; d <= 70; d++) b = Math.max(b, rangeNow(proj, pull, d)); return b; };
+  // Highest point the kelereng can reach above field x (max pull, any angle): keeps far-high mangoes honest.
+  const reachY = x => { let b = 0; for (let d = 20; d <= 78; d += 2) { const r = simulate(geoWorld([]), 'kelereng', PULL_MAX, d), p = r.pts; for (let i = 0; i + 3 < p.length; i += 2) if (p[i] <= x && p[i + 2] > x) { b = Math.max(b, p[i + 1]); break; } } return b; };
+  const highMango = () => { const x = R(56, 64) / 10; return { x, y: Math.floor((reachY(x) - 0.5) * 10) / 10 }; };
   const NOTCH = 0.75; // k4: "tarikan 1" = 0.75 m of rubber stretch
   /* Level lists per grade tier (docs/KURIKULUM.md). Every level: say = first spoken line. */
   const TIERS = {
@@ -201,10 +204,10 @@
       { terrace: true, lock: true, notch: NOTCH, table: 'pull', proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', NOTCH, 45), rangeNow('kelereng', 2 * NOTCH, 45)] }), say: 'Coba tarikan 1 dan tarikan 2. Catat jaraknya!' },
       { terrace: true, lock: true, notch: NOTCH, table: 'pull', prefill: [1, 2], proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', 1.5 * NOTCH, 45)] }), say: 'Pakai tabelmu. Tarikan berapa untuk kaleng ini?' },
       { terrace: true, showDeg: true, table: 'deg', staged: true, angles: [[10, 40], [50, 78]], proj: ['kelereng'], make: () => { const p = R(5, 7); return { cans: [p, p] }; }, say: 'Satu kaleng: sudut rendah dulu, lalu sudut tinggi.' },
-      { terrace: true, showDeg: true, proj: ['kelereng'], make: () => mangoSetup(1, true, { x: R(72, 80) / 10, y: R(30, 34) / 10 }), say: 'Mangga tinggi dan jauh. Atur sudut dan tarikan!' },
+      { terrace: true, showDeg: true, proj: ['kelereng'], make: () => mangoSetup(1, true, highMango()), say: 'Mangga tinggi dan jauh. Atur sudut dan tarikan!' },
       { terrace: true, showDeg: true, table: 'deg', proj: ['kertas'], make: () => ({ mats: [bestRange('kertas', PULL_MAX) - 0.3] }), say: 'Bola kertas ditahan udara. Cari sudut terbaik!' },
-      { terrace: true, showDeg: true, proj: ['batu', 'kertas'], inOrder: true, make: () => ({ cans: [R(5, 6)], mats: [R(3, 4) + 0.5], bush: { x: 2 } }), say: 'Batu dulu, lalu bola kertas. Lewati semaknya!' },
-      { terrace: true, showDeg: true, proj: ['batu', 'kertas', 'kelereng'], inOrder: true, make: () => Object.assign(mangoSetup(1, true, { x: R(78, 84) / 10, y: R(28, 32) / 10 }), { cans: [R(4, 5)], mats: [R(2, 3) + 0.5] }), say: 'Tantangan! Batu, bola kertas, lalu kelereng.' }
+      { terrace: true, showDeg: true, proj: ['batu', 'kertas'], inOrder: true, make: () => ({ cans: [R(3, 4)], mats: [Math.round((bestRange('kertas', PULL_MAX) - 0.5) * 10) / 10] }), say: 'Batu dulu, lalu bola kertas. Cari sudut terbaik!' },
+      { terrace: true, showDeg: true, proj: ['batu', 'kertas', 'kelereng'], inOrder: true, make: () => Object.assign(mangoSetup(1, true, highMango()), { cans: [R(3, 4)], mats: [2.2] }), say: 'Tantangan! Batu, bola kertas, lalu kelereng.' }
     ]
   };
   const LEVELS = TIERS[TIER] || TIERS.k1;
@@ -406,6 +409,7 @@
       S.plates.push(inner);
     });
     if (tk) return;
+    if (S.markKind === 'half') { const m = GS.el('text', { x: sx(10) + 40, y: FY + 36, 'font-size': 18, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx); m.textContent = 'meter'; return; }
     // "0" under the slingshot so the line reads from zero
     const z = GS.el('text', { x: X0, y: FY + 40, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 600, fill: '#6B5444', class: 'gs-num' }, S.layers.fx);
     z.textContent = '0';
@@ -645,7 +649,7 @@
     // back band goes to the end closer to the back (left) tip
     const d1 = Math.hypot(e1.x - TIP_L.x, e1.y - TIP_L.y), d2 = Math.hypot(e2.x - TIP_L.x, e2.y - TIP_L.y);
     const eb = d1 < d2 ? e1 : e2, ef = d1 < d2 ? e2 : e1;
-    const w = 10 - 4 * clamp(len / 160, 0, 1);
+    const w = (10 - 4 * clamp(len / 160, 0, 1)) * (GEO.kmul > 1 ? 1.6 : 1); // karet dobel: thicker bands
     setBand(S.bandBack, TIP_L, eb, wob || 0, w);
     setBand(S.bandFront, TIP_R, ef, -(wob || 0), w);
     S.pouchPos = { x: px, y: py };
@@ -760,7 +764,9 @@
     renderTable();
   }
   function addRow(res) {
-    S.rows.push({ pull: res.pull, deg: res.deg, dist: res.landing ? res.landing.x : null });
+    // "jarak": where this exact shot reaches the field when nothing is in the way (same simulator)
+    const free = rangeNow(res.proj, res.pull, res.deg);
+    S.rows.push({ pull: res.pull, deg: res.deg, dist: free < 90 ? free : null });
     while (S.rows.length > 6) S.rows.shift();
     if (S.L.table === 'pull') {
       const d = n => { const r = S.rows.filter(q => Math.abs(q.pull - n * NOTCH) < 0.01 && q.dist).pop(); return r && r.dist; };
@@ -1010,7 +1016,7 @@
   /* ---------------- shooting ---------------- */
   function simWorld() {
     const targets = aliveTargets().map(t => t.kind === 'can' ? { id: t.id, kind: 'can', boxes: canBoxes(t.x) }
-      : t.kind === 'mat' ? { id: t.id, kind: 'can', boxes: [{ x0: t.x - 0.2, x1: t.x + 0.2, y0: 0, y1: 0.1 }] }
+      : t.kind === 'mat' ? { id: t.id, kind: 'can', soft: true, boxes: [{ x0: t.x - 0.2, x1: t.x + 0.2, y0: 0, y1: 0.1 }] }
       : { id: t.id, kind: 'mango', x: t.x, y: t.y, r: t.r });
     return geoWorld(targets, S.solids, S.canopies);
   }
@@ -1469,6 +1475,7 @@
       for (let guard = 0; guard < 20 && tk === token && !S.won; guard++) {
         while (tk === token && !S.won && S.phase !== 'predict' && S.phase !== 'aim') await GS.wait(80);
         if (tk !== token || S.won) break;
+        if (S.phase === 'predict' && S.demoPending != null) { const mk = markAt(S.demoPending); choosePatok(mk && mk !== 'far' ? mk : S.marks[0]); await GS.wait(60); continue; }
         let sol = findSolution();
         for (let c = 0; !sol && S.L.choose && c < S.L.choose.length; c++) { chooseNext(); sol = findSolution(); }
         if (!sol) return 'no-solution';
