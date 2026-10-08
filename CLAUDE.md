@@ -49,6 +49,7 @@ docs/DESIGN.md          Design bible: pedagogy, visual style, palette, fonts, mo
 docs/KURIKULUM.md       Level list of every game PER GRADE TIER (the current spec)
 docs/GAMES.md           Original single-tier spec (historical; superseded by KURIKULUM.md)
 docs/NARASI.md          Narrator line list + recording guide
+docs/QC-VISUAL.md       SOP: minimum text/number/target sizes and the visual QC procedure (MANDATORY)
 docs/LOG.md             Chronological work log (append an entry for every change)
 tests/                  Playwright smoke + full-level tests (see Testing)
 ```
@@ -79,6 +80,8 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
 
 `GS.store` (localStorage with memory fallback; key `kampung-sains.v1`, kept for progress compatibility) · `GS.sfx.*` · `GS.say(text)` (caption + speech; speech is queued until the first tap, then goes through `GS.speakImpl`/`GS.stopSpeech`, replaced by `shared/voice.js`) · `GS.fx(el, cls)` (plays a shared animation class on an untransformed inner group, see the SVG rule below) · `GS.fs` (fullscreen helpers) · start gate: pages with `body.gs-game` show a "Main!" overlay that unlocks audio, requests fullscreen + landscape lock on touch devices and then speaks the first instruction (skipped when installed as an app, with `?autotest`, or under `navigator.webdriver`) · `GS.speakable(text)` (math symbols to words) · `GS.tween/ease/wait` · `GS.el/markup/svgPoint/drag` · `GS.confetti/floatText` · `GS.hud({...})` · `GS.runner({gameId,count,hud,start})` → `go(i)/next()/win(stars,text)` · `GS.celebrate` · `GS.levelPicker`.
 
+**Stage fitting**: games draw in a fixed 1280×800 canvas; `GS.fitStage` widens the viewBox to fill wide screens (`GS.stageView = {x0, x1, scale}`, event `gs:stage`). Scenery from `GS.art.scene` extends 60% past each edge; game-drawn floors must span x −600..1880. On short landscape screens the HUD is a left rail so the canvas gets the full height. Small phones show the canvas at **scale ≈ 0.45**, so sizes follow `docs/QC-VISUAL.md` (numbers ≥ 36 u, text ≥ 30 u, targets ≥ 90 u; SVG tap targets carry `data-hit`).
+
 **SVG animation rule** (caused the "scale flies away" bug, 2026-10-08): never put CSS `transform` (rules, `:hover`/`:active`, keyframes) on an SVG element that is positioned with a `transform` attribute. The CSS replaces the attribute and the element jumps to the origin. Position with an outer `<g transform=...>` and animate an inner `<g>` (use `GS.fx`). `tests/hub-hover.js` guards the hub map.
 
 ## Auth (development only)
@@ -104,6 +107,7 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
   - `node tests/hub-tiers.js`: signed-in hub at four sizes, profile editor, switching kelas, level-up banner.
   - `node tests/journey.js [phoneLandscape|phonePortrait|tablet]`: new player end to end with the login guard on (onboarding, dev login, hub, tap a landmark, start gate).
   - `node tests/hub-hover.js`: hub landmarks stay in place on hover/press.
+  - `node tests/visual-qc.js [gameId] [tier]`: measures every text, number and touch target in px on 740×360 and 844×390 phones; **must report 0 FAIL** (SOP in `docs/QC-VISUAL.md`).
   - `node tests/collect-lines.js`: plays every level and rewrites the narrator line list in `docs/NARASI.md`.
 - Always test phone landscape 844×390, phone portrait 412×915, tablet 1180×820 and desktop 1280×800, with `isMobile`/`hasTouch` for touch bugs.
 

@@ -2,6 +2,14 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-08 (evening): Visual size QC
+
+Owner reported from a phone: Timbangan weights unreadable and the left side of the game not filling the screen; suspected the same in other games.
+- Root causes: the fixed 1280×800 canvas was letterboxed on ~2.2:1 phones and shown at scale ~0.47; asset sizes had never been measured at phone scale. Baseline measurement for Timbangan Kelas 4+: 16/16 level views FAIL (weight numerals 3.5–7 px, drag targets 34–37 px).
+- Core: stage viewBox widens to the screen, scenery extends past the edges, HUD becomes a left rail on phone landscape (+20% canvas scale), drag targets are tagged for measurement.
+- New SOP `docs/QC-VISUAL.md` and tool `tests/visual-qc.js` (0 FAIL required).
+- Per-game size fixes by the game agents (results below as they land).
+
 ## 2026-10-08 (later): Games and difficulty per kelas
 
 Requested by the owner: games, variations and difficulty must follow the selected kelas, with the option to switch or move up.
