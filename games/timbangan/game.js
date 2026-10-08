@@ -24,7 +24,7 @@
   const D = { PX: 640, PY: 150, ARM: 290, CHAIN: 165, MAX: 18 };
   const SS = { PX: 640, PY: 430, HALF: 430, STEP: 125, MAX: 14, N: 3 };
   SS.GROUND = Math.round(SS.PY + SS.HALF * Math.sin(SS.MAX * Math.PI / 180) + 12);
-  const TRAY = { x: 640, y: 652 };
+  const TRAY = { x: 540, y: 676 };
   const el = GS.el;
   const svg = document.getElementById('stage');
   const dock = document.getElementById('dock');
@@ -148,8 +148,9 @@
     const art = el('g', { transform: `scale(${n1(it.sc * 1000) / 1000}) translate(${n1(-(b.x + b.width / 2))} ${n1(-(b.y + b.height))})` }, it.inner);
     GS.markup(art, mk);
     it.heavy = heaviness(def.kind);
+    if (def.kind === 'weight' && !def.noPlate) weightPlate(it);
     if (def.decor) def.decor(it);
-    const minHit = TIER === 'tk' ? 100 : 76;
+    const minHit = TIER === 'tk' ? 124 : 112;
     const hw = Math.max(minHit, it.fw + 18), hh = Math.max(minHit, it.h + 20);
     it.hit = el('rect', { x: -hw / 2, y: -it.h / 2 - hh / 2, width: hw, height: hh, fill: 'transparent' }, it.g);
     it.x = 0; it.y = 0; it.sx = 1; it.sy = 1; it.lift = 1;
@@ -240,6 +241,12 @@
     for (const bin of c.bins) {
       if (bin.sort) bin.items.sort((p, q) => q.w - p.w);
       const W = bin.x1 - bin.x0, cx = (bin.x0 + bin.x1) / 2;
+      if (bin.pile) {
+        const n = bin.items.length, dx = bin.pdx || 0, dy = bin.pdy == null ? -10 : bin.pdy;
+        bin.items.forEach((it, k) => { it.tx = cx + (k - (n - 1) / 2) * dx; it.ty = bin.y + k * dy; c.g.appendChild(it.g); });
+        for (const it of bin.items) { if (!anim) { it.tok = (it.tok || 0) + 1; it.x = it.tx; it.y = it.ty; setPos(it); } else moveTo(it, it.tx, it.ty, it === fresh ? 150 : 220); }
+        continue;
+      }
       const rows = [[]]; let rw = 0;
       for (const it of bin.items) {
         const fw = it.fw * bin.pack;
@@ -325,8 +332,8 @@
     GS.markup(bg, mk);
     if (mode === 'seesaw') {
       const G = SS.GROUND;
-      el('path', { d: `M-220 ${G - 6}Q320 ${G - 16} 640 ${G - 8}T1500 ${G - 6}V820H-220Z`, fill: C.grass }, bg);
-      el('path', { d: `M-220 ${G + 40}Q320 ${G + 30} 640 ${G + 40}T1500 ${G + 38}V820H-220Z`, fill: '#71B862' }, bg);
+      el('path', { d: `M-600 ${G - 6}Q320 ${G - 16} 640 ${G - 8}T1880 ${G - 6}V820H-600Z`, fill: C.grass }, bg);
+      el('path', { d: `M-600 ${G + 40}Q320 ${G + 30} 640 ${G + 40}T1880 ${G + 38}V820H-600Z`, fill: '#71B862' }, bg);
       el('ellipse', { cx: SS.PX, cy: G + 8, rx: 470, ry: 22, fill: '#D4A062', opacity: 0.55 }, bg);
       for (let i = 0; i < 26; i++) {
         const x = 30 + i * 49 + (i % 3) * 7, y = G + 60 + (i * 37 % 150);
@@ -337,7 +344,7 @@
 
   function drawTitle(t) {
     const g = el('g', { transform: 'translate(30 40)' }, S.layers.ui);
-    const tt = el('text', { x: 0, y: 0, 'dominant-baseline': 'central', 'font-size': 30, fill: C.ink, class: 'tp-tw', stroke: '#FFF8EC', 'stroke-width': 7, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g);
+    const tt = el('text', { x: 0, y: 0, 'dominant-baseline': 'central', 'font-size': 34, fill: C.ink, class: 'tp-tw', stroke: '#FFF8EC', 'stroke-width': 7, 'paint-order': 'stroke', 'stroke-linejoin': 'round' }, g);
     tt.textContent = t;
   }
   function roundPips() {
@@ -478,20 +485,21 @@
     const body = el('g', { transform: `translate(0 ${CH})` }, pan.g);
     pan.body = body;
     const rim = side < 0 ? C.blue : C.orange, rimSh = side < 0 ? C.blueSh : C.orangeSh;
-    shape3(body, 'M-114 0Q-108 32 -70 37L70 37Q108 32 114 0Z', { base: C.bamboo, sh: C.bambooSh, off: [-7, -6] });
-    el('ellipse', { cx: 0, cy: 0, rx: 114, ry: 21, fill: rim, stroke: OL, 'stroke-width': 4 }, body);
+    const dish = el('g', { transform: 'scale(1.3 1.12)' }, body);
+    shape3(dish, 'M-114 0Q-108 32 -70 37L70 37Q108 32 114 0Z', { base: C.bamboo, sh: C.bambooSh, off: [-7, -6] });
+    el('ellipse', { cx: 0, cy: 0, rx: 114, ry: 21, fill: rim, stroke: OL, 'stroke-width': 3.4 }, dish);
     const inId = uid('pin');
-    const cp = el('clipPath', { id: inId }, body); el('ellipse', { cx: 0, cy: -1, rx: 102, ry: 12.5 }, cp);
-    el('ellipse', { cx: 0, cy: -1, rx: 102, ry: 12.5, fill: C.bambooIn, stroke: OL, 'stroke-width': 2.4 }, body);
-    const wv = el('g', { 'clip-path': `url(#${inId})`, opacity: 0.12 }, body);
+    const cp = el('clipPath', { id: inId }, dish); el('ellipse', { cx: 0, cy: -1, rx: 102, ry: 12.5 }, cp);
+    el('ellipse', { cx: 0, cy: -1, rx: 102, ry: 12.5, fill: C.bambooIn, stroke: OL, 'stroke-width': 2 }, dish);
+    const wv = el('g', { 'clip-path': `url(#${inId})`, opacity: 0.12 }, dish);
     for (let x = -120; x < 120; x += 9) el('path', { d: `M${x} -16l18 32M${x + 18} -16l-18 32`, stroke: OL, 'stroke-width': 1.4 }, wv);
-    pan.tapHit = el('ellipse', { cx: 0, cy: -40, rx: 132, ry: 84, fill: 'transparent', display: 'none', class: 'peg-hit' }, body);
+    pan.tapHit = el('ellipse', { cx: 0, cy: -50, rx: 168, ry: 96, fill: 'transparent', display: 'none', class: 'peg-hit', 'data-hit': 'pan' }, body);
     pan.tapHit.addEventListener('click', () => { if (lv && lv.panTap) lv.panTap(side < 0 ? 0 : 1); });
     pan.back = el('g', null, body);
     pan.content = el('g', null, body);
     pan.front = el('g', null, body);
     // front rim band (in front of the items' feet), side-coded: blue + dots / orange + stripes
-    const fr = el('g', null, body);
+    const fr = el('g', { transform: 'scale(1.3 1.12)' }, body);
     el('path', { d: 'M-114 0A114 21 0 0 0 114 0L102 -1A102 12.5 0 0 1 -102 -1Z', fill: rim, stroke: OL, 'stroke-width': 3.5, 'stroke-linejoin': 'round' }, fr);
     el('path', { d: 'M-108 6A110 18 0 0 0 108 6', fill: 'none', stroke: rimSh, 'stroke-width': 3, opacity: 0.6 }, fr);
     for (let a = 18; a <= 162; a += 12) {
@@ -499,13 +507,13 @@
       if (side < 0) el('circle', { cx: n1(x), cy: n1(y), r: 2.6, fill: '#FFFFFF' }, fr);
       else el('path', { d: `M${n1(x - 3)} ${n1(y - 4.5)}L${n1(x + 3)} ${n1(y + 4.5)}`, stroke: '#FFFFFF', 'stroke-width': 2.8, 'stroke-linecap': 'round' }, fr);
     }
-    pan.tag = el('g', { transform: `translate(${side * 176} -50)` }, body);
-    chain(pan.g, 0, 4, -106, CH - 2);
-    chain(pan.g, 0, 4, 106, CH - 2);
+    pan.tag = el('g', { transform: `translate(${side * 222} -60)` }, body);
+    chain(pan.g, 0, 4, -138, CH - 2);
+    chain(pan.g, 0, 4, 138, CH - 2);
     el('circle', { cx: 0, cy: 4, r: 6, fill: C.brass, stroke: OL, 'stroke-width': 3 }, pan.g);
-    pan.hl = el('ellipse', { cx: 0, cy: -34, rx: 128, ry: 70, fill: 'none', stroke: C.ink, 'stroke-width': 4, 'stroke-dasharray': '10 9', opacity: 0.5, display: 'none' }, body);
-    pan.c = makeContainer(side < 0 ? 'L' : 'R', pan.content, [{ x0: -100, x1: 100, y: 14 }], { weighs: true, isPan: true, side, pan, hl: pan.hl });
-    pan.c.zone = q => { const o = toSvg(body, 0, -40); const dx = q.x - o.x, dy = q.y - o.y; return Math.abs(dx) < 150 && dy > -170 && dy < 100 ? Math.hypot(dx, dy * 0.8) : Infinity; };
+    pan.hl = el('ellipse', { cx: 0, cy: -40, rx: 166, ry: 80, fill: 'none', stroke: C.ink, 'stroke-width': 4, 'stroke-dasharray': '10 9', opacity: 0.5, display: 'none' }, body);
+    pan.c = makeContainer(side < 0 ? 'L' : 'R', pan.content, [{ x0: -130, x1: 130, y: 16 }], { weighs: true, isPan: true, side, pan, hl: pan.hl });
+    pan.c.zone = q => { const o = toSvg(body, 0, -40); const dx = q.x - o.x, dy = q.y - o.y; return Math.abs(dx) < 190 && dy > -190 && dy < 110 ? Math.hypot(dx, dy * 0.8) : Infinity; };
     return pan;
   }
   function hangPoint(side, th) {
@@ -515,9 +523,9 @@
 
   function buildTray() {
     const g = el('g', { transform: `translate(${TRAY.x} ${TRAY.y})` }, S.layers.tray);
-    el('ellipse', { cx: 0, cy: 30, rx: 316, ry: 15, fill: OL, opacity: 0.18 }, g);
-    shape3(g, 'M-304 0Q-300 24 -252 30L252 30Q300 24 304 0Z', { base: C.bamboo, sh: C.bambooSh, off: [-7, -6] });
-    el('ellipse', { cx: 0, cy: 0, rx: 304, ry: 44, fill: C.bamboo, stroke: OL, 'stroke-width': 4 }, g);
+    el('ellipse', { cx: 0, cy: 30, rx: 336, ry: 15, fill: OL, opacity: 0.18 }, g);
+    shape3(g, 'M-322 0Q-318 24 -270 30L270 30Q318 24 322 0Z', { base: C.bamboo, sh: C.bambooSh, off: [-7, -6] });
+    el('ellipse', { cx: 0, cy: 0, rx: 322, ry: 46, fill: C.bamboo, stroke: OL, 'stroke-width': 4 }, g);
     const id = uid('tr');
     const cp = el('clipPath', { id }, g); el('ellipse', { cx: 0, cy: 0, rx: 288, ry: 35 }, cp);
     el('ellipse', { cx: 0, cy: 0, rx: 288, ry: 35, fill: C.bambooIn, stroke: OL, 'stroke-width': 2.4 }, g);
@@ -525,8 +533,8 @@
     for (let x = -320; x < 320; x += 11) el('path', { d: `M${x} -40l40 80M${x + 40} -40l-40 80`, stroke: OL, 'stroke-width': 1.5 }, wv);
     const content = el('g', null, g);
     const hl = el('ellipse', { cx: 0, cy: -10, rx: 312, ry: 60, fill: 'none', stroke: C.ink, 'stroke-width': 4, 'stroke-dasharray': '10 9', opacity: 0.5, display: 'none' }, g);
-    S.tray = makeContainer('tray', content, [{ x0: -262, x1: 262, y: 16, back: true }], { isTray: true, hl });
-    S.tray.zone = q => { const dx = q.x - TRAY.x, dy = q.y - (TRAY.y - 20); return Math.abs(dx) < 330 && Math.abs(dy) < 90 ? Math.hypot(dx, dy) * 0.6 + 40 : Infinity; };
+    S.tray = makeContainer('tray', content, [{ x0: -280, x1: 280, y: 16, back: true }], { isTray: true, hl });
+    S.tray.zone = q => { const dx = q.x - TRAY.x, dy = q.y - (TRAY.y - 20); return Math.abs(dx) < 350 && Math.abs(dy) < 110 ? Math.hypot(dx, dy) * 0.6 + 40 : Infinity; };
   }
 
   /* ============================== the peg (pasak) ============================== */
@@ -597,8 +605,9 @@
     for (const s of [-1, 1]) for (let d = 1; d <= SS.N; d++) {
       const x = s * d * STEP;
       el('rect', { x: x - 5, y: -17, width: 10, height: 7, rx: 2, fill: C.woodSh, stroke: OL, 'stroke-width': 2 }, pg);
-      el('circle', { cx: x, cy: 1, r: 10.5, fill: s < 0 ? C.blueTint : C.orangeTint, stroke: s < 0 ? C.blue : C.orange, 'stroke-width': 2.6 }, pg);
-      txt(pg, x, 1.5, String(d), { size: 15 });
+      el('path', { d: `M${x} 10V22`, stroke: OL, 'stroke-width': 3 }, pg);
+      el('circle', { cx: x, cy: 40, r: 24, fill: s < 0 ? C.blueTint : C.orangeTint, stroke: s < 0 ? C.blue : C.orange, 'stroke-width': 3.4 }, pg);
+      txt(pg, x, 41, String(d), { size: 38 });
       const g = el('g', { transform: `translate(${x} -12)` }, pg);
       const hl = el('ellipse', { cx: 0, cy: -60, rx: 54, ry: 76, fill: 'none', stroke: C.ink, 'stroke-width': 4, 'stroke-dasharray': '10 9', opacity: 0.5, display: 'none' }, g);
       const content = el('g', null, g);
@@ -1056,15 +1065,15 @@
     const rowsOf = k => Math.ceil(k / per);
     const showDots = n <= 20;
     const dotRows = showDots ? parts.reduce((a, k) => a + rowsOf(k), 0) : 0;
-    const w = Math.max(84, text.length * 17 + 26), h = 48 + dotRows * 14 + (parts.length - 1) * 5;
+    const w = Math.max(116, text.length * 25 + 30), h = 62 + dotRows * 19 + (parts.length - 1) * 6;
     el('path', { d: `M0 ${-h / 2}V${-h / 2 - 14}`, stroke: OL, 'stroke-width': 2.4 }, g);
     el('path', { d: rr(-w / 2, -h / 2, w, h, 14), fill: C.cream, stroke: side < 0 ? C.blue : C.orange, 'stroke-width': 4 }, g);
-    txt(g, 0, -h / 2 + 22, text, { size: text.length > 5 ? 24 : 30 });
-    let y = -h / 2 + 46;
+    txt(g, 0, -h / 2 + 30, text, { size: 44 });
+    let y = -h / 2 + 64;
     if (showDots) parts.forEach((k, i) => {
       const r = rowsOf(k);
-      dotsAt(g, k, 0, y + (r - 1) * 7, { fill: i ? C.brassDk : OL, r: 4.4, gap: 13.5 });
-      y += r * 14 + 5;
+      dotsAt(g, k, 0, y + (r - 1) * 9.5, { fill: i ? C.brassDk : OL, r: 7, gap: 19 });
+      y += r * 19 + 6;
     });
     return n;
   }
@@ -1081,8 +1090,8 @@
   function renderStripNow() {
     if (!lv || !lv.strip) { if (S.strip) S.strip.g.innerHTML = ''; return; }
     if (!S.strip) {
-      const y = S.mode === 'dacing' ? 742 : 66;
-      S.strip = { g: el('g', { transform: `translate(${S.mode === 'dacing' ? 700 : 640} ${y})` }, S.layers.ui), prev: [] };
+      const y = S.mode === 'dacing' ? 548 : 70;
+      S.strip = { g: el('g', { transform: `translate(640 ${y})` }, S.layers.ui), prev: [] };
     }
     const tokens = lv.strip();
     const st = S.strip;
@@ -1090,12 +1099,11 @@
     if (!tokens) return;
     const signVal = S.last ? (S.last.dir === 'B' ? '=' : S.last.dir === 'L' ? '>' : '<') : '?';
     const show = v => v == null ? '?' : typeof v === 'number' ? fmt(v) : String(v);
-    const W = t => t.t === 'op' ? 34 : t.t === 'sign' ? 66 : t.t === 'txt' ? t.v.length * 15 + 30 : Math.max(58, show(t.v).length * (show(t.v).length > 4 ? 20 : 24) + 30);
-    const gap = 8;
+    const W = t => t.t === 'op' ? 36 : t.t === 'sign' ? 74 : t.t === 'txt' ? t.v.length * 18 + 30 : Math.max(70, show(t.v).length * (show(t.v).length > 4 ? 23 : 27) + 30);
+    const gap = 6;
     const tot = tokens.reduce((a, t) => a + W(t), 0) + gap * (tokens.length - 1);
-    el('path', { d: rr(-tot / 2 - 18, -42, tot + 36, 84, 26), fill: OL, opacity: 0.2, transform: 'translate(0 6)' }, st.g);
-    el('path', { d: rr(-tot / 2 - 18, -42, tot + 36, 84, 26), fill: C.cream, stroke: OL, 'stroke-width': 4 }, st.g);
-    if (S.mode === 'dacing') st.g.setAttribute('transform', `translate(${n1(Math.max(700, Math.min(1080 - tot / 2 - 18, 820)))} 742)`);
+    el('path', { d: rr(-tot / 2 - 16, -48, tot + 32, 96, 28), fill: OL, opacity: 0.2, transform: 'translate(0 6)' }, st.g);
+    el('path', { d: rr(-tot / 2 - 16, -48, tot + 32, 96, 28), fill: C.cream, stroke: OL, 'stroke-width': 4 }, st.g);
     let x = -tot / 2;
     const ext = { '-1': [Infinity, -Infinity], '1': [Infinity, -Infinity] };
     tokens.forEach((t, i) => {
@@ -1104,8 +1112,8 @@
       const side = t.side || 0;
       if (side) { ext[side][0] = Math.min(ext[side][0], x); ext[side][1] = Math.max(ext[side][1], x + w); }
       const key = t.t + ':' + (t.t === 'sign' ? (t.v || signVal) : t.v);
-      if (t.t === 'op') txt(g, cx, 1, t.v, { size: 36 });
-      else if (t.t === 'txt') txt(g, cx, 1, t.v, { size: 26, cls: 'tp-body' });
+      if (t.t === 'op') txt(g, cx, 1, t.v, { size: 44 });
+      else if (t.t === 'txt') txt(g, cx, 1, t.v, { size: 32, cls: 'tp-body' });
       else if (t.t === 'sign') {
         const v = t.v || signVal;
         let fill = C.cream, stroke = OL;
@@ -1115,19 +1123,19 @@
           else { fill = C.amberTint; stroke = C.amber; }
         }
         if (v === '?') {
-          el('circle', { cx, cy: 0, r: 27, fill: C.amberTint, stroke: C.brassSh, 'stroke-width': 3.5 }, g);
+          el('circle', { cx, cy: 0, r: 32, fill: C.amberTint, stroke: C.brassSh, 'stroke-width': 3.5 }, g);
           [-1, 1].forEach(k => el('path', { d: `M${cx - 13} ${k * 5}H${cx + 13}`, stroke: C.brassSh, 'stroke-width': 4, 'stroke-linecap': 'round', opacity: 0.35 }, g));
-          txt(g, cx, 1, '?', { size: 30, fill: C.brassDk });
+          txt(g, cx, 1, '?', { size: 40, fill: C.brassDk });
         } else {
-          el('path', { d: rr(x, -32, w, 64, 18), fill, stroke, 'stroke-width': 3.5 }, g);
-          txt(g, cx, 1, v, { size: 42, fill: C.ink });
+          el('path', { d: rr(x, -36, w, 72, 20), fill, stroke, 'stroke-width': 3.5 }, g);
+          txt(g, cx, 1, v, { size: 50, fill: C.ink });
         }
       } else {
         const empty = t.v == null;
         const tint = side < 0 ? C.blueTint : side > 0 ? C.orangeTint : '#FFFFFF';
         const sc = side < 0 ? C.blue : side > 0 ? C.orange : OL;
-        el('path', { d: rr(x, -29, w, 58, 16), fill: empty ? '#FFFFFF' : tint, stroke: empty ? C.muted : sc, 'stroke-width': 3.5, 'stroke-dasharray': empty ? '7 6' : null }, g);
-        txt(g, cx, 1, show(t.v), { size: show(t.v).length > 4 ? 30 : 36, fill: empty ? C.muted : C.ink });
+        el('path', { d: rr(x, -34, w, 68, 18), fill: empty ? '#FFFFFF' : tint, stroke: empty ? C.muted : sc, 'stroke-width': 3.5, 'stroke-dasharray': empty ? '7 6' : null }, g);
+        txt(g, cx, 1, show(t.v), { size: show(t.v).length > 4 ? 40 : 46, fill: empty ? C.muted : C.ink });
       }
       if (st.prev[i] && st.prev[i] !== key && !GS.reducedMotion) {
         GS.tween(300, e => g.setAttribute('transform', `translate(${n1(cx)} 0) scale(${n1((1.25 - 0.25 * e) * 100) / 100}) translate(${n1(-cx)} 0)`), 'outBack');
@@ -1136,27 +1144,26 @@
       x += w + gap;
     });
     // side cue under the chips: dots for left, stripes for right
-    if (ext['-1'][0] < Infinity) for (let xx = ext['-1'][0] + 6; xx < ext['-1'][1] - 2; xx += 12) el('circle', { cx: xx, cy: 36, r: 2.6, fill: C.blue }, st.g);
-    if (ext['1'][0] < Infinity) for (let xx = ext['1'][0] + 4; xx < ext['1'][1] - 4; xx += 10) el('path', { d: `M${xx} 32l6 7`, stroke: C.orange, 'stroke-width': 3, 'stroke-linecap': 'round' }, st.g);
+    if (ext['-1'][0] < Infinity) for (let xx = ext['-1'][0] + 6; xx < ext['-1'][1] - 2; xx += 12) el('circle', { cx: xx, cy: 40, r: 2.8, fill: C.blue }, st.g);
+    if (ext['1'][0] < Infinity) for (let xx = ext['1'][0] + 4; xx < ext['1'][1] - 4; xx += 10) el('path', { d: `M${xx} 36l6 7`, stroke: C.orange, 'stroke-width': 3, 'stroke-linecap': 'round' }, st.g);
   }
 
   /** Seesaw "tenaga putar" grid: each rider adds weight rows x distance columns of dots. */
   function renderGrid() {
     if (S.mode !== 'seesaw' || !S.grid) return;
     const g = S.grid; g.innerHTML = '';
-    const { PX, STEP, N } = SS, y0 = 584;
+    const { PX, STEP, N } = SS, y0 = 600;
     const bal = S.last && S.last.balanced;
     [-1, 1].forEach(side => {
       const objs = S.notches.filter(c => c.side === side && c.count()).map(c => ({ w: c.sum(), d: c.d })).sort((a, b) => a.d - b.d);
       const rows = objs.reduce((a, o) => a + o.w, 0);
-      const rowH = Math.min(26, 108 / Math.max(rows, 1)), dr = Math.min(9, rowH * 0.36);
-      const x0 = side < 0 ? PX - N * STEP - 40 : PX + 28, x1 = side < 0 ? PX - 28 : PX + N * STEP + 40;
-      const h = 40 + Math.max(1, rows) * rowH;
+      const rowH = Math.min(28, 112 / Math.max(rows, 1)), dr = Math.max(7, Math.min(10, rowH * 0.38));
+      const x0 = side < 0 ? PX - N * STEP - 30 : PX + 6, x1 = side < 0 ? PX - 6 : PX + N * STEP + 30;
+      const h = 28 + Math.max(1, rows) * rowH;
       el('path', { d: rr(x0, y0 - 18, x1 - x0, h, 16), fill: C.cream, stroke: OL, 'stroke-width': 3, opacity: 0.94 }, g);
-      for (let d = 1; d <= N; d++) txt(g, PX + side * d * STEP, y0, String(d), { size: 17, fill: C.muted });
       let r = 0;
       objs.forEach(o => {
-        const top = y0 + 22 + r * rowH;
+        const top = y0 + 8 + r * rowH;
         for (let k = 0; k < o.w; k++) {
           const yy = top + k * rowH;
           const xa = PX + side * STEP, xb = PX + side * o.d * STEP;
@@ -1167,13 +1174,13 @@
             else el('rect', { x: x - dr, y: yy - dr, width: 2 * dr, height: 2 * dr, rx: 4, fill: C.orange, stroke: OL, 'stroke-width': 2 }, g);
           }
         }
-        txt(g, PX + side * 64, top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: rowH < 18 ? 16 : 19, fill: C.ink });
+        txt(g, PX + side * (STEP - 64), top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: 36, fill: C.ink });
         r += o.w;
       });
       const tot = objs.reduce((a, o) => a + o.w * o.d, 0);
-      const tx = PX + side * (N * STEP + 84), ty = y0 + 22;
-      el('circle', { cx: tx, cy: ty, r: 30, fill: bal ? C.tealTint : side < 0 ? C.blueTint : C.orangeTint, stroke: bal ? C.teal : side < 0 ? C.blue : C.orange, 'stroke-width': 4 }, g);
-      txt(g, tx, ty + 1, String(tot), { size: 32 });
+      const tx = PX + side * (N * STEP + 82), ty = y0 + 24;
+      el('circle', { cx: tx, cy: ty, r: 40, fill: bal ? C.tealTint : side < 0 ? C.blueTint : C.orangeTint, stroke: bal ? C.teal : side < 0 ? C.blue : C.orange, 'stroke-width': 4 }, g);
+      txt(g, tx, ty + 1, String(tot), { size: 46 });
     });
   }
 
@@ -1183,7 +1190,7 @@
   const marb = (o) => Object.assign({ kind: 'kelereng', w: 1, h: 27 }, o || {});
   /** Brass weight with a printed label, for values the shared art cannot show (100, 500 g, 1 kg ...). */
   function customWeightArt(text) {
-    const hw = Math.max(26, 12 + text.length * 7), T = -62, B = -9;
+    const hw = Math.max(26, (plateW(text) / 0.87 - 8) / 2), T = -62, B = -9;
     const body = `M${-hw} ${B}L${-hw} ${T}A${hw} 6 0 0 1 ${hw} ${T}L${hw} ${B}A${hw} 6 0 0 1 ${-hw} ${B}Z`;
     const fs = text.length > 4 ? 21 : 25;
     const mk = `<rect x="${-hw - 4}" y="-12" width="${2 * hw + 8}" height="11" rx="5" fill="${C.brassSh}" stroke="${OL}" stroke-width="3.4"/>` +
@@ -1193,12 +1200,21 @@
       `<ellipse cx="0" cy="${T}" rx="${hw}" ry="6" fill="#EBC572" stroke="${OL}" stroke-width="3"/>` +
       `<rect x="-5" y="${T - 11}" width="10" height="10" rx="2" fill="${C.brass}" stroke="${OL}" stroke-width="2.6"/>` +
       `<ellipse cx="0" cy="${T - 14}" rx="8.5" ry="7" fill="${C.brass}" stroke="${OL}" stroke-width="2.8"/>` +
-      `<text x="0" y="${(T + B) / 2 + 3}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="600" fill="${C.ink}" style="font-family: Fredoka, 'Baloo 2', sans-serif">${text}</text>`;
+      '';
     return { mk, box: { x: -hw - 4, y: T - 21, width: 2 * hw + 8, height: -(T - 21) } };
+  }
+  /** Width of the cream number plate on a weight (font 40 u, 36 u for long labels). */
+  function plateW(label) { const n = String(label).length; return n <= 3 ? n * 24 + 22 : n * 20 + 18; }
+  /** Every weight carries its own big number plate (the art's small numeral is hidden by CSS). */
+  function weightPlate(it) {
+    const label = it.label || fmt(it.w), w = plateW(label), cy = -it.h * 0.44;
+    const g = el('g', { class: 'tp-plate' }, it.inner);
+    el('path', { d: rr(-w / 2, cy - 24, w, 48, 12), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
+    txt(g, 0, cy + 1, label, { size: label.length > 3 ? 36 : 40 });
   }
   const wt = (n, o) => {
     o = o || {};
-    const base = { kind: 'weight', arg: n, w: n, h: 60 };
+    const base = { kind: 'weight', arg: n, w: n, h: 72 };
     if (n > 99 || o.label) { const cw = customWeightArt(o.label || fmt(n)); Object.assign(base, { custom: cw.mk, customKey: 'cw' + (o.label || n), box: cw.box }); }
     return Object.assign(base, o);
   };
@@ -1214,24 +1230,24 @@
     const n = it.labelN, s = fmt(n);
     const dots = it.labelDots && typeof n === 'number' && n <= 10;
     if (dots) {
-      el('path', { d: rr(-32, cy - 24, 64, 58, 10), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-      txt(g, 0, cy - 7, s, { size: 26 });
-      dotsAt(g, n, 0, cy + 18, { r: 3.4, gap: 10, fill: OL });
+      el('path', { d: rr(-46, cy - 34, 92, 82, 12), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
+      txt(g, 0, cy - 10, s, { size: 40 });
+      dotsAt(g, n, 0, cy + 28, { r: 7, gap: 16, fill: OL });
     } else {
-      const w = Math.max(52, s.length * 15 + 16);
-      el('path', { d: rr(-w / 2, cy - 20, w, 40, 10), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-      txt(g, 0, cy + 1, s, { size: s.length > 5 ? 22 : 28 });
+      const w = plateW(s) + 4;
+      el('path', { d: rr(-w / 2, cy - 26, w, 52, 12), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
+      txt(g, 0, cy + 1, s, { size: s.length > 3 ? 36 : 42 });
     }
   }
   /** Sealed cloth bag (kantong) holding g units; its own label is drawn over the art's. */
   function kantong(g, o) {
     return Object.assign({
-      kind: 'kantong', w: g, h: 58, fixed: true,
+      kind: 'kantong', w: g, h: 82, fixed: true,
       decor: it => {
-        const cy = (-20 - (it.ab.y + it.ab.height)) * it.sc, r = 12 * it.sc + 3;
+        const cy = (-20 - (it.ab.y + it.ab.height)) * it.sc, r = 27;
         const lg = el('g', null, it.inner);
         el('circle', { cx: 0, cy, r, fill: C.cream, stroke: OL, 'stroke-width': 2.6 }, lg);
-        txt(lg, 0, cy + 1, fmt(g), { size: String(g).length > 1 ? 17 : 21 });
+        txt(lg, 0, cy + 1, fmt(g), { size: 38 });
       }
     }, o || {});
   }
@@ -1247,11 +1263,11 @@
       kind: 'person', arg: i, w, h,
       decor: it => {
         const g = el('g', { transform: `translate(0 ${-h - 30})` }, it.inner);
-        const bw = 46, bh = w > 1 ? 50 : 44;
-        el('path', { d: 'M0 20V30', stroke: OL, 'stroke-width': 2.4 }, g);
-        el('path', { d: rr(-bw / 2, -bh / 2 - 4, bw, bh, 12), fill: C.cream, stroke: OL, 'stroke-width': 3.2 }, g);
-        txt(g, 0, -10, String(w), { size: 24 });
-        dotsAt(g, w, 0, 10, { r: 3.6, gap: 10 });
+        const bw = 62, bh = 70;
+        el('path', { d: 'M0 24V30', stroke: OL, 'stroke-width': 2.4 }, g);
+        el('path', { d: rr(-bw / 2, -bh / 2 - 12, bw, bh, 14), fill: C.cream, stroke: OL, 'stroke-width': 3.2 }, g);
+        txt(g, 0, -20, String(w), { size: 40 });
+        dotsAt(g, w, 0, 10, { r: 7, gap: 17 });
       }
     }, o || {});
   }
@@ -1271,10 +1287,19 @@
   /* ============================== dacing level helpers ============================== */
   const pan = i => S.pans[i].c;
   const dirWord = d => d === 'L' ? 'kiri' : 'kanan';
+  /** Bins are written for a 200-wide pan; the pans are 1.3x wider now, so x is scaled here. */
   function setPanBins(i, bins) {
     const c = pan(i);
-    c.bins = bins.map(b => Object.assign({ items: [], pack: 0.95, stack: 0.62 }, b));
+    c.bins = bins.map(b => Object.assign({ items: [], pack: 0.95, stack: 0.62 }, b, { x0: b.x0 * 1.3, x1: b.x1 * 1.3, y: b.y + 2 }));
   }
+  /** One pile per denomination inside x0..x1 (widths follow the label plates). */
+  function pileBins(denoms, x0, x1, y, extra, k) {
+    const ws = denoms.map(d => (plateW(fmt(d)) + 8) / (k || 1)), tot = ws.reduce((a, b) => a + b, 0), sp = Math.max(0, ((x1 - x0) - tot) / denoms.length);
+    let x = x0;
+    return denoms.map((d, i) => { const b = Object.assign({ x0: x, x1: x + ws[i] + sp, y, pile: true, accept: it => it.kind === 'weight' && it.w === d && !it.fixed }, extra || {}); x += ws[i] + sp; return b; });
+  }
+  function trayPiles(denoms) { denoms = [...new Set(denoms)].sort((a, b) => b - a); S.tray.bins = pileBins(denoms, -280, 280, 16, { pdx: 7, pdy: -2 }).map(b => Object.assign({ items: [], pack: 0.95, stack: 0.62 }, b)); }
+  function trayRow() { S.tray.bins = [{ x0: -280, x1: 280, y: 16, back: true, items: [], pack: 0.95, stack: 0.62 }]; }
   function clearPanDecor(i) { const p = S.pans[i]; p.back.innerHTML = ''; p.front.innerHTML = ''; p.baskets = null; }
   function basketDecor(i, centers, w, kind) {
     const p = S.pans[i], hw = (w || 94) / 2;
@@ -1295,20 +1320,21 @@
   }
   function basketLabel(b, text, accent) {
     const g = b.lab; g.innerHTML = '';
-    const s = String(text), w = Math.max(30, s.length * 12 + 14);
-    el('path', { d: rr(-w / 2, -27, w, 26, 7), fill: accent ? C.blueTint : C.cream, stroke: accent ? C.blue : OL, 'stroke-width': 2.6 }, g);
-    txt(g, 0, -13.5, s, { size: 20 });
+    const s = String(text), w = plateW(s);
+    el('path', { d: rr(-w / 2, -40, w, 48, 12), fill: accent ? C.blueTint : C.cream, stroke: accent ? C.blue : OL, 'stroke-width': 3 }, g);
+    txt(g, 0, -15, s, { size: 40 });
   }
   function sackDecor(i) {
     const p = S.pans[i];
     const col = i === 0 ? [C.blueTint, '#B9D3EE'] : [C.orangeTint, '#F3CFA6'];
-    el('path', { d: 'M-80 -6Q-86 -60 -70 -66Q0 -76 70 -66Q86 -60 80 -6Z', fill: col[1], stroke: OL, 'stroke-width': 3.5, 'stroke-linejoin': 'round' }, p.back);
-    el('ellipse', { cx: 0, cy: -64, rx: 70, ry: 9, fill: '#8C6C4C', stroke: OL, 'stroke-width': 3 }, p.back);
-    shape3(p.front, 'M-82 -20Q0 -10 82 -20L80 4Q0 18 -80 4Z', { base: col[0], sh: col[1], off: [-4, -5], sw: 3.5, extra: g => kawung(g, -84, -22, 168, 40, i === 0 ? C.blue : C.orange, 0.25) });
+    const bk = el('g', { transform: 'scale(1.3 1)' }, p.back), fr = el('g', { transform: 'scale(1.3 1)' }, p.front);
+    el('path', { d: 'M-80 -6Q-86 -60 -70 -66Q0 -76 70 -66Q86 -60 80 -6Z', fill: col[1], stroke: OL, 'stroke-width': 3, 'stroke-linejoin': 'round' }, bk);
+    el('ellipse', { cx: 0, cy: -64, rx: 70, ry: 9, fill: '#8C6C4C', stroke: OL, 'stroke-width': 3 }, bk);
+    shape3(fr, 'M-82 -20Q0 -10 82 -20L80 4Q0 18 -80 4Z', { base: col[0], sh: col[1], off: [-4, -5], sw: 3.5, extra: g => kawung(g, -84, -22, 168, 40, i === 0 ? C.blue : C.orange, 0.25) });
   }
   function slotOutline(i, cx, w) {
     const p = S.pans[i];
-    el('ellipse', { cx, cy: 2, rx: w / 2, ry: 8, fill: '#FFFFFF', opacity: 0.35, stroke: OL, 'stroke-width': 2.6, 'stroke-dasharray': '6 5' }, p.back);
+    el('ellipse', { cx: cx * 1.3, cy: 2, rx: w * 0.65, ry: 9, fill: '#FFFFFF', opacity: 0.35, stroke: OL, 'stroke-width': 2.6, 'stroke-dasharray': '6 5' }, p.back);
   }
   const outcomeWord = (a, b) => a > b ? 'lebih dari' : a < b ? 'kurang dari' : 'sama dengan';
   /** Feedback for "build on one side" levels: which way to adjust, from the tilt. */
@@ -1457,17 +1483,17 @@
     const ns = (cfg && cfg.ns) || [6, 10];
     const o = { rounds: ns.length, near: true };
     let n = ns[0], found = [], kar = null, given = 0;
-    const rack = el('g', { transform: 'translate(1072 128)' }, S.layers.ui);
-    const rw = ns.length > 1 ? 192 : 112;
-    shape3(rack, rr(0, 0, rw, 300, 18), { base: C.wood, sh: C.woodSh, hl: C.woodHl, hlb: [30, 10, 30, 4], off: [-5, -5] });
-    el('path', { d: rr(10, 10, rw - 20, 280, 12), fill: '#F6E9D2', stroke: OL, 'stroke-width': 2.4 }, rack);
+    const rack = el('g', { transform: 'translate(1100 110)' }, S.layers.ui);
+    const rw = ns.length > 1 ? 250 : 144;
+    shape3(rack, rr(0, 0, rw, 330, 18), { base: C.wood, sh: C.woodSh, hl: C.woodHl, hlb: [30, 10, 30, 4], off: [-5, -5] });
+    el('path', { d: rr(10, 10, rw - 20, 310, 12), fill: '#F6E9D2', stroke: OL, 'stroke-width': 2.4 }, rack);
     const cols = ns.map((k, ci) => {
-      const cx = 56 + ci * 88;
-      el('path', { d: rr(cx - 34, 20, 68, 36, 10), fill: '#E8D3A6', stroke: OL, 'stroke-width': 2.6 }, rack);
-      txt(rack, cx, 39, String(k), { size: 26 });
+      const cx = 72 + ci * 108;
+      el('path', { d: rr(cx - 44, 20, 88, 50, 12), fill: '#E8D3A6', stroke: OL, 'stroke-width': 2.6 }, rack);
+      txt(rack, cx, 46, String(k), { size: 40 });
       return [0, 1, 2].map(j => {
-        const y = 92 + j * 66;
-        el('path', { d: rr(cx - 38, y - 24, 76, 48, 12), fill: 'none', stroke: C.muted, 'stroke-width': 2.4, 'stroke-dasharray': '6 5' }, rack);
+        const y = 120 + j * 74;
+        el('path', { d: rr(cx - 50, y - 28, 100, 56, 14), fill: 'none', stroke: C.muted, 'stroke-width': 2.4, 'stroke-dasharray': '6 5' }, rack);
         return { x: cx, y, g: el('g', null, rack) };
       });
     });
@@ -1477,7 +1503,7 @@
       if (r === 0) {
         setPanBins(1, [{ x0: -100, x1: -10, y: -6, cap: 10, stack: 0.5, pack: 0.78 }, { x0: 10, x1: 100, y: -6, cap: 10, stack: 0.5, pack: 0.78 }]);
         clearPanDecor(1);
-        basketDecor(1, [-55, 55]);
+        basketDecor(1, pan(1).bins.map(b => (b.x0 + b.x1) / 2), 120);
       }
       kar = spawn([karung(n)], pan(0))[0];
       spawn(Array.from({ length: n - given }, () => ramb({ keep: true, h: 38 })), S.tray, { delay: 250 });
@@ -1502,8 +1528,8 @@
       found.push(key);
       const slotPos = cols[o.round][found.length - 1];
       const chip = slotPos.g;
-      el('path', { d: rr(slotPos.x - 36, slotPos.y - 22, 72, 44, 12), fill: C.tealTint, stroke: C.teal, 'stroke-width': 3 }, chip);
-      txt(chip, slotPos.x, slotPos.y + 1, `${x} + ${y}`, { size: 24 });
+      el('path', { d: rr(slotPos.x - 50, slotPos.y - 28, 100, 56, 14), fill: C.tealTint, stroke: C.teal, 'stroke-width': 3 }, chip);
+      txt(chip, slotPos.x, slotPos.y + 1, `${x}+${y}`, { size: 38 });
       if (!GS.reducedMotion) GS.tween(380, e => chip.setAttribute('transform', `translate(${slotPos.x} ${slotPos.y}) scale(${n1(e * 100) / 100}) translate(${-slotPos.x} ${-slotPos.y})`), 'outBack');
       GS.sfx.coin();
       say(`Pasangan baru: ${x} dan ${y}!`);
@@ -1572,6 +1598,7 @@
       slotOutline(1, 48, 104);
       spawn([wt(n, { fixed: true, h: 66 })], pan(0));
       kar = spawn([karung(m, { labelDots: false, bin: 0 })], pan(1), { delay: 150 })[0];
+      trayPiles(cfg.stock);
       spawn(cfg.stock.map(k => wt(k)), S.tray, { delay: 300 });
       say('Karung tidak bisa dibuka. Tambah anak timbangan sampai seimbang.');
     };
@@ -1676,8 +1703,9 @@
       if (cfg.big) {
         const a = rand(4, 9), b = rand(2, 9), c = rand(1, a - 1), d = rand(0, b - 1);
         n = 10 * a + b; m = 10 * c + d;
-        setPanBins(0, [{ x0: -100, x1: 100, y: 14, sort: true, pack: 0.85, stack: 0.5 }]);
-        spawn(stockOf([10, 1], [a, b], { h: 42 }), pan(0), { stagger: 30 });
+        setPanBins(0, pileBins([10, 1], -90, 90, 14, {}, 1.3));
+        trayPiles([10, 1]);
+        spawn(stockOf([10, 1], [a, b]), pan(0), { stagger: 30 });
       } else {
         n = rand(cfg.n[0], cfg.n[1]); m = rand(cfg.m[0], Math.min(cfg.m[1], n - 2));
         setPanBins(0, [{ x0: -100, x1: 100, y: 14, cap: 20 }]);
@@ -1713,8 +1741,8 @@
     let n;
     o.setup = () => {
       n = rand(cfg.n[0], cfg.n[1]);
-      [0, 1].forEach(i => { setPanBins(i, [{ x0: -78, x1: 78, y: -2, stack: 0.55, sort: cfg.big, pack: cfg.big ? 0.85 : 0.95 }]); clearPanDecor(i); sackDecor(i); });
-      if (cfg.big) spawn(stockOf([10, 1], [2 * Math.floor(n / 10), 2 * (n % 10)], { h: 40 }), S.tray, { stagger: 25 });
+      [0, 1].forEach(i => { setPanBins(i, cfg.big ? pileBins([10, 1], -78, 78, -2, {}, 1.3) : [{ x0: -78, x1: 78, y: -2, stack: 0.55 }]); clearPanDecor(i); sackDecor(i); });
+      if (cfg.big) { trayPiles([10, 1]); spawn(stockOf([10, 1], [2 * Math.floor(n / 10), 2 * (n % 10)]), S.tray, { stagger: 25 }); }
       else spawn(Array.from({ length: 2 * n }, () => marb()), S.tray);
       say(cfg.big ? `Bagi ${2 * n} ke dua kantong, sama berat.` : `Bagi ${2 * n} kelereng ke dua kantong, sama banyak.`);
     };
@@ -1752,7 +1780,7 @@
       const bs = bp();
       const bins = [];
       if (cur.given != null) bins.push({ x0: -106, x1: -40, y: 14, accept: it => it.kind === 'karung' });
-      bins.push({ x0: cur.given != null ? -32 : -102, x1: 102, y: 14, sort: true, pack: 0.82, stack: 0.46, accept: it => it.kind === 'weight' && !it.fixed });
+      bins.push(...pileBins(cur.denoms, cur.given != null ? -32 : -104, 104, 14, {}, 1.3));
       setPanBins(bs, bins);
       setPanBins(tp(), [{ x0: -80, x1: 80, y: 14 }]);
       clearPanDecor(bs); clearPanDecor(tp());
@@ -1760,7 +1788,8 @@
       const tg = cur.target;
       spawn([tg.kind === 'karung' ? karung(tg.v, { labelN: tg.label || tg.v, labelDots: false, h: 100 }) : wt(tg.v, { fixed: true, h: 70, label: tg.label })], pan(tp()));
       if (cur.given != null) spawn([karung(cur.given, { labelN: cur.givenLabel || cur.given, labelDots: false, bin: 0, h: 92 })], pan(bs), { delay: 120 });
-      spawn(stockOf(cur.denoms, cur.stock, { h: cfg.h || 42, unit: cfg.unit }), S.tray, { delay: 260, stagger: 18 });
+      trayPiles(cur.denoms);
+      spawn(stockOf(cur.denoms, cur.stock, { unit: cfg.unit }), S.tray, { delay: 260, stagger: 18 });
       say(cur.say);
     };
     const built = () => pan(bp()).items().filter(it => it.kind === 'weight' && !it.fixed);
@@ -1780,8 +1809,7 @@
     o.winText = () => cfg.win || 'Hebat! Bilangannya tersusun.';
     o.solve = async () => {
       built().slice().forEach(it => moveItem(it, S.tray));
-      const bs = bp(), bin = pan(bs).bins[pan(bs).bins.length - 1];
-      greedyFill(pan(bs), cur.target.v - (cur.given || 0), bin);
+      greedyFill(pan(bp()), cur.target.v - (cur.given || 0));
       await waitLocked(); await release();
     };
     const setup0 = o.setup;
@@ -1806,14 +1834,14 @@
       cur = cfg.gen(r); o.final = null;
       setPanBins(0, [{ x0: -104, x1: 104, y: 14, pack: 0.9, stack: 0.62 }]);
       if (cfg.mode === 'pick') setPanBins(1, [{ x0: -60, x1: 60, y: 14, cap: 1, swap: true, accept: it => it.kind === 'weight' }]);
-      else setPanBins(1, [{ x0: -102, x1: 102, y: 14, sort: true, pack: 0.82, stack: 0.46, accept: it => it.kind === 'weight' }]);
+      else { setPanBins(1, pileBins([10, 1], -90, 90, 14, {}, 1.3)); trayPiles([10, 1]); }
       clearPanDecor(0); clearPanDecor(1);
-      spawn(Array.from({ length: cur.k }, () => kantong(cur.g, { h: cur.k > 3 ? 52 : 60 })), pan(0), { stagger: 90 });
+      spawn(Array.from({ length: cur.k }, () => kantong(cur.g, { h: cur.k > 3 ? 74 : 82 })), pan(0), { stagger: 90 });
       const p = prod();
       if (cfg.mode === 'pick') {
         const opts = [p, p - cur.g, p + cur.g, p + 1].filter(v => v > 0);
         spawn(GS.shuffle(opts.filter((v, i) => opts.indexOf(v) === i)).map(v => wt(v)), S.tray, { delay: 320 });
-      } else spawn(stockOf([10, 1], [9, 9], { h: 42 }), S.tray, { delay: 320, stagger: 18 });
+      } else spawn(stockOf([10, 1], [9, 9]), S.tray, { delay: 320, stagger: 18 });
       say(r === 0 ? `Ada ${cur.k} kantong, isinya masing-masing ${cur.g}. Seimbangkan!` : `Sekarang ${cur.k} kantong isi ${cur.g}.`);
     };
     const val = () => pan(1).sum();
@@ -1866,12 +1894,12 @@
       if (hasX) bins.push({ x0: 56, x1: 106, y: 14, accept: it => it.fixed && !it.copy });
       setPanBins(tp, bins); setPanBins(op, [{ x0: -80, x1: 80, y: 14 }]);
       clearPanDecor(0); clearPanDecor(1);
-      basketDecor(tp, bins.slice(0, k).map(b => (b.x0 + b.x1) / 2), bw - 2, cfg.decor);
+      basketDecor(tp, pan(tp).bins.slice(0, k).map(b => (b.x0 + b.x1) / 2), bw * 1.3 - 4, cfg.decor);
       const tg = cur.target;
       spawn([tg.kind === 'karung' ? karung(tg.v, { labelN: tg.label || tg.v, labelDots: false }) : wt(tg.v, { fixed: true, h: 68, label: tg.label })], pan(op));
-      if (hasX) spawn([wt(cur.extra, { fixed: true, bin: k, h: 54 })], pan(tp), { delay: 120 });
+      if (hasX) spawn([wt(cur.extra, { fixed: true, bin: k, h: 64 })], pan(tp), { delay: 120 });
       if (cur.items === 'ramb') spawn(Array.from({ length: cur.stock }, () => ramb({ h: 30 })), S.tray, { delay: 260, stagger: 30 });
-      else spawn(cur.stock.map(v => wt(v, { h: k > 3 ? 34 : 40 })), S.tray, { delay: 260 });
+      else { trayPiles(cur.stock); spawn(cur.stock.map(v => wt(v, { h: 62 })), S.tray, { delay: 260 }); }
       say(cur.say);
     };
     function sync() {
@@ -1928,7 +1956,7 @@
       spawn([wt(Lv, { fixed: true, h: 66 })], pan(0));
       spawn([karung(rv, { bin: 0, labelDots: false })], pan(1), { delay: 120 });
       const vals = []; for (let v = t - 3; v <= t + 2; v++) if (v >= 1) vals.push(v);
-      cands = spawn(GS.shuffle(vals).map(v => wt(v, { fixed: true, cand: true, h: 54, decor: it => { it.mark = el('g', null, it.inner); } })), S.tray, { delay: 260 });
+      cands = spawn(GS.shuffle(vals).map(v => wt(v, { fixed: true, cand: true, h: 66, decor: it => { it.mark = el('g', null, it.inner); } })), S.tray, { delay: 260 });
       say('Ketuk semua beban yang membuat kiri tetap lebih berat.');
     };
     function drawMark(it) {
@@ -1939,9 +1967,9 @@
         el('path', { d: 'M-6 0l4 4.5 8 -9', stroke: '#fff', 'stroke-width': 3.4, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, m);
       }
       if (it.truth != null) {
-        const m = el('g', { transform: 'translate(0 14)' }, g);
-        el('path', { d: rr(-22, -9, 44, 18, 9), fill: it.truth ? C.tealTint : C.amberTint, stroke: it.truth ? C.teal : C.amber, 'stroke-width': 2.6 }, m);
-        txt(m, 0, 0.5, it.truth ? 'kiri' : 'tidak', { size: 13, cls: 'tp-body' });
+        const m = el('g', { transform: 'translate(0 20)' }, g);
+        el('circle', { r: 15, fill: it.truth ? C.teal : '#FFFFFF', stroke: it.truth ? OL : C.amber, 'stroke-width': 3 }, m);
+        el('path', { d: it.truth ? 'M-6 0l4 4.5 8 -9' : 'M-6 0H6', stroke: it.truth ? '#fff' : C.amber, 'stroke-width': 3.4, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, m);
       }
     }
     o.fixedTap = it => {
@@ -2171,8 +2199,8 @@
     let cur, movers = [];
     o.setup = r => {
       cur = cfg.gen(r);
-      cur.fixed.forEach((f, i) => spawn([wt(f.w, { fixed: true, h: 58 })], notch(f.side, f.d), { delay: i * 100 }));
-      movers = cur.movers.map((m, i) => spawn([wt(m.w, { h: 58, home: S.homes[i] })], m.side ? notch(m.side, m.d) : S.homes[i], { delay: 300 + i * 100 })[0]);
+      cur.fixed.forEach((f, i) => spawn([wt(f.w, { fixed: true, h: 72 })], notch(f.side, f.d), { delay: i * 100 }));
+      movers = cur.movers.map((m, i) => spawn([wt(m.w, { h: 72, home: S.homes[i] })], m.side ? notch(m.side, m.d) : S.homes[i], { delay: 300 + i * 100 })[0]);
       say(cur.say);
     };
     const sideTokens = side => {
@@ -2238,6 +2266,7 @@
     own.setup = r => {
       if (r > 0) {
         [0, 1].forEach(i => { clearPanDecor(i); setPanBins(i, [{ x0: -100, x1: 100, y: 14 }]); renderTag(S.pans[i].tag, null); });
+        trayRow();
         if (S.strip) S.strip.prev = [];
         load(r);
       }
@@ -2273,17 +2302,17 @@
     const k3Frac = () => Template({ rounds: 2, tside: 1, gen: r => { const k = r ? 4 : 2, N = rand(2, 6) * 4; return { k, target: { kind: 'karung', v: N, label: N + ' kg' }, items: 'w', stock: [10, 5, 2, 2, 1, 1], answer: N / k, say: r ? `Bagi ${N} kilogram jadi empat sama berat.` : `Bagi ${N} kilogram jadi dua sama berat.`, ok: x => `${r ? 'Seperempat' : 'Setengah'} dari ${N} kilogram adalah ${x} kilogram!` }; },
       strip: (cur, sv) => { const out = [{ t: 'n', v: cur.target.label, side: -1 }, { t: 'sign' }]; for (let i = 0; i < cur.k; i++) { if (i) out.push({ t: 'op', v: '+', side: 1 }); out.push({ t: sv ? 'n' : 'blank', v: sv, side: 1 }); } return out; },
       final: (cur, sv) => [{ t: 'txt', v: (cur.k === 2 ? '½' : '¼') + ' dari' }, { t: 'n', v: cur.target.label }, { t: 'sign', v: '=' }, { t: 'n', v: sv + ' kg' }], win: 'Hebat! Setengah dan seperempat.' });
-    const k3Hundreds = () => Compose({ rounds: 2, buildSide: 1, h: 38, gen: () => { const n = rand(101, 999); const [h, tn, on] = digitsOf(n, [100, 10, 1]); return { target: { kind: 'karung', v: n }, denoms: [100, 10, 1], stock: [9, 9, 9], say: 'Pakai anak timbangan 100, 10, dan 1.', ok: `${n} sama dengan ${h * 100} tambah ${tn * 10} tambah ${on}!` }; },
+    const k3Hundreds = () => Compose({ rounds: 2, buildSide: 1, gen: () => { const n = rand(101, 999); const [h, tn, on] = digitsOf(n, [100, 10, 1]); return { target: { kind: 'karung', v: n }, denoms: [100, 10, 1], stock: [9, 9, 9], say: 'Pakai anak timbangan 100, 10, dan 1.', ok: `${n} sama dengan ${h * 100} tambah ${tn * 10} tambah ${on}!` }; },
       strip: (cur, tot, by) => [{ t: 'n', v: cur.target.v, side: -1 }, { t: 'sign' }].concat(placeTokens([100, 10, 1], by, 1)), win: 'Hebat! Ratusan, puluhan, satuan.' });
     // k4 building blocks
     const k4Mystery = () => Template({ rounds: 2, tside: -1, decor: 'box', gen: () => { const sv = rand(2, 9), c = rand(1, 9), n = 2 * sv + c; return { k: 2, extra: c, target: { kind: 'weight', v: n }, items: 'w', stock: [5, 2, 2, 1, 1], answer: sv, say: 'Dua kotak misteri sama berat. Isi kotak pertama.', ok: x => `Kotak misteri beratnya ${x}!` }; },
       strip: (cur, sv) => [{ t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: 'n', v: cur.extra, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.target.v, side: 1 }],
       final: (cur, sv) => [{ t: 'txt', v: 'kotak' }, { t: 'sign', v: '=' }, { t: 'n', v: sv }], win: 'Hebat! Kotak misterinya terpecahkan.' });
-    const k4Kg = () => Compose({ rounds: 2, buildSide: 1, unit: ' g', h: 42, gen: r => { const p = r ? rand(1, 6) * 100 : null; return { target: { kind: 'weight', v: 1000, label: '1 kg' }, given: p, givenLabel: p ? p + ' g' : null, denoms: [500, 200, 100], stock: [1, 3, 3], say: r ? `Karung ${p} gram. Tambah sampai 1 kilogram.` : '1 kilogram. Seimbangkan dengan gram.', ok: '1 kilogram sama dengan seribu gram!' }; },
+    const k4Kg = () => Compose({ rounds: 2, buildSide: 1, unit: ' g', gen: r => { const p = r ? rand(1, 6) * 100 : null; return { target: { kind: 'weight', v: 1000, label: '1 kg' }, given: p, givenLabel: p ? p + ' g' : null, denoms: [500, 200, 100], stock: [1, 3, 3], say: r ? `Karung ${p} gram. Tambah sampai 1 kilogram.` : '1 kilogram. Seimbangkan dengan gram.', ok: '1 kilogram sama dengan seribu gram!' }; },
       strip: (cur, tot) => { const right = cur.given ? [{ t: 'n', v: cur.given + ' g', side: 1 }, { t: 'op', v: '+', side: 1 }] : []; return [{ t: 'n', v: '1 kg', side: -1 }, { t: 'sign' }].concat(right, [{ t: tot ? 'n' : 'blank', v: tot ? fmt(tot) + ' g' : null, side: 1 }]); },
       final: () => [{ t: 'n', v: '1 kg' }, { t: 'sign', v: '=' }, { t: 'n', v: '1.000 g' }], win: '1 kg sama dengan 1.000 g!' });
     const k4Bags = () => Bags({ rounds: 2, mode: 'build', strip: 'mul2', gen: () => { for (;;) { const g = rand(11, 24), k = rand(2, 4); if (g * k <= 96) return { g, k }; } }, win: 'Hebat! Perkalian dua angka.' });
-    const k4Thousands = () => Compose({ rounds: 2, buildSide: 1, h: 34, gen: () => { const ds = [rand(1, 5), rand(0, 5), rand(0, 5), rand(0, 5)]; const n = ds[0] * 1000 + ds[1] * 100 + ds[2] * 10 + ds[3]; return { target: { kind: 'karung', v: n }, denoms: [1000, 100, 10, 1], stock: [5, 5, 5, 5], say: 'Pakai anak timbangan 1.000, 100, 10, dan 1.', ok: `${fmt(n)}. Tepat!` }; },
+    const k4Thousands = () => Compose({ rounds: 2, buildSide: 1, gen: () => { const ds = [rand(1, 5), rand(0, 5), rand(0, 5), rand(0, 5)]; const n = ds[0] * 1000 + ds[1] * 100 + ds[2] * 10 + ds[3]; return { target: { kind: 'karung', v: n }, denoms: [1000, 100, 10, 1], stock: [5, 5, 5, 5], say: 'Pakai anak timbangan 1.000, 100, 10, dan 1.', ok: `${fmt(n)}. Tepat!` }; },
       strip: (cur, tot, by) => [{ t: 'n', v: fmt(cur.target.v), side: -1 }, { t: 'sign' }].concat(placeTokens([1000, 100, 10, 1], by, 1)), win: 'Hebat! Ribuan tersusun.' });
 
     if (t === 'tk') return [

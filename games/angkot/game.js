@@ -76,6 +76,8 @@
 
   /* speed factor for automated tests (window.__game.speed) */
   let SPEED = 1;
+  const VX0 = () => (GS.stageView ? Math.min(0, GS.stageView.x0) : 0);
+  const VX1 = () => (GS.stageView ? Math.max(1280, GS.stageView.x1) : 1280);
   const tw = (ms, fn, ease) => GS.tween(ms / SPEED, fn, ease);
   let timers = [];
   const sleep = ms => new Promise(r => { timers.push(setTimeout(r, ms / SPEED)); });
@@ -127,9 +129,9 @@
     if (GS.art && GS.art.scene) GS.markup(bg, GS.art.scene('terminal', 1280, 800));
     else throw new Error('no scene');
   } catch (e) {
-    R(bg, 0, 0, 1280, 800, 0, '#CFEDF0');
-    R(bg, 0, 616, 1280, 30, 0, '#D4A062');
-    R(bg, 0, 636, 1280, 170, 0, '#8E8A86');
+    R(bg, -600, 0, 2480, 800, 0, '#CFEDF0');
+    R(bg, -600, 616, 2480, 30, 0, '#D4A062');
+    R(bg, -600, 636, 2480, 170, 0, '#8E8A86');
   }
   const world = G(svg, { class: 'world' });
   let L_ = {};
@@ -140,7 +142,7 @@
 
   /* ------------------------------------------------------------------ props: halte */
   function drawHalte(opts) {
-    const h = G(L_.halte, { class: 'ak' });
+    const h = G(L_.halte, { class: 'ak', 'data-qc': 'decor' });
     // floor (depth plane)
     PA(h, 'M30 484 L560 484 L588 640 L4 640 Z', '#DCD3C2');
     PA(h, 'M30 484 L560 484 L563 500 L27 500 Z', '#CBC0AC');
@@ -215,7 +217,7 @@
     PA(p, 'M' + (cx - 9) + ' ' + (top + 18) + ' V' + (top + h - 6) + ' M' + (cx + 9) + ' ' + (top + 18) + ' V' + (top + h - 6), 'none', P.redS, 2, { opacity: 0.7 });
   }
   function buildAngkot(cap) {
-    const A = { x: -760, count: 0, loads: [], seats: [], roof: [], state: 'arriving', angTries: 0, cap: cap || 10 };
+    const A = { x: VX0() - 760, count: 0, loads: [], seats: [], roof: [], state: 'arriving', angTries: 0, cap: cap || 10 };
     const root = G(L_.angkot, { class: 'ak' });
     A.root = root;
     E(root, 296, 2, 300, 13, OUT, null, 0, { opacity: 0.18 });
@@ -321,7 +323,7 @@
     R(idle, 352, -346, 8, 14, 2, P.stoneS, OUT, 2); R(idle, 546, -346, 8, 14, 2, P.stoneS, OUT, 2);
     R(idle, 334, -398, 236, 54, 12, P.blue, OUT, 4);
     R(idle, 342, -391, 220, 40, 8, P.cream, OUT, 2.5);
-    T(idle, 452, -370, 'Pasar - Terminal', 26, P.ink, { class: 't-display' });
+    T(idle, 452, -370, 'Pasar - Terminal', 26, P.ink, { class: 't-display', 'data-qc': 'decor' });
     A.roofL = G(idle);
     for (let x = 36; x <= 316; x += 56) R(idle, x - 3, -352, 6, 20, 2, P.stone, OUT, 2);
     R(idle, 26, -358, 302, 9, 4.5, P.stone, OUT, 2.5);
@@ -334,7 +336,7 @@
     PA(ab, 'M-12 -34 L-4 -34 L-4 -14', 'none', P.sunH, 4);
 
     // hit area for taps (whole angkot) + focus ring
-    A.hit = R(root, -24, -430, 640, 450, 24, '#fff', null, 0, { 'fill-opacity': 0, class: 'ak-hit', tabindex: 0, role: 'button', 'aria-label': 'Angkot' });
+    A.hit = R(root, -24, -430, 640, 450, 24, '#fff', null, 0, { 'fill-opacity': 0, class: 'ak-hit', 'data-hit': 'angkot', tabindex: 0, role: 'button', 'aria-label': 'Angkot' });
     R(root, -20, -426, 632, 442, 24, 'none', P.ui, 5, { class: 'ak-ring', 'pointer-events': 'none' });
     A.hit.addEventListener('click', () => onAngkotTap());
     A.hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAngkotTap(); } });
@@ -428,7 +430,7 @@
     for (let k = 0; k < pre; k++) addSeat(A, k, randVar(), 'pre', true);
     A.count = pre;
     engine(1.2);
-    await drive(A, -760, AK_X, 1300, 'outCubic', false);
+    await drive(A, A.x, AK_X, 1300, 'outCubic', false);
     if (!alive(t)) return A;
     brake();
     A.state = 'ready';
@@ -458,7 +460,7 @@
     for (let i = 0; i < 4; i++) spawnPuff(A.x - 16, GROUND - 40, 1.4);
     engine(1.6);
     GS.sfx.whoosh();
-    await drive(A, A.x, 1460, 1500, 'inCubic', true);
+    await drive(A, A.x, VX1() + 40, 1500, 'inCubic', true);
     A.root.remove();
     if (!alive(t)) return;
     kenek.pose('idle');
@@ -508,10 +510,11 @@
     const leaving = [];
     for (let i = 0; i < count; i++) {
       const B = buildBecak(L_.fx);
-      setBecakX(B, -140, y, s);
+      const bx0 = VX0() - 160;
+      setBecakX(B, bx0, y, s);
       GS.tone({ f: 1500, t: 0.06, type: 'triangle', vol: 0.05 });
       GS.tone({ f: 1500, t: 0.06, type: 'triangle', vol: 0.05, delay: 0.1 });
-      await tw(520, e => setBecakX(B, GS.lerp(-140, stopX, e), y, s), 'outCubic');
+      await tw(520, e => setBecakX(B, GS.lerp(bx0, stopX, e), y, s), 'outCubic');
       if (!alive(t)) return;
       const src = take(i);
       // the passenger hops from the halte into the seat
@@ -523,7 +526,8 @@
       personNode(B.seat, src.v, 50, -58, 0.5, false);
       GS.sfx.count(i + 1);
       onEach && onEach(i);
-      leaving.push(tw(1300, e => setBecakX(B, GS.lerp(stopX, 1460, e), y, s), 'inCubic').then(() => B.g.remove()));
+      const bx1 = VX1() + 160;
+      leaving.push(tw(1300, e => setBecakX(B, GS.lerp(stopX, bx1, e), y, s), 'inCubic').then(() => B.g.remove()));
       await sleep(140);
     }
     await Promise.all(leaving);
@@ -631,12 +635,12 @@
     if (old) old.remove();
     clearTimeout(bubbleT);
     const g = G(L_.top, { class: 'ak ak-bubble', 'pointer-events': 'none' });
-    const w = Math.max(150, text.length * 15.5 + 40);
+    const w = Math.max(170, text.length * 19 + 44);
     const bx = KEN_X + 34, by = GROUND - 290;
     PA(g, 'M' + (bx + 18) + ' ' + (by + 50) + ' L' + (bx + 2) + ' ' + (by + 82) + ' L' + (bx + 44) + ' ' + (by + 50) + ' Z', '#fff', OUT, 3.5);
-    R(g, bx, by, w, 56, 26, '#fff', OUT, 3.5);
+    R(g, bx, by - 8, w, 64, 28, '#fff', OUT, 3.5);
     PA(g, 'M' + (bx + 19) + ' ' + (by + 49) + ' L' + (bx + 43) + ' ' + (by + 49), 'none', '#fff', 5);
-    T(g, bx + w / 2, by + 29, text, 27, P.ink, { class: 't-display' });
+    T(g, bx + w / 2, by + 25, text, 34, P.ink, { class: 't-display' });
     tw(240, e => g.setAttribute('transform', 'translate(' + (bx + 20) + ' ' + (by + 60) + ') scale(' + Math.max(0.01, e).toFixed(3) + ') translate(' + -(bx + 20) + ' ' + -(by + 60) + ')'), 'outBack');
     bubbleT = setTimeout(() => g.remove(), 1700 / SPEED);
   }
@@ -711,7 +715,7 @@
     gr.bob = G(gr.sq);
     const B = gr.bob;
     // hit area (generous) + focus ring
-    R(B, -W / 2 - 52, -154, W + 92, 176, 22, '#fff', null, 0, { 'fill-opacity': 0 });
+    R(B, -W / 2 - 70, -166, W + 110, 188, 22, '#fff', null, 0, { 'fill-opacity': 0 });
     R(B, -W / 2 - 48, -150, W + 84, 168, 22, 'none', P.ui, 4, { class: 'ak-ring' });
     gr.mat = E(B, -8, 3, W / 2 + 32, 13, gr.col[0], gr.col[1], 2.5, { opacity: 0.4, 'stroke-dasharray': '6 6' });
     gr.peopleG = G(B, label === 'num' ? { filter: 'url(#akBlur)', opacity: 0.85 } : {});
@@ -736,17 +740,17 @@
       R(sg, -35, -105, 70, 50, 8, P.cream, OUT, 2.5);
       T(sg, 0, -79, String(n), 42, P.ink, { class: 'gs-num' });
     } else {
-      const sx = -W / 2 - 18;
+      const sx = -W / 2 - 28;
+      const dots = label === 'dots';
       R(sg, sx - 3, -84, 6, 86, 3, P.woodS, OUT, 2.5);
-      R(sg, sx - 24, -124, 48, 44, 9, P.wood, OUT, 3);
-      R(sg, sx - 19, -119, 38, 34, 6, P.cream, OUT, 2);
-      if (label === 'both') T(sg, sx, -101, String(n), 28, P.ink, { class: 'gs-num' });
+      R(sg, sx - 34, dots ? -160 : -140, 68, dots ? 84 : 62, 11, P.wood, OUT, 3);
+      R(sg, sx - 28, dots ? -154 : -134, 56, dots ? 72 : 50, 8, P.cream, OUT, 2);
+      if (label === 'both') T(sg, sx, -108, String(n), 50, P.ink, { class: 'gs-num' });
       else if (label === 'dots') {
-        R(sg, sx - 19, -119, 38, 34, 6, P.cream);
-        T(sg, sx, -110, String(n), 17, P.ink, { class: 'gs-num' });
-        for (let d = 0; d < n; d++) C(sg, sx - (n - 1) * 4.5 + d * 9, -94, 3.6, gr.col[0], gr.col[1], 1.5);
+        T(sg, sx, -131, String(n), 44, P.ink, { class: 'gs-num' });
+        for (let d = 0; d < n; d++) C(sg, sx - (n - 1) * 6.5 + d * 13, -98, 5.6, gr.col[0], gr.col[1], 1.5);
       }
-      else { const e = G(sg); place(e, sx, -102); emblem(e, gr.emb, gr.col); }
+      else { const e = G(sg); place(e, sx, -109, 1.4); emblem(e, gr.emb, gr.col); }
     }
     if (gr.single) sg.style.display = 'none';
     attachGroup(gr);
@@ -800,7 +804,7 @@
       const sl = freeSlot();
       if (!sl) { gr.g.remove(); return; }
       sl.occ = gr; gr.slot = sl;
-      gr.x = -140 - made.length * 60; gr.y = sl.y; gr.s = sl.s;
+      gr.x = VX0() - 140 - made.length * 60; gr.y = sl.y; gr.s = sl.s;
       putInLayer(gr);
       posGroup(gr);
       made.push(gr);
@@ -814,7 +818,7 @@
     gr.state = 'leaving';
     if (gr.slot) { gr.slot.occ = null; gr.slot = null; }
     halte = halte.filter(h => h !== gr);
-    await walkTo(gr, -170, gr.y, gr.s, 900);
+    await walkTo(gr, VX0() - 170, gr.y, gr.s, 900);
     gr.g.remove();
   }
 
@@ -1281,6 +1285,7 @@
     if (T_ === 'multi') kenek = drawKenek(1212, GROUND + 14);
     else if (T_ === 'compare') kenek = drawKenek(640, GROUND + 14);
     else kenek = drawKenek(KEN_X, GROUND + 14);
+    if (T_ === 'calc') kenek.root.style.display = 'none';
     hud.mood('think');
     if (rounds.length > 1 || T_ !== 'pool') { drawPips(rounds.length, 'dot'); setPips(roundIdx, true); }
     roundReady = true;
@@ -1315,7 +1320,7 @@
     const maxG = Math.max.apply(null, waves.map(w => w.groups.length));
     const big = maxG <= 3;
     const allSingle = waves.every(w => w.groups.every(g => g.n === 1));
-    const mul = TK ? (allSingle ? 1.4 : big ? 1.12 : 1.22) : 1;
+    const mul = TK ? (allSingle ? 1.75 : big ? 1.12 : 1.22) : 1;
     slots = (big ? SLOTS_BIG : SLOTS_ALL).map(s => Object.assign({}, s, { occ: null, s: s.s * mul }));
     btnDown = mkBtn('Turunkan', true, () => sendBack(), GS.ICON.retry);
     btnDown.hidden = true;
@@ -1405,13 +1410,13 @@
   async function showSummary(n) {
     const g = G(L_.top, { class: 'ak' });
     R(g, 250, 120, 780, 300, 30, P.cream, OUT, 4);
-    T(g, 640, 170, 'Angkot yang berangkat hari ini', 30, P.ink, { class: 't-display' });
+    T(g, 640, 172, 'Angkot yang berangkat hari ini', 36, P.ink, { class: 't-display' });
     const items = [];
     for (let k = 0; k < n; k++) {
       const m = G(g, { opacity: 0 });
       const x = 640 - (n - 1) * 72 + k * 144 - 60;
       const ic = G(m); place(ic, x, 300, 0.6); miniAngkot(ic, { full: true, sw: 5 });
-      T(m, x + 60, 336, '10', 34, P.ui, { class: 'gs-num' });
+      T(m, x + 60, 340, '10', 42, P.ui, { class: 'gs-num' });
       items.push(m);
     }
     const eq = T(g, 640, 388, '', 40, P.ink, { class: 'gs-num' });
@@ -1498,7 +1503,7 @@
     }
     if (opts.sign !== false) {
       R(shake, L / 2 - 34, -124, 68, 20, 6, P.cream, OUT, sw * 0.7);
-      T(shake, L / 2, -114, 'isi ' + capN, 15, P.ink, { class: 'gs-num' });
+      T(shake, L / 2, -114, 'isi ' + capN, 15, P.ink, { class: 'gs-num', 'data-qc': 'decor' });
     }
     const heads = G(shake);
     const wh = [wheel(shake, 44, -20, 17), wheel(shake, L - 40, -20, 17)];
@@ -1528,35 +1533,47 @@
     else if (kind === 'dot') { place(m, x + w / 2, y - 14, 1); C(m, 0, 0, 13, HEADC[Math.floor(x) % 4], OUT, 2.5); PA(m, 'M-12 -3 Q0 -18 12 -3 Z', OUT); }
     return m;
   }
-  function makeBoard(colsIn) {
+  function makeBoard(colsIn, opts) {
+    opts = opts || {};
     const cols = colsIn.map(c => typeof c === 'number' ? Object.assign({ unit: c }, UNITS[c]) : c);
-    const n = cols.length, W = n === 1 ? 300 : n === 2 ? 258 : n === 3 ? 232 : 206;
-    const B = { cols, vals: cols.map(() => 0), dig: cols.map(() => 0), locks: cols.map(() => false), boxes: [], iconG: [], x0: [], W, locked: false, onStep: () => {} };
+    const n = cols.length, layout = opts.layout || (n >= 3 ? 'col' : 'row');
+    const W = layout === 'row' ? 330 : n <= 2 ? 156 : n === 3 ? 142 : 134;
+    const H = layout === 'row' ? 266 : 476;
+    const width = n * W + 28;
+    const B = { cols, vals: cols.map(() => 0), dig: cols.map(() => 0), locks: cols.map(() => false), boxes: [], iconG: [], x0: [], W, width, locked: false, onStep: () => {} };
+    const bx = opts.x != null ? opts.x : 12, by = opts.y != null ? opts.y : 8;
     const g = G(L_.ui, { class: 'ak' });
-    B.g = g;
-    R(g, 18, 8, n * W + 28, 234, 22, P.wood, OUT, 4);
-    R(g, 26, 13, 200, 6, 3, P.woodH);
-    R(g, 32, 22, n * W, 206, 14, '#2F6B4C', OUT, 3);
+    place(g, bx, by);
+    B.g = g; B.bx = bx; B.by = by;
+    R(g, 0, 0, width, H, 22, P.wood, OUT, 4);
+    R(g, 8, 5, 200, 6, 3, P.woodH);
+    R(g, 14, 14, n * W, H - 28, 14, '#2F6B4C', OUT, 3);
     B.labels = G(g, { style: 'display:none' });
     B.steps = G(g, { style: 'display:none' });
-    const bw = W >= 230 ? 72 : 62, off = W >= 230 ? 82 : 70;
+    const hs = n === 1 ? 44 : layout === 'row' ? 34 : n >= 4 ? 30 : 34;
+    const isRow = layout === 'row';
+    const bw = isRow ? 92 : Math.min(W - 16, 112), bh = 84;
     cols.forEach((c, i) => {
-      const x0 = 32 + i * W, cx = x0 + W / 2;
+      const x0 = 14 + i * W, cx = x0 + W / 2;
       B.x0.push(x0);
-      if (i) PA(g, 'M' + x0 + ' 34 V216', 'none', '#E8F0E0', 3, { 'stroke-dasharray': '2 10', opacity: 0.7 });
-      T(g, cx, 44, c.title, n >= 4 ? 20 : 24, P.cream, { class: 't-display', 'letter-spacing': '1' });
+      if (i) PA(g, 'M' + x0 + ' 26 V' + (H - 26), 'none', '#E8F0E0', 3, { 'stroke-dasharray': '2 10', opacity: 0.7 });
+      T(g, cx, 46, c.title, hs, P.cream, { class: 't-display' });
       B.iconG.push(G(g));
       const d = G(g);
-      R(d, cx - 34, 160, 68, 60, 12, P.cream, OUT, 3);
-      B.boxes.push({ g: d, t: T(d, cx, 191, '?', 44, P.ink, { class: 'gs-num' }), cx });
-      [-1, 1].forEach(sign => {
+      const dy = isRow ? 206 : 322;
+      R(d, cx - 44, dy - 39, 88, 78, 14, P.cream, OUT, 3);
+      B.boxes.push({ g: d, t: T(d, cx, dy + 2, '?', 58, P.ink, { class: 'gs-num' }), cx });
+      const pos = isRow ? [[cx - 108, dy], [cx + 108, dy]] : [[cx, 226], [cx, 418]];
+      [-1, 1].forEach((sign, si) => {
+        const at = isRow ? pos[si] : pos[sign > 0 ? 0 : 1];
         const b = G(B.steps, { class: 'ak-btn', tabindex: 0, role: 'button', 'aria-label': (sign > 0 ? 'Tambah ' : 'Kurangi ') + c.title.toLowerCase() });
-        place(b, cx + sign * off, 190);
+        place(b, at[0], at[1]);
+        R(b, -Math.max(bw, 108) / 2, -55, Math.max(bw, 108), 110, 18, '#fff', null, 0, { 'fill-opacity': 0, 'data-hit': 'stepper' });
         const f = G(b);
-        R(f, -bw / 2, -30, bw, 60, 16, P.ui, OUT, 3.5);
-        R(f, -bw / 2 + 8, -24, 30, 8, 4, '#5E9BE6');
-        PA(f, sign > 0 ? 'M-12 0 H12 M0 -12 V12' : 'M-12 0 H12', 'none', '#fff', 6);
-        R(b, -bw / 2 - 6, -36, bw + 12, 72, 18, 'none', P.sun, 4, { class: 'ak-ring' });
+        R(f, -bw / 2, -bh / 2, bw, bh, 18, P.ui, OUT, 3.5);
+        R(f, -bw / 2 + 9, -bh / 2 + 7, 34, 9, 4.5, '#5E9BE6');
+        PA(f, sign > 0 ? 'M-15 0 H15 M0 -15 V15' : 'M-15 0 H15', 'none', '#fff', 7);
+        R(b, -bw / 2 - 6, -bh / 2 - 6, bw + 12, bh + 12, 20, 'none', P.sun, 4, { class: 'ak-ring' });
         const act = () => {
           if (B.locked || B.locks[i]) return;
           tw(160, e => place(f, 0, 0, e < 0.4 ? 1 - 0.2 * (e / 0.4) : 0.92 + 0.08 * ((e - 0.4) / 0.6)), 'linear');
@@ -1572,12 +1589,18 @@
       B.labels.innerHTML = '';
       cols.forEach((c, i) => {
         B.iconG[i].innerHTML = '';
-        const sp = Math.min(48, (W - 24) / 5), w = sp * 0.9;
+        const per = isRow ? 5 : 3;
+        const sp = isRow ? Math.min(52, (W - 24) / 5) : (W - 16) / 3, w = sp * 0.9;
         for (let k = 0; k < B.vals[i]; k++) {
-          const x = B.x0[i] + 12 + (k % 5) * sp, y = 100 + Math.floor(k / 5) * 46;
+          const x = B.x0[i] + (isRow ? 14 : 9) + (k % per) * sp, y = (isRow ? 104 : 98) + Math.floor(k / per) * (isRow ? 46 : 38);
           const m = iconFor(B.iconG[i], c.icon, x, y, w, c);
-          if (c.unit) T(B.labels, x + w / 2, y + 12, fmt((k + 1) * c.unit), 14, P.sunH, { class: 'gs-num' });
           if (popIdx === i && k === B.vals[i] - 1) { const tr = m.getAttribute('transform'); tw(220, e => m.setAttribute('transform', tr + ' scale(' + Math.max(0.01, e).toFixed(3) + ')'), 'outBack'); }
+        }
+        if (c.unit && B.vals[i]) {
+          const cx = B.x0[i] + W / 2, ly = isRow ? 128 : 150;
+          const txt = '= ' + fmt(B.vals[i] * c.unit);
+          R(B.labels, cx - txt.length * 11 - 10, ly - 24, txt.length * 22 + 20, 48, 14, '#1E4A33', null, 0, { opacity: 0.92 });
+          T(B.labels, cx, ly + 1, txt, 38, P.sunH, { class: 'gs-num' });
         }
       });
     };
@@ -1587,8 +1610,8 @@
       B.steps.style.display = on ? '' : 'none';
       [...B.steps.children].forEach(b => { b.style.display = B.locks[b.__col] ? 'none' : ''; });
     };
-    B.mark = ok => B.boxes.forEach(bx => { const r = bx.g.querySelector('rect'); r.setAttribute('fill', ok ? '#E3F4F1' : P.cream); r.setAttribute('stroke', ok ? P.teal : OUT); });
-    B.number = () => B.dig.reduce((s, v, i) => s + v * (cols[i].unit || 1), 0);
+    B.mark = ok => B.boxes.forEach(bx2 => { const r = bx2.g.querySelector('rect'); r.setAttribute('fill', ok ? '#E3F4F1' : P.cream); r.setAttribute('stroke', ok ? P.teal : OUT); });
+    B.number = () => B.dig.reduce((sum, v, i) => sum + v * (cols[i].unit || 1), 0);
     return B;
   }
   function buildBecakIcon(p) {
@@ -1621,11 +1644,11 @@
   }
   function crowdSign(n) {
     const g = G(L_.ui, { class: 'ak' });
-    place(g, 440, 380);
-    R(g, -4, 0, 8, 60, 3, P.woodS, OUT, 2.5);
-    R(g, -78, -46, 156, 56, 12, P.wood, OUT, 3.5);
-    R(g, -70, -39, 140, 42, 8, P.cream, OUT, 2.5);
-    T(g, 0, -18, n + ' orang', 28, P.ink, { class: 'gs-num' });
+    place(g, 420, 372);
+    R(g, -4, 0, 8, 70, 3, P.woodS, OUT, 2.5);
+    R(g, -104, -62, 208, 70, 14, P.wood, OUT, 3.5);
+    R(g, -96, -55, 192, 56, 10, P.cream, OUT, 2.5);
+    T(g, 0, -27, n + ' orang', 46, P.ink, { class: 'gs-num' });
     return g;
   }
   /** One person hops from the crowd into a seat of a small angkot (world coords). */
@@ -1637,7 +1660,7 @@
   /* ================================================================== TENS ROUND (puluhan & satuan) */
   function startTens(say) {
     mode = { phase: 'fill', crowd: [], busy: false, roundTries: 0, trips: 0 };
-    const B = mode.board = makeBoard([10, 1]);
+    const B = mode.board = makeBoard([10, 1], { x: 396, y: 8 });
     B.onStep = (i, sign) => { B.dig[i] = GS.clamp(B.dig[i] + sign, 0, 9); B.setDigit(i, B.dig[i]); };
     mode.btnFill = mkBtn('Isi angkot!', false, () => fillAngkot());
     mode.btnBecak = mkBtn('Becak', true, () => callBecak());
@@ -1762,7 +1785,7 @@
       GS.sfx.coin();
       hud.mood('happy');
       B.mark(true);
-      floatAt(String(mode.n), 290, 120);
+      floatAt(String(mode.n), 720, 120);
       GS.say(Cap(words(mode.n)) + ' penumpang! ' + B.vals[0] + ' puluhan, ' + B.vals[1] + ' satuan.');
       await sleep(2800);
       if (!alive(t)) return;
@@ -1779,40 +1802,45 @@
   }
 
   /* ================================================================== CALC ROUNDS: kirim ke pasar, the gate counts */
+  const GATE_X = 1246;
   function drawGate() {
-    const g = G(L_.halte, { class: 'ak' });
+    const g = G(L_.halte, { class: 'ak', 'data-qc': 'decor' });
+    const cnt = G(L_.halte, { class: 'ak' });
+    const lab = G(L_.halte, { class: 'ak', 'data-qc': 'decor' });
     const front = G(L_.fx, { class: 'ak' });
-    PA(g, 'M1000 300 L1140 236 L1280 300 Z', P.red, OUT, 4);
-    PA(g, 'M1030 292 L1140 244 L1180 262', 'none', P.redH, 5);
-    R(g, 1004, 296, 274, 54, 10, P.wood, OUT, 4);
-    R(g, 1014, 302, 120, 7, 3, P.woodH);
-    T(g, 1140, 326, 'PASAR', 34, P.cream, { class: 't-display', 'letter-spacing': '3' });
-    R(g, 1028, 348, 38, GROUND - 336, 6, P.redS, OUT, 4);
-    R(g, 1034, 356, 8, GROUND - 360, 4, P.red);
-    R(g, 1086, 348, 4, 18, 2, OUT); R(g, 1190, 348, 4, 18, 2, OUT);
-    R(g, 1066, 362, 148, 92, 16, P.cream, OUT, 4);
-    T(g, 1140, 381, 'sampai', 18, '#6B5444', { class: 't-body', 'font-weight': 700 });
-    const num = T(g, 1140, 420, '0', 46, P.ink, { class: 'gs-num' });
-    R(front, 1214, 348, 40, GROUND - 336, 6, P.redS, OUT, 4);
-    R(front, 1220, 356, 8, GROUND - 360, 4, P.red);
-    E(front, 1234, GROUND + 12, 34, 7, OUT, null, 0, { opacity: 0.18 });
+    PA(g, 'M1084 300 L1188 238 L1292 300 Z', P.red, OUT, 4);
+    PA(g, 'M1106 292 L1188 246 L1220 264', 'none', P.redH, 5);
+    R(g, 1090, 296, 196, 54, 10, P.wood, OUT, 4);
+    T(g, 1188, 324, 'PASAR', 32, P.cream, { class: 't-display', 'letter-spacing': '3' });
+    R(g, 1100, 348, 34, GROUND - 336, 6, P.redS, OUT, 4);
+    R(g, 1106, 356, 8, GROUND - 360, 4, P.red);
+    R(g, 1136, 348, 4, 18, 2, OUT); R(g, 1236, 348, 4, 18, 2, OUT);
+    R(cnt, 1108, 362, 160, 104, 16, P.cream, OUT, 4);
+    T(lab, 1188, 382, 'sampai', 20, '#6B5444', { class: 't-body', 'font-weight': 700 });
+    const num = T(cnt, 1188, 428, '0', 50, P.ink, { class: 'gs-num' });
+    R(front, GATE_X, 348, 36, GROUND - 336, 6, P.redS, OUT, 4);
+    R(front, GATE_X + 6, 356, 8, GROUND - 360, 4, P.red);
+    E(front, GATE_X + 18, GROUND + 12, 32, 7, OUT, null, 0, { opacity: 0.18 });
     return { num };
   }
-  function cardBase(h) {
+  const CX = 276;
+  function cardBase() {
     const g = G(L_.ui, { class: 'ak' });
-    R(g, 24, 318, 544, h || 318, 20, P.cream, OUT, 4);
-    C(g, 296, 326, 8, P.red, OUT, 3);
+    R(g, 16, 140, 520, 500, 22, P.cream, OUT, 4);
+    C(g, CX, 148, 8, P.red, OUT, 3);
     return g;
   }
+  const BODY = { class: 't-body', 'font-weight': 700 };
   function orderCard(n, hint) {
     if (mode.card) mode.card.remove();
-    const g = mode.card = cardBase(300);
-    T(g, 296, 368, 'Kirim ke pasar:', 28, P.ink, { class: 't-body', 'font-weight': 700 });
-    T(g, 296, 440, fmt(n), 76, P.ui, { class: 'gs-num' });
-    T(g, 296, 510, 'penumpang', 28, P.ink, { class: 't-body', 'font-weight': 700 });
+    const g = mode.card = cardBase();
+    T(g, CX, 214, 'Kirim ke pasar:', 38, P.ink, BODY);
+    T(g, CX, 336, fmt(n), 104, P.ui, { class: 'gs-num' });
+    T(g, CX, 450, 'penumpang', 38, P.ink, BODY);
     if (hint) {
       const parts = digitsOf(n, cfg.units).map((d, i) => d * cfg.units[i]).filter(Boolean).map(fmt);
-      T(g, 296, 570, fmt(n) + ' = ' + parts.join(' + '), 30, P.teal, { class: 'gs-num' });
+      const txt = fmt(n) + ' = ' + parts.join(' + ');
+      T(g, CX, 560, txt, Math.min(44, 900 / txt.length), P.teal, { class: 'gs-num' });
     }
   }
   function vehiclesOf(n, units) {
@@ -1835,53 +1863,66 @@
     });
     return { nodes, w: cx - x };
   }
+  function fitK(list, avail) {
+    const sizes = { train: 52, bus: 50, angkot: 46, becak: 34, cap: 52 };
+    let w = 0;
+    list.forEach((v, j) => { w += (sizes[v.kind] || 40) + 4 + (j && list[j - 1].kind !== v.kind ? 10 : 0); });
+    return Math.min(1.25, avail / Math.max(1, w));
+  }
   function calcCard(S) {
-    const g = mode.card = cardBase(318);
+    const g = mode.card = cardBase();
     mode.cardNodes = [];
     if (S.op === 'read') {
-      T(g, 296, 356, 'Berapa penumpangnya?', 28, P.ink, { class: 't-body', 'font-weight': 700 });
+      T(g, CX, 200, 'Berapa penumpangnya?', 38, P.ink, BODY);
       const n = S.parts[0];
-      let y = 420;
+      const step = S.units.length > 3 ? 86 : 104;
+      let y = S.units.length > 3 ? 296 : 316;
       S.units.forEach(u => {
         const d = Math.floor(n / u) % 10;
         const list = Array(d).fill(0).map(() => ({ kind: UNITS[u].icon }));
-        if (d) { const r = iconRow(g, list, 48, y, 1); mode.cardNodes.push(...r.nodes); }
-        y += S.units.length > 3 ? 52 : 64;
+        if (d) { const r = iconRow(g, list, 40, y, fitK(list, 470)); mode.cardNodes.push(...r.nodes); }
+        y += step;
       });
     } else if (S.op === 'sum' && S.icons) {
-      T(g, 296, 356, 'Digabung, berapa semuanya?', 28, P.ink, { class: 't-body', 'font-weight': 700 });
+      T(g, CX, 198, 'Digabung, berapa semuanya?', 36, P.ink, BODY);
       S.parts.forEach((n, i) => {
-        const y = 440 + i * 110;
-        T(g, 66, y - 18, String(n), 40, P.ui, { class: 'gs-num' });
-        if (i) T(g, 66, y - 66, '+', 34, P.ink, { class: 'gs-num' });
-        const r = iconRow(g, vehiclesOf(n, [10, 1]), 100, y, 0.72);
+        const y = 340 + i * 160;
+        T(g, 66, y - 22, String(n), 50, P.ui, { class: 'gs-num' });
+        if (i) T(g, 66, y - 96, '+', 46, P.ink, { class: 'gs-num' });
+        const vs = vehiclesOf(n, [10, 1]);
+        const r = iconRow(g, vs, 108, y, fitK(vs, 412));
         mode.cardNodes.push(...r.nodes);
       });
     } else if (S.op === 'sum' || S.op === 'est') {
-      T(g, 296, 360, S.op === 'est' ? 'Kira-kira berapa semuanya?' : 'Tiga rombongan digabung:', 28, P.ink, { class: 't-body', 'font-weight': 700 });
-      T(g, 296, 450, S.parts.map(fmt).join(' + '), 48, P.ui, { class: 'gs-num' });
-      T(g, 296, 530, S.op === 'est' ? 'Bulatkan ke ratusan terdekat.' : '= ?', S.op === 'est' ? 26 : 48, P.ink, { class: S.op === 'est' ? 't-body' : 'gs-num', 'font-weight': 700 });
+      T(g, CX, 204, S.op === 'est' ? 'Kira-kira berapa semuanya?' : 'Tiga rombongan digabung:', 36, P.ink, BODY);
+      T(g, CX, 340, S.parts.map(fmt).join(' + '), 58, P.ui, { class: 'gs-num' });
+      if (S.op === 'est') { T(g, CX, 450, 'Bulatkan ke', 36, P.ink, BODY); T(g, CX, 500, 'ratusan terdekat.', 36, P.ink, BODY); }
+      else T(g, CX, 450, '= ?', 58, P.ink, { class: 'gs-num' });
     } else if (S.op === 'sub') {
-      T(g, 296, 356, S.parts[0] + ' penumpang. ' + S.take + ' turun di halte.', 26, P.ink, { class: 't-body', 'font-weight': 700 });
+      T(g, CX, 192, S.parts[0] + ' penumpang.', 44, P.ink, BODY);
+      T(g, CX, 246, S.take + ' turun di halte.', 44, P.ink, BODY);
       const vs = vehiclesOf(S.parts[0], [10, 1]);
-      mode.cardNodes.push(...iconRow(g, vs.filter(v => v.val === 10), 48, 440, 1).nodes);
-      mode.cardNodes.push(...iconRow(g, vs.filter(v => v.val === 1), 48, 510, 1).nodes);
-      mode.subMsg = T(g, 296, 578, '', 30, P.ink, { class: 't-body', 'font-weight': 700 });
+      const a = vs.filter(v => v.val === 10), b = vs.filter(v => v.val === 1);
+      mode.cardNodes.push(...iconRow(g, a, 40, 360, fitK(a, 470)).nodes);
+      mode.cardNodes.push(...iconRow(g, b, 40, 460, fitK(b, 470)).nodes);
+      mode.subMsg = T(g, CX, 560, '', 36, P.ink, BODY);
     } else if (S.op === 'mult') {
-      T(g, 296, 356, S.cnt + ' angkot, tiap angkot isi ' + S.cap, 28, P.ink, { class: 't-body', 'font-weight': 700 });
-      const per = S.cnt > 10 ? 5 : 5, rowsN = Math.ceil(S.cnt / per);
+      T(g, CX, 196, S.cnt + ' angkot, isi ' + S.cap, 46, P.ink, BODY);
+      const per = 4, rowsN = Math.ceil(S.cnt / per);
+      const rh = rowsN > 3 ? 64 : 80;
       for (let k = 0; k < S.cnt; k++) {
-        const x = 52 + (k % per) * 100, y = 420 + Math.floor(k / per) * (rowsN > 2 ? 52 : 62);
-        mode.cardNodes.push(iconFor(g, 'cap', x, y, 90, { cap: S.cap, full: true }));
+        const x = 40 + (k % per) * 118, y = 300 + Math.floor(k / per) * rh;
+        mode.cardNodes.push(iconFor(g, 'cap', x, y, 108, { cap: S.cap, full: true }));
       }
-      T(g, 296, 606, S.cnt + ' × ' + S.cap + ' = ?', 34, P.ui, { class: 'gs-num' });
+      T(g, CX, 300 + (rowsN - 1) * rh + 70, S.cnt + ' × ' + S.cap + ' = ?', 48, P.ui, { class: 'gs-num' });
     }
   }
   function startCalc(say) {
     const S = cfg;
     mode = { busy: false, roundTries: 0 };
     mode.gate = drawGate();
-    const B = mode.board = makeBoard(S.units);
+    const bw0 = S.units.length * (S.units.length <= 2 ? 156 : S.units.length === 3 ? 142 : 134) + 28;
+    const B = mode.board = makeBoard(S.units, { layout: 'col', x: Math.max(544, Math.round(828 - bw0 / 2)), y: 140 });
     if (S.lock) B.locks = S.lock.slice();
     if (S.mode === 'build') {
       B.onStep = (i, sign) => {
@@ -1946,7 +1987,7 @@
     const t = tok;
     const cid = uid('gate');
     const wrap = G(L_.angkot, { class: 'ak' });
-    const cp = el('clipPath', { id: cid }, wrap); R(cp, -9000, 0, 10234, 800);
+    const cp = el('clipPath', { id: cid }, wrap); R(cp, -9000, 0, 9000 + GATE_X + 10, 800);
     const train = G(G(wrap, { 'clip-path': 'url(#' + cid + ')' }));
     let x = 660;
     const list = veh.map(v => {
@@ -1956,7 +1997,7 @@
       x -= o.len + 26;
       return item;
     });
-    const gateX = 1214, dist = gateX - x + 40;
+    const gateX = GATE_X, dist = gateX - x + 40;
     const speed = Math.max(380, dist / 8);
     let total = 0, counted = 0;
     const talk = list.length <= 8;
@@ -2005,7 +2046,7 @@
       GS.sfx.coin();
       hud.mood('cheer');
       B.mark(true);
-      floatAt(fmt(total), 1140, 330);
+      floatAt(fmt(total), 1188, 330);
       if (S.op === 'est') GS.say('Pas! Ada ' + words(total) + ', kira-kira ' + words(mode.expected) + '.');
       else GS.say('Pas! ' + Cap(words(total)) + ' penumpang sampai di pasar.');
       await sleep(2600);
@@ -2018,7 +2059,7 @@
     hud.mood('oops');
     if (S.mode === 'build') {
       const diff = total - S.target;
-      floatAt((diff < 0 ? 'kurang ' : 'lebih ') + fmt(Math.abs(diff)), 1140, 330);
+      floatAt((diff < 0 ? 'kurang ' : 'lebih ') + fmt(Math.abs(diff)), 1188, 330);
       GS.say('Sampai ' + total + '. Pesanannya ' + S.target + '. ' + (diff < 0 ? 'Kurang ' : 'Lebih ') + Math.abs(diff) + '.');
       if (mode.roundTries >= 2) { orderCard(S.target, true); B.labels.style.display = ''; }
     } else {
@@ -2029,7 +2070,7 @@
         const hintTxt = S.op === 'mult' ? 'Hitung loncat: ' + [1, 2, 3].map(k => k * S.cap).join(', ') + ', ...'
           : S.op === 'est' ? 'Tepatnya ' + fmt(mode.truth) + '.'
           : S.units.length > 2 ? 'Bus 100, angkot 10, becak 1.' : 'Angkot 10, becak 1.';
-        mode.hint = T(mode.card, 296, 626, hintTxt, 22, P.teal, { class: 't-body', 'font-weight': 700 });
+        mode.hint = T(mode.card, CX, 612, hintTxt, 36, P.teal, { class: 't-body', 'font-weight': 700 });
       }
     }
     await sleep(2400);
@@ -2042,8 +2083,8 @@
   /* ================================================================== SHARE ROUNDS: bagi sama rata */
   const capLen = c => 70 + Math.ceil(c / 2) * 26 + 36;
   function parkingPos(i, n, L) {
-    const s = Math.min(0.6, 640 / (n * (L + 14)));
-    return { x: 622 + i * (L + 14) * s, y: GROUND + 6, s };
+    const s = Math.min(0.6, 600 / (n * (L + 14)));
+    return { x: 650 + i * (L + 14) * s, y: GROUND - 66, s };
   }
   function startShare(say) {
     const S = cfg;
@@ -2059,7 +2100,7 @@
       A.pos = pp; A.host = host;
       mode.cars.push(A);
     }
-    const B = mode.board = makeBoard([{ title: 'TIAP ANGKOT', icon: 'dot' }]);
+    const B = mode.board = makeBoard([{ title: 'TIAP ANGKOT', icon: 'dot' }], { x: 650, y: 8 });
     B.onStep = (i, sign) => { if (mode.busy) return; B.vals[0] = GS.clamp(B.vals[0] + sign, 0, 10); B.setDigit(0, B.vals[0]); B.render(sign > 0 ? 0 : -1); };
     B.setDigits([0]); B.render(); B.showSteps(true);
     mode.btnGo = mkBtn('Bagikan!', false, () => bagikan());
@@ -2110,7 +2151,7 @@
     }
     GS.say(S.n + ' dibagi ' + S.N + ', tiap angkot ' + k + (left ? ', sisa ' + left : '') + '. Berangkat!');
     honk();
-    await Promise.all(mode.cars.map((A, i) => sleep(i * 120).then(() => tw(1200, e => place(A.host, GS.lerp(A.pos.x, 1500, e), A.pos.y, A.pos.s), 'inCubic'))));
+    await Promise.all(mode.cars.map((A, i) => sleep(i * 120).then(() => tw(1200, e => place(A.host, GS.lerp(A.pos.x, VX1() + 300, e), A.pos.y, A.pos.s), 'inCubic'))));
     if (!alive(t)) return;
     await sleep(800);
     roundDone('Hebat! Semua dapat sama rata.');
@@ -2136,7 +2177,7 @@
     mode = { busy: false, roundTries: 0, cars: [] };
     mode.crowd = makeCrowd(S.n);
     crowdSign(S.n);
-    const B = mode.board = makeBoard([{ title: 'ANGKOT ISI ' + S.c, icon: 'cap', cap: S.c }]);
+    const B = mode.board = makeBoard([{ title: 'ANGKOT ISI ' + S.c, icon: 'cap', cap: S.c }], { x: 650, y: 8 });
     B.vals[0] = 1;
     B.onStep = (i, sign) => { if (mode.busy) return; const v = GS.clamp(B.vals[0] + sign, 1, 6); if (v === B.vals[0]) return; B.vals[0] = v; B.setDigit(0, v); B.render(sign > 0 ? 0 : -1); };
     B.setDigits([1]); B.render(); B.showSteps(true);
@@ -2219,7 +2260,7 @@
       GS.say(S.n + ' penumpang butuh ' + m + ' angkot. Semua terangkut!');
     } else GS.say(S.n + ' dibagi ' + S.c + ' sama dengan ' + m + '.');
     honk();
-    await Promise.all(mode.cars.map((A, i) => sleep(i * 120).then(() => tw(1200, e => place(A.host, GS.lerp(A.pos.x, 1500, e), A.pos.y, A.pos.s), 'inCubic'))));
+    await Promise.all(mode.cars.map((A, i) => sleep(i * 120).then(() => tw(1200, e => place(A.host, GS.lerp(A.pos.x, VX1() + 300, e), A.pos.y, A.pos.s), 'inCubic'))));
     if (!alive(t)) return;
     await sleep(900);
     roundDone('Hebat! Semua penumpang terangkut.');
@@ -2231,19 +2272,19 @@
     const S = cfg;
     mode = { busy: false, roundTries: 0, lanes: [] };
     const bgL = G(L_.halte, { class: 'ak' });
-    R(bgL, 0, 362, 1280, 128, 0, '#8E8A86');
-    R(bgL, 0, 362, 1280, 6, 0, '#77736F');
-    for (let x = 20; x < 1280; x += 60) R(bgL, x, 486, 30, 4, 2, '#F3EEE2');
+    R(bgL, -600, 362, 2480, 128, 0, '#8E8A86');
+    R(bgL, -600, 362, 2480, 6, 0, '#77736F');
+    for (let x = -580; x < 1880; x += 60) R(bgL, x, 486, 30, 4, 2, '#F3EEE2');
     [S.a, S.b].forEach((c, li) => {
       const y = LANE_Y[li];
       const sg = G(L_.ui, { class: 'ak' });
       place(sg, 24, y - 128);
-      R(sg, 0, 0, 150, 116, 16, P.cream, OUT, 3.5);
-      const ic = G(sg); const o = capAngkot(G(ic), c, { sign: false, sw: 5 }); place(ic, 75 - o.L * 0.36, 82, 0.72);
-      T(sg, 75, 100, 'isi ' + c, 22, P.ink, { class: 'gs-num' });
+      R(sg, 0, -10, 160, 126, 16, P.cream, OUT, 3.5);
+      const ic = G(sg); const o = capAngkot(G(ic), c, { sign: false, sw: 5 }); place(ic, 80 - o.L * 0.3, 58, 0.6);
+      T(sg, 80, 88, 'isi ' + c, 44, P.ink, { class: 'gs-num' });
       mode.lanes.push({ c, y, cars: [], g: G(L_.angkot) });
     });
-    const B = mode.board = makeBoard([10, 1]);
+    const B = mode.board = makeBoard([10, 1], { x: 396, y: 8 });
     B.onStep = (i, sign) => { if (mode.busy) return; B.dig[i] = GS.clamp(B.dig[i] + sign, 0, i === 0 ? 4 : 9); B.setDigit(i, B.dig[i]); };
     B.setDigits(B.dig); B.showSteps(true);
     mode.btnGo = mkBtn('Isi!', false, () => multiGo());
@@ -2286,7 +2327,7 @@
       hud.mood('cheer'); GS.sfx.coin();
       GS.say(n + ' pas! Angkot isi ' + S.a + ' dan isi ' + S.b + ' sama-sama penuh.');
       honk();
-      await Promise.all(mode.lanes.flatMap(L => L.cars.map((A, i) => sleep(i * 60).then(() => { const tr = A.host.getAttribute('transform'); return tw(1200, e => A.host.setAttribute('transform', 'translate(' + f1(1400 * e) + ' 0) ' + tr), 'inCubic'); }))));
+      await Promise.all(mode.lanes.flatMap(L => L.cars.map((A, i) => sleep(i * 60).then(() => { const tr = A.host.getAttribute('transform'); return tw(1200, e => A.host.setAttribute('transform', 'translate(' + f1((VX1() + 200) * e) + ' 0) ' + tr), 'inCubic'); }))));
       if (!alive(t)) return;
       await sleep(600);
       roundDone('Hebat! Kamu menemukan kelipatan yang sama.');
@@ -2311,18 +2352,18 @@
     [S.A, S.B].forEach((n, si) => {
       const g = G(L_.ui, { class: 'ak' });
       const x0 = si ? 700 : 40;
-      R(g, x0, 96, 540, 420, 22, P.cream, OUT, 4);
-      R(g, x0, 96, 540, 52, 22, si ? P.org : P.blue, OUT, 4);
-      T(g, x0 + 270, 123, 'Terminal ' + (si ? 'B' : 'A'), 28, si ? P.ink : '#fff', { class: 't-display' });
-      T(g, x0 + 270, 196, String(n), 64, si ? P.orgS : P.blueS, { class: 'gs-num' });
+      R(g, x0, 140, 540, 460, 22, P.cream, OUT, 4);
+      R(g, x0, 140, 540, 60, 22, si ? P.org : P.blue, OUT, 4);
+      T(g, x0 + 270, 171, 'Terminal ' + (si ? 'B' : 'A'), 36, si ? P.ink : '#fff', { class: 't-display' });
+      T(g, x0 + 270, 250, String(n), 72, si ? P.orgS : P.blueS, { class: 'gs-num' });
       const tens = Math.floor(n / 10), ones = n % 10;
       const items = { t: [], o: [] };
-      for (let k = 0; k < tens; k++) items.t.push(iconFor(g, 'angkot', x0 + 34 + (k % 5) * 98, 292 + Math.floor(k / 5) * 58, 84, { full: true }));
-      for (let k = 0; k < ones; k++) items.o.push(iconFor(g, 'becak', x0 + 44 + (k % 5) * 98, 438 + Math.floor(k / 5) * 62, 58));
+      for (let k = 0; k < tens; k++) items.t.push(iconFor(g, 'angkot', x0 + 34 + (k % 5) * 98, 352 + Math.floor(k / 5) * 58, 84, { full: true }));
+      for (let k = 0; k < ones; k++) items.o.push(iconFor(g, 'becak', x0 + 44 + (k % 5) * 98, 500 + Math.floor(k / 5) * 64, 58));
       mode.sides.push(items);
     });
     const slot = mode.slot = G(L_.ui, { class: 'ak' });
-    place(slot, 640, 300);
+    place(slot, 640, 360);
     C(slot, 0, 0, 52, P.cream, OUT, 4, { 'stroke-dasharray': '10 8' });
     mode.sign = G(slot);
     mode.btns = [['<', 'kurang dari'], ['=', 'sama dengan'], ['>', 'lebih dari']].map(([s, lab]) => {

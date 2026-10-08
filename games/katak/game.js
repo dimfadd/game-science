@@ -55,13 +55,14 @@
   const sgn = v => (v > 0 ? 1 : v < 0 ? -1 : 0);
   let uiK = 1;                // >1 on small screens so sprites and numbers stay readable
   const frogScale = z => clamp(0.42 + 0.58 * z, 0.56, 1) * Math.min(uiK, 1.3);
-  const stoneScale = z => Math.min(1, 1.05 * z);
-  const labelScale = z => (z < 0.45 ? 0.84 : 1) * uiK;
+  const stoneScale = z => (L && L.tk ? Math.min(1.15, 1.25 * z) : Math.min(1, 1.05 * z));
+  const labelScale = z => (z < 0.45 ? 0.92 : 1) * uiK;
+  const labelY = () => 46 + 20 * uiK;          // below the water, clear of it at any size
   function hopSound() { if (GS.tone) GS.tone({ f: 330, f2: 560, t: 0.09, type: 'triangle', vol: 0.07 }); }
   function sprite(parent, n, ys, k, cls) {
     const g = GS.el('g', { class: cls || null }, parent);
     const s = { el: g, n, ys, k };
-    const fn = () => g.setAttribute('transform', 'translate(' + (s.n * SP).toFixed(2) + ' ' + (s.ys / cam.z).toFixed(2) + ') scale(' + (s.k(cam.z) / cam.z).toFixed(4) + ')');
+    const fn = () => g.setAttribute('transform', 'translate(' + (s.n * SP).toFixed(2) + ' ' + ((typeof s.ys === 'function' ? s.ys() : s.ys) / cam.z).toFixed(2) + ') scale(' + (s.k(cam.z) / cam.z).toFixed(4) + ')');
     s.place = fn; fn(); camFns.push(fn);
     return s;
   }
@@ -76,7 +77,8 @@
   }
   function overview() {
     const a = Math.min(L.start, L.target), b = Math.max(L.start, L.target);
-    const z = clamp(1140 / ((b - a + 2.8) * SP), ZMIN, 1);
+    // fixed screen margin each side for the pills and the friend, whatever the zoom
+    const z = clamp(1000 / ((b - a) * SP + 80), ZMIN, 1);
     return { cx: (a + b) / 2 * SP, z };
   }
   /** Screen x (svg units) of a number at the current camera. */
@@ -201,6 +203,7 @@
   }
   function stoneArt(emph, dots) {
     const id = 'kt-st' + (++stoneN);
+    if (dots != null && L && L.tk) return '<g transform="scale(1.14 1.55)">' + stoneArt(false, null) + '</g>' + (dots ? dotsArt(dots, dots > 5 ? -17 : -10, 7, 15.5) : '');
     return '<defs><clipPath id="' + id + '"><path d="' + STONE + '"/></clipPath></defs>' +
       '<ellipse cx="2" cy="8" rx="44" ry="9" fill="#2F80C9" opacity="0.35"/>' +
       '<path d="' + STONE + '" fill="#63666B"/>' +
@@ -208,7 +211,7 @@
       '<ellipse cx="-14" cy="-9" rx="13" ry="4" fill="#B6B9BD"/>' +
       (emph ? '<ellipse cx="14" cy="-8" rx="11" ry="4.5" fill="#7CC26B"/><ellipse cx="11" cy="-10" rx="5" ry="2" fill="#A8DB8F"/>' : '') + '</g>' +
       '<path d="' + STONE + '" fill="none" stroke="' + OUT + '" stroke-width="3" stroke-linejoin="round"/>' +
-      (dots ? dotsArt(dots, dots > 5 ? -11 : -5, 4.6, 13) : '') +
+      (dots ? dotsArt(dots, dots > 5 ? -13 : -6, 7, 15.5) : '') +
       '<path d="M-40 6q7 -3 14 0t14 0t14 0t14 0t14 0t14 0" fill="none" stroke="#E6F5F0" stroke-width="2.4" stroke-linecap="round" opacity="0.8"/>';
   }
 
@@ -274,7 +277,7 @@
     const r = plan.getBoundingClientRect();
     let panelTop = 800;
     if (r.height > 0) panelTop = GS.svgPoint(svg, r.left + r.width / 2, r.top).y;
-    const y = Math.round(clamp(panelTop - 84, 178, 470));
+    const y = Math.round(clamp(panelTop - 50 - 40 * uiK, 178, 500));
     if (y !== Y0 || !bgL.firstChild) { Y0 = y; drawBackground(); }
     applyCamera();
     updateLabels();
@@ -342,7 +345,7 @@
       () => crocChallenge(false)
     ],
     k2: [
-      () => { const t = 10 * R(4, 9); return { target: t, hi: t + 8, labels: 5, dir: true, stages: [{ sizes: [1, 2, 5, 10] }], sol: [fwd(10, t / 10)],
+      () => { const t = 10 * R(4, 9); return { target: t, hi: t + 8, labels: 5, stages: [{ sizes: [1, 2, 5, 10] }], sol: [fwd(10, t / 10)],
         say: 'Jauh sekali! Coba lompatan sepuluh.', hint: 'Lompat sepuluh: sepuluh, dua puluh, tiga puluh.' }; },
       () => { const t = 5 * (2 * R(2, 5) + 1); return { target: t, hi: t + 6, labels: 5, dir: true, stages: [{ sizes: [2, 5, 10] }], sol: [fwd(5, t / 5)],
         say: 'Lompat lima-lima sampai ke temannya.', hint: 'Lima, sepuluh, lima belas, terus.' }; },
@@ -415,7 +418,7 @@
   };
 
   function crocChallenge() {
-    const d = { labels: 'ends', dir: true, stages: [{ sizes: [1, 2, 5, 10] }], crocs: [], say: 'Banyak buaya! Pilih lompatan yang aman.', hint: 'Lihat buayanya. Ukuran lompatan mana yang melewati semua?' };
+    const d = { labels: 'ends', stages: [{ sizes: [1, 2, 5, 10] }], crocs: [], say: 'Banyak buaya! Pilih lompatan yang aman.', hint: 'Lihat buayanya. Ukuran lompatan mana yang melewati semua?' };
     if (Math.random() < 0.5) {
       d.target = pick([12, 14, 16, 18]);
       const odds = []; for (let n = 1; n < d.target; n += 2) odds.push(n);
@@ -625,7 +628,7 @@
         const major = whole ? n % whole === 0 : n % 10 === 0, minor = whole ? false : n % 5 === 0;
         const big = emph && major ? 1.16 : emph && minor ? 1.08 : 1;
         const s = sprite(stonesL, n, 0, z => stoneScale(z) * big);
-        GS.markup(s.el, stoneArt(emph && (major || minor), L.tk && n > 0 ? n : 0));
+        GS.markup(s.el, stoneArt(emph && (major || minor), L.tk ? n : null));
         stoneEls[n] = s;
       }
     }
@@ -639,8 +642,8 @@
     // number labels (fading by level) + start/target pills
     for (let n = L.lo; n <= L.hi; n++) {
       if (n === L.start || (n === L.target && !L.meet)) continue;
-      const s = sprite(labelsL, n, L.tk ? 60 : 66, labelScale);
-      GS.el('text', { x: 0, y: 0, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': L.tk ? 24 : 30, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 7, 'paint-order': 'stroke', 'stroke-linejoin': 'round', class: 'gs-num' }, s.el).textContent = fmt(n);
+      const s = sprite(labelsL, n, labelY, labelScale);
+      GS.el('text', { x: 0, y: 0, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': L.tk ? 34 : 36, 'font-weight': 600, fill: '#2B1D14', stroke: '#FFF8EC', 'stroke-width': 7, 'paint-order': 'stroke', 'stroke-linejoin': 'round', class: 'gs-num' }, s.el).textContent = fmt(n);
       s.el.style.transition = 'opacity 500ms ease-out';
       labelEls[n] = s;
     }
@@ -665,22 +668,23 @@
   }
 
   function pill(n, color) {
-    const s = sprite(labelsL, n, 66, labelScale);
-    const txt = fmt(n), w = 26 + txt.length * 18;
-    GS.el('rect', { x: -w / 2, y: -21, width: w, height: 42, rx: 21, fill: '#FFF8EC', stroke: color, 'stroke-width': 5 }, s.el);
-    GS.el('text', { x: 0, y: 1, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 30, fill: '#2B1D14', class: 'gs-num' }, s.el).textContent = txt;
+    const s = sprite(labelsL, n, labelY, labelScale);
+    const txt = fmt(n), w = 28 + txt.length * 21;
+    GS.el('rect', { x: -w / 2, y: -25, width: w, height: 50, rx: 25, fill: '#FFF8EC', stroke: color, 'stroke-width': 5 }, s.el);
+    GS.el('text', { x: 0, y: 1, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 36, fill: '#2B1D14', class: 'gs-num' }, s.el).textContent = txt;
     return s;
   }
   /** Label every k-th stone, k chosen so the numerals never overlap at the overview zoom. */
   function labelStep(z) {
     const len = Math.max(fmt(L.lo).length, fmt(L.hi).length);
-    const need = (len * 17 + 14) * labelScale(z), gap = SP * z;
-    const steps = L.unit < 1 ? [1, 2, 4, 8] : [1, 2, 5, 10, 20, 50];
+    const need = (len * 21 + 16) * labelScale(z), gap = SP * z;
+    // label steps that land on round values (halves/wholes, thousands on a 500-line)
+    const steps = L.unit < 1 ? [1, 2, 4, 8] : L.unit === 500 ? [2, 4, 10, 20] : [1, 2, 5, 10, 20, 50];
     return steps.find(k => k * gap >= need) || steps[steps.length - 1];
   }
   function labelVisible(n) {
     const z = overview().z;
-    const near = m => Math.abs(n - m) * SP * z < (fmt(m).length * 9 + 34) * labelScale(z);
+    const near = m => Math.abs(n - m) * SP * z < (fmt(m).length * 21 + 40) * labelScale(z);
     if (near(L.start) || (!L.meet && near(L.target))) return false;
     const step = labelStep(z);
     if (restored) return n % step === 0;
@@ -752,12 +756,12 @@
     f.n = n1; f.hy = 0; f.rot = 0; f.ground = true;
     trail.push(path);
     // hop counter badge at the top of the arc
-    const bk = clamp(Math.abs(dz) * SP * cam.z / 36, 0.5, 1);
+    const bk = clamp(Math.abs(dz) * SP * cam.z / 50, 0.85, 1);
     // tiny hops: only the last badge of the row, so the counters never pile up
-    if (Ls < 30 * uiK && !last) { ripple(n1); await GS.tween(T(120), (e, p) => { const q = p < 0.5 ? p * 2 : (1 - p) * 2; f.sy = 1 - 0.18 * q; f.sx = 1 + 0.16 * q; f.place(); }); f.sx = f.sy = 1; f.place(); return; }
-    const b = sprite(arcsL, (n0 + n1) / 2, f.base - H * 0.92 - 18 - 22 * bk * uiK, () => bk * uiK);
-    GS.el('circle', { r: 17, fill: stageIdx ? '#FFE08A' : '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, b.el);
-    GS.el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 1, 'font-size': 21, fill: '#2B1D14', class: 'gs-num' }, b.el).textContent = badge;
+    if (Ls < 44 * uiK && !last) { ripple(n1); await GS.tween(T(120), (e, p) => { const q = p < 0.5 ? p * 2 : (1 - p) * 2; f.sy = 1 - 0.18 * q; f.sx = 1 + 0.16 * q; f.place(); }); f.sx = f.sy = 1; f.place(); return; }
+    const b = sprite(arcsL, (n0 + n1) / 2, f.base - H * 0.92 - 18 - 28 * bk * uiK, () => bk * uiK);
+    GS.el('circle', { r: 24, fill: stageIdx ? '#FFE08A' : '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, b.el);
+    GS.el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 1, 'font-size': 34, fill: '#2B1D14', class: 'gs-num' }, b.el).textContent = badge;
     trail.push(b.el);
     GS.tween(T(220), e => { b.k = () => bk * uiK * GS.ease.outBack(e); b.place(); });
     ripple(n1);
@@ -905,11 +909,11 @@
     const text = label || (d == null ? 'ke sana' : d < 0 ? 'kurang ' + fmtV(-d * L.unit) : 'lebih ' + fmtV(d * L.unit));
     const tag = sprite(gapL, (a + b) / 2, -150, () => uiK);
     const dotsOnly = L.tk && d != null && Math.abs(d) <= 10;     // TK: show the gap as dots, no reading
-    const w = dotsOnly ? Math.min(5, Math.abs(d)) * 14 + 30 : text.length * 15 + 36;
-    GS.el('rect', { x: -w / 2, y: dotsOnly && Math.abs(d) > 5 ? -30 : -24, width: w, height: dotsOnly && Math.abs(d) > 5 ? 60 : 48, rx: 24, fill: '#FFF8EC', stroke: '#F2A900', 'stroke-width': 5 }, tag.el);
+    const w = dotsOnly ? Math.min(5, Math.abs(d)) * 14 + 30 : text.length * 17 + 40;
+    GS.el('rect', { x: -w / 2, y: dotsOnly && Math.abs(d) > 5 ? -30 : -27, width: w, height: dotsOnly && Math.abs(d) > 5 ? 60 : 54, rx: 27, fill: '#FFF8EC', stroke: '#F2A900', 'stroke-width': 5 }, tag.el);
     const arrowDir = sgn(tgt - pos);
     if (dotsOnly) GS.markup(tag.el, dotsArt(Math.abs(d), Math.abs(d) > 5 ? -6 : 0, 5, 14).replace(/#FFF8EC/g, '#F2A900'));
-    else GS.el('text', { y: 2, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 26, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, tag.el).textContent = text;
+    else GS.el('text', { y: 2, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 30, 'font-weight': 700, fill: '#2B1D14', class: 't-body' }, tag.el).textContent = text;
     GS.el('path', { d: 'M' + (arrowDir * (w / 2 + 6)) + ' -10l' + (arrowDir * 14) + ' 10l' + (-arrowDir * 14) + ' 10Z', fill: '#F2A900', stroke: OUT, 'stroke-width': 2.4, 'stroke-linejoin': 'round' }, tag.el);
     const upd = () => {
       const z = cam.z, pad = 0.42 * SP;
@@ -957,18 +961,25 @@
     uiL.innerHTML = '';
     const g = GS.el('g', {}, uiL);
     const card = GS.el('rect', { rx: 26, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 4 }, g);
-    const texts = lines.map((ln, k) => {
-      const t = GS.el('text', { x: 0, y: 46 + k * 60, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': k === lines.length - 1 ? 50 : 38, fill: k === lines.length - 1 ? '#2B1D14' : '#6B5444', class: 'gs-num' }, g);
+    const mk = (ln, k, last) => {
+      const t = GS.el('text', { x: 0, y: 48 + k * 64, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': last ? 56 : 44, fill: last ? '#2B1D14' : '#6B5444', class: 'gs-num' }, g);
       t.textContent = ln;
       return t;
-    });
-    let w = 0;
-    texts.forEach(t => { try { w = Math.max(w, t.getComputedTextLength()); } catch (e) { w = Math.max(w, t.textContent.length * 26); } });
-    const scale = Math.min(1, 1160 / (w + 60));
-    const h = 26 + lines.length * 60;
+    };
+    const width = ts => ts.reduce((w, t) => { try { return Math.max(w, t.getComputedTextLength()); } catch (e) { return Math.max(w, t.textContent.length * 28); } }, 0);
+    let texts = lines.map((ln, k) => mk(ln, k, k === lines.length - 1));
+    let w = width(texts);
+    if (lines.length > 1 && 1220 / (w + 60) < 0.82) {   // long repeated sum: keep only the short sentence
+      texts.forEach(t => t.remove());
+      lines = lines.slice(-1); texts = [mk(lines[0], 0, true)]; w = width(texts);
+    }
+    const scale = Math.min(1, 1220 / (w + 60));
+    const h = 32 + lines.length * 64;
     card.setAttribute('x', -(w / 2 + 30)); card.setAttribute('y', 8); card.setAttribute('width', w + 60); card.setAttribute('height', h);
-    GS.tween(T(420), e => g.setAttribute('transform', 'translate(640 14) scale(' + (scale * (0.6 + 0.4 * e)).toFixed(3) + ')'), 'outBack');
-    g.setAttribute('transform', 'translate(640 14) scale(' + (scale * 0.6) + ')');
+    // below the caption zone (top-left ~130 u) when the frogs leave room, else at the top
+    const y = Math.max(10, Math.min(136, Y0 - 150 * uiK - h * scale));
+    GS.tween(T(420), e => g.setAttribute('transform', 'translate(640 ' + y.toFixed(1) + ') scale(' + (scale * (0.6 + 0.4 * e)).toFixed(3) + ')'), 'outBack');
+    g.setAttribute('transform', 'translate(640 ' + y.toFixed(1) + ') scale(' + (scale * 0.6) + ')');
   }
 
   async function success() {

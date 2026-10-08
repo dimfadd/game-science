@@ -24,7 +24,7 @@
   /* The planning panel lives in the dock, stacked above the Lompat! button. */
   #dock { flex-direction: column; align-items: flex-end; gap: 12px; }
   .kt-plan {
-    --b: clamp(46px, 8.6vh, 72px);
+    --b: clamp(52px, 8.6vh, 72px);
     display: grid;
     grid-template-columns: auto auto auto auto;
     column-gap: clamp(10px, 1.6vh, 18px);
@@ -82,7 +82,7 @@
 
   /* Count: big − number + */
   .kt-step {
-    width: calc(var(--b) * 0.86); height: calc(var(--b) * 0.86); min-width: 0;
+    width: max(46px, calc(var(--b) * 0.86)); height: max(46px, calc(var(--b) * 0.86)); min-width: 0;
     border-radius: 999px; background: var(--secondary);
   }
   .kt-step svg { width: 56%; height: 56%; }
@@ -128,9 +128,15 @@
     .kt-breathe, .kt-wave, .kt-bob, .kt-shimmer, .kt-pulse { animation: none; }
   }
   @media (max-height: 500px) {
-    #dock { gap: 8px; }
-    .kt-plan { border-width: 3px; border-radius: 20px; padding: 5px 10px 7px; row-gap: 2px; }
-    .kt-cap { font-size: 11px; }
+    /* Phones: one row (plan + Lompat!) so the number line gets the height. Captions and the
+       tiny maju/mundur words are dropped: arrows, lily pads and +/- carry the meaning. */
+    #dock { flex-direction: row; align-items: flex-end; gap: 10px; }
+    .kt-plan { border-width: 3px; border-radius: 20px; padding: 6px 10px; row-gap: 6px; column-gap: 10px; }
+    .kt-cap, .kt-dirbtn span { display: none; }
+    .kt-dirbtn { width: calc(var(--b) * 0.92); }
+    .kt-dirbtn svg { height: 60%; }
+    #dock .gs-action { min-width: 0; padding: 0 18px; }
+    #dock .gs-action .kt-hop-ico { display: none; }
   }
 </style>
 </head>
