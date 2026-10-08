@@ -8,7 +8,9 @@ Owner reported from a phone: Timbangan weights unreadable and the left side of t
 - Root causes: the fixed 1280×800 canvas was letterboxed on ~2.2:1 phones and shown at scale ~0.47; asset sizes had never been measured at phone scale. Baseline measurement for Timbangan Kelas 4+: 16/16 level views FAIL (weight numerals 3.5–7 px, drag targets 34–37 px).
 - Core: stage viewBox widens to the screen, scenery extends past the edges, HUD becomes a left rail on phone landscape (+20% canvas scale), drag targets are tagged for measurement.
 - New SOP `docs/QC-VISUAL.md` and tool `tests/visual-qc.js` (0 FAIL required).
-- Per-game size fixes by the game agents (results below as they land).
+- Per-game results of `tests/visual-qc.js` (level views failing, before -> after, 76 views per game = 38 levels x 2 phones): Timbangan 66 -> 0, Angkot 75 -> 0, Katak 76 -> 0, Ketapel 76 -> 0, Rakit 76 -> 0, Martabak 76 -> 0. Remaining warns are numbers at 17-19.8 px (above the 16 px minimum) where spacing does not allow more.
+- Bagi Martabak cutting redesigned after owner feedback ("cara motongnya aneh, 3/4 tidak bisa"): Fruit Ninja style swipe with a trail; on round food a swipe near the centre is a diameter cut and a swipe from the centre to the rim is a radial (wedge) cut, so thirds, sixths and 3/4 are possible; generous snapping for phones (60 u, 80 u in TK/k1, angles to 15 deg); rim guide ticks fade by tier; off-centre swipes do not use a knife; knives = needed + 2 and Ulang pulses when they run out.
+- Known: on phones the Si Cil caption briefly covers the top-left (e.g. the leftmost order card in Martabak) until it hides.
 
 ## 2026-10-08 (later): Games and difficulty per kelas
 

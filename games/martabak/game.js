@@ -572,7 +572,7 @@
     }
   }
 
-  function boardCenter() { return { x: 470, y: 560 }; }   // a bit left of centre: the dock sits bottom-right on phones
+  function boardCenter() { return { x: 470, y: 574 }; }   // a bit left of centre: the dock sits bottom-right on phones
 
   function drawLoyang(c, k) {
     const g = GS.el('g', { transform: 'translate(' + c.x + ' ' + c.y + ') scale(' + (k || 1) + ')' }, layers.board);
@@ -687,8 +687,8 @@
         if (m === 'drag') return endDrag(p, pt);
         if (m !== 'swipe') return;
         const pl = plateAt({ x: pt.x, y: pt.y - LIFT });
-        if (pl) { swipeCancel(); putOnPlate(p, pl); GS.sfx.drop(); squash(p); updateButtons(); updateSteam(); return; }
-        swipeEnd(pt);
+        if (swipeEnd(pt, !!pl) || !pl || p.plate || !pieces.includes(p)) return;
+        putOnPlate(p, pl); GS.sfx.drop(); squash(p); updateButtons(); updateSteam();
       }
     });
     pieces.push(p);
@@ -965,14 +965,14 @@
     GS.markup(GS.el('g', { transform: 'translate(' + b.x.toFixed(1) + ' ' + b.y.toFixed(1) + ') rotate(' + ang.toFixed(1) + ')' + flip }, trailG), knifeMarkup());
   }
   function swipeCancel() { swipe = null; if (trailG) trailG.innerHTML = ''; }
-  function swipeEnd(pt) {
-    if (!swipe) return;
+  function swipeEnd(pt, quiet) {
+    if (!swipe) return false;
     swipe.b = pt;
     const a = swipe.a;
     const g = trailG;
     tw(200, e => g.setAttribute('opacity', (1 - e).toFixed(2))).then(() => { if (!swipe) g.innerHTML = ''; });
     swipe = null;
-    performSwipe(a, pt);
+    return performSwipe(a, pt, quiet);
   }
   const hyp = v => Math.hypot(v.x, v.y);
   function segDist(a, b) {   // distance from the origin to segment a-b
@@ -1005,7 +1005,7 @@
     if (!parts[0] || !parts[1] || Math.min(Geo.absArea(parts[0]), Geo.absArea(parts[1])) < 0.01 * p.food.area) return null;
     return { p, parts, la: sn.a, lb: sn.b };
   }
-  function performSwipe(A, B) {
+  function performSwipe(A, B, quiet) {
     if (Math.hypot(B.x - A.x, B.y - A.y) < 40) return false;
     const board = pieces.filter(p => !p.plate && !p.locked && p.food.def.shape !== 'ball');
     const roundJobs = [], lineJobs = [];
@@ -1020,6 +1020,7 @@
       } else { const h = lineGesture(p, A, B); if (h) lineJobs.push(h); }
     }
     if (!roundJobs.length && !lineJobs.length) {
+      if (quiet) return false;
       GS.sfx.tick(); hud.mood('think');
       GS.say(board.some(p => p.food.def.shape === 'circle') ? 'Gesek pisaunya lewat tengah martabak, ya.' : 'Gesek pisaunya melewati kuenya, ya.');
       return false;

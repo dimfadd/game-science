@@ -72,7 +72,7 @@ Every game has five tiers: `tk`, `k1`, `k2`, `k3`, `k4` (Kelas 4+), following Ku
 | katak | Lompat Katak | 6 / 8 | Number line, hop size × hop count planned before jumping, skip counting, subtraction |
 | ketapel | Ketapel Mangga | 6 / 8 | Pull → speed → distance, parabolic flight, mass and air drag, patok number line |
 | perahu | Rakit Terapung | 6 / 8 | Float/sink by density, raft capacity (exact sums), hull shape capacity |
-| martabak | Bagi Martabak | 6 / 8 | Equal parts, ½ ⅓ ¼ by cutting convex polygons, comparing unit fractions |
+| martabak | Bagi Martabak | 6 / 8 | Equal parts, ½ ⅓ ¼ by swipe-cutting (Fruit Ninja style; round food gets diameter and radial wedge cuts), comparing and adding fractions |
 
 Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solve()` completes the **current round**; multi-round levels need repeated calls. Angkot also has `speed(n)` to speed up animations in tests.
 
