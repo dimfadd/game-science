@@ -268,9 +268,9 @@
       '<text x="0" y="' + (fs * 0.83).toFixed(1) + '" text-anchor="middle" font-size="' + fs + '" fill="' + color + '" class="gs-num">' + d + '</text>';
   }
   function tagMarkup(d, n) {
-    return '<rect x="-31" y="-47" width="62" height="96" rx="16" fill="' + OUT + '" opacity=".2" transform="translate(2 4)"/>' +
-      '<rect x="-31" y="-47" width="62" height="96" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
-      '<g transform="translate(0 -2)">' + fracMarkup(n || 1, d, 40, '#2B1D14') + '</g>';
+    return '<rect x="-34" y="-52" width="68" height="106" rx="17" fill="' + OUT + '" opacity=".2" transform="translate(2 4)"/>' +
+      '<rect x="-34" y="-52" width="68" height="106" rx="17" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
+      '<g transform="translate(0 -3)">' + fracMarkup(n || 1, d, 46, '#2B1D14') + '</g>';
   }
   function faceMarkup(kind) {
     // A round friend-face emoji used inside the reaction bubble.
@@ -462,7 +462,7 @@
       () => Object.assign(LV.cutOrders('martabak', [Ex([1, 4], '+', [1, 4]), F(1, 2)], 3, 'Seperempat tambah seperempat itu berapa? Potong ya!', 'Seperempat tambah seperempat sama dengan setengah!'), { stackDemo: true, demoSay: 'Kita tumpuk. Sama besar!' }),
       () => LV.cutOrders('martabak', [Ex([3, 4], '-', [1, 4]), F(1, 4), F(1, 4)], 3, 'Hitung dulu pesanan di kartu, lalu potong.'),
       () => { const n = [9, 12][GS.rand(0, 1)]; return LV.set(n, [F(2, 3), F(1, 3)], 'Ada ' + n + ' klepon. Lihat kartu pesanan!', 'Dua per tiga dari ' + n + ' adalah ' + (2 * n / 3) + '!'); },
-      () => LV.cutOrders('martabakKecil', [F(1, 2), F(1, 2), F(1, 2)], 2, 'Ada satu setengah martabak untuk tiga teman.', 'Masing-masing setengah. Pas!', { extraHalf: true, center: { x: 450, y: 590 } }),
+      () => LV.cutOrders('martabakKecil', [F(1, 2), F(1, 2), F(1, 2)], 2, 'Ada satu setengah martabak untuk tiga teman.', 'Masing-masing setengah. Pas!', { extraHalf: true, center: { x: 330, y: 560 } }),
       () => LV.compare([[F(2, 3), F(3, 5)], [F(3, 4), F(2, 3)], [F(3, 5), F(1, 2)], [F(5, 8), F(3, 4)], [F(2, 5), F(1, 3)]][GS.rand(0, 4)]),
       () => LV.cutOrders('lapis', [F(1, 2), F(1, 3), F(1, 6)], 4, 'Tiga pesanan berbeda. Potong yang pas!'),
       () => LV.cutOrders('roti', [Ex([3, 4], '-', [1, 2]), Ex([1, 4], '+', [1, 4]), F(1, 4)], 3, 'Tantangan! Hitung pesanan, lalu potong.')
@@ -541,38 +541,38 @@
     const sw = GS.el('g', { class: 'mk-card-swing' }, f.card);
     const hungryCard = L.kind === 'hungry';
     if (f.order || hungryCard) {
-      const h = 150, w = Math.max(130, f.name.length * 16 + 30), y0 = 12;
+      const h = 150, w = Math.max(130, f.name.length * 18 + 30), y0 = 12;
       GS.markup(sw, '<path d="M-26 0L0 ' + y0 + 'L26 0" fill="none" stroke="#7E4A27" stroke-width="3"/>' +
         '<rect x="' + (-w / 2 + 4) + '" y="' + (y0 + 6) + '" width="' + w + '" height="' + h + '" rx="16" fill="' + OUT + '" opacity=".18"/>' +
         '<rect x="' + (-w / 2) + '" y="' + y0 + '" width="' + w + '" height="' + h + '" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>' +
         '<circle cx="0" cy="' + (y0 + 10) + '" r="5" fill="#E2453C" stroke="' + OUT + '" stroke-width="2"/>');
       if (f.order && f.order.expr) {
         const [a, op, b] = f.order.expr;
-        GS.markup(sw, '<rect x="' + (-w / 2 - 20) + '" y="' + y0 + '" width="' + (w + 40) + '" height="' + h + '" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>' +
+        GS.markup(sw, '<rect x="' + (-w / 2 - 28) + '" y="' + y0 + '" width="' + (w + 56) + '" height="' + h + '" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>' +
           '<circle cx="0" cy="' + (y0 + 10) + '" r="5" fill="#E2453C" stroke="' + OUT + '" stroke-width="2"/>' +
-          '<g transform="translate(-46 ' + (y0 + 62) + ')">' + fracMarkup(a[0], a[1], 40, '#2B1D14') + '</g>' +
+          '<g transform="translate(-50 ' + (y0 + 60) + ')">' + fracMarkup(a[0], a[1], 46, '#2B1D14') + '</g>' +
           '<text x="0" y="' + (y0 + 72) + '" text-anchor="middle" font-size="42" fill="#2B1D14" class="gs-num">' + (op === '+' ? '+' : '−') + '</text>' +
-          '<g transform="translate(46 ' + (y0 + 62) + ')">' + fracMarkup(b[0], b[1], 40, '#2B1D14') + '</g>');
+          '<g transform="translate(50 ' + (y0 + 60) + ')">' + fracMarkup(b[0], b[1], 46, '#2B1D14') + '</g>');
       } else if (f.order) GS.markup(sw, '<g transform="translate(0 ' + (y0 + 64) + ')">' + fracMarkup(f.order.n, f.order.d, 48, '#2B1D14') + '</g>');
       else {
         const hungry = f.k === L.hungry;
         GS.markup(sw, '<g transform="translate(0 ' + (y0 + 76) + ') scale(1.15)">' + faceMarkup(hungry ? 'hungry' : 'happy') + '</g>' +
-          '<text class="mk-name" x="0" y="' + (y0 + 138) + '" text-anchor="middle" font-size="30" fill="#2B1D14">' + (hungry ? 'lapar!' : 'sedikit') + '</text>');
+          '<text class="mk-name" x="0" y="' + (y0 + 138) + '" text-anchor="middle" font-size="34" fill="#2B1D14">' + (hungry ? 'lapar!' : 'sedikit') + '</text>');
       }
-      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + h - 12, 'text-anchor': 'middle', 'font-size': 30, fill: '#2B1D14' }, sw);
+      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + h - 12, 'text-anchor': 'middle', 'font-size': 34, fill: '#2B1D14' }, sw);
       t.textContent = f.name;
       if (!f.order) t.setAttribute('y', y0 + 36);
     } else {
-      const w = Math.max(110, f.name.length * 17 + 36), y0 = 104;
+      const w = Math.max(110, f.name.length * 19 + 36), y0 = 102;
       GS.markup(sw, '<path d="M0 0V' + y0 + '" stroke="#7E4A27" stroke-width="3"/>' +
-        '<rect x="' + (-w / 2 + 3) + '" y="' + (y0 + 5) + '" width="' + w + '" height="54" rx="16" fill="' + OUT + '" opacity=".18"/>' +
-        '<rect x="' + (-w / 2) + '" y="' + y0 + '" width="' + w + '" height="54" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>');
-      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + 38, 'text-anchor': 'middle', 'font-size': 30, fill: '#2B1D14' }, sw);
+        '<rect x="' + (-w / 2 + 3) + '" y="' + (y0 + 5) + '" width="' + w + '" height="58" rx="16" fill="' + OUT + '" opacity=".18"/>' +
+        '<rect x="' + (-w / 2) + '" y="' + y0 + '" width="' + w + '" height="58" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>');
+      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + 41, 'text-anchor': 'middle', 'font-size': 34, fill: '#2B1D14' }, sw);
       t.textContent = f.name;
     }
   }
 
-  function boardCenter() { return { x: 600, y: 590 }; }   // a bit left of centre: the dock sits bottom-right on phones
+  function boardCenter() { return { x: 470, y: 560 }; }   // a bit left of centre: the dock sits bottom-right on phones
 
   function drawLoyang(c, k) {
     const g = GS.el('g', { transform: 'translate(' + c.x + ' ' + c.y + ') scale(' + (k || 1) + ')' }, layers.board);
@@ -660,7 +660,7 @@
     drawCutEdges(p, art);
     GS.el('polygon', { points: pts(poly), fill: 'none', stroke: OUT, 'stroke-width': 3.5, 'stroke-linejoin': 'round', 'pointer-events': 'none' }, g);
     p.hit = GS.el('rect', { fill: '#000', 'fill-opacity': 0 }, g);
-    p.hitSmall = p.bb.w < 100 || p.bb.h < 100;
+    p.hitSmall = p.bb.w < 112 || p.bb.h < 112;
     setHit(p);
     GS.drag(g, {
       svg,
@@ -722,7 +722,7 @@
   /** Invisible grab area: >= 72 world units on the board (thin pieces only, so it never
    *  swallows the start of a knife stroke) and >= 84 world units on a plate. */
   function setHit(p) {
-    const bb = p.bb, on = !!p.plate, need = on ? 104 / L.plateScale : 100;
+    const bb = p.bb, on = !!p.plate, need = on ? 112 / L.plateScale : 112;
     const hw = Math.max(bb.w + (on ? 20 : 0), need), hh = Math.max(bb.h + (on ? 20 : 0), need);
     p.hit.setAttribute('x', (bb.cx - hw / 2).toFixed(1)); p.hit.setAttribute('y', (bb.cy - hh / 2).toFixed(1));
     p.hit.setAttribute('width', hw.toFixed(1)); p.hit.setAttribute('height', hh.toFixed(1));
@@ -893,7 +893,7 @@
     const food = makeFood(L.food, c.x, c.y);
     L.unit = food.area;
     L.foodRef = food;
-    if (L.extraHalf) { const c2 = { x: 870, y: c.y }; drawLoyang(c2, def.r / 145); L.extraFood = makeFood(L.food, c2.x, c2.y); }
+    if (L.extraHalf) { const c2 = { x: 690, y: c.y }; drawLoyang(c2, def.r / 145); L.extraFood = makeFood(L.food, c2.x, c2.y); }
     drawGuides();
     freshPieces();
     if (def.shape === 'circle') drawSteam(c);
@@ -1067,7 +1067,7 @@
   }
   function nudgeReset() { if (btnReset) btnReset.classList.add('mk-nudge'); }
   function drawKnifeRack() {
-    knifeRack = GS.el('g', null, GS.el('g', { transform: 'translate(180 470)' }, layers.board));
+    knifeRack = GS.el('g', null, GS.el('g', { transform: 'translate(960 432)' }, layers.board));
     updateKnives();
   }
   function updateKnives() {
@@ -1082,8 +1082,8 @@
       GS.markup(GS.el('g', { transform: 'translate(' + x + ' 24) rotate(-90) scale(.6)', opacity: used ? 0.22 : 1 }, knifeRack), knifeMarkup());
     }
     const b = GS.el('g', { transform: 'translate(' + (w / 2 - 4) + ' 2)' }, knifeRack);
-    GS.markup(b, '<circle r="30" fill="#1F6FD1" stroke="' + OUT + '" stroke-width="3.5"/>');
-    const t = GS.el('text', { y: 14, 'text-anchor': 'middle', 'font-size': 40, fill: '#fff', class: 'gs-num' }, b);
+    GS.markup(b, '<circle r="33" fill="#1F6FD1" stroke="' + OUT + '" stroke-width="3.5"/>');
+    const t = GS.el('text', { y: 16, 'text-anchor': 'middle', 'font-size': 46, fill: '#fff', class: 'gs-num' }, b);
     t.textContent = String(knives);
   }
   function wobbleEl(el) { if (!el) return; const t = GS.fx(el, 'gs-wobble'); later(450, () => t.classList.remove('gs-wobble')); }
@@ -1168,9 +1168,9 @@
   }
   /** Two equal cakes; from each a piece of n/d is cut (one along, one across), the rest stays. */
   function buildCompareLevel() {
-    const c = { x: 500, y: 585 };
-    drawTalenan(c, 700, 250, null);
-    const xs = [340, 660], w = 240, h = 140, across = GS.rand(0, 1);
+    const c = { x: 450, y: 565 };
+    drawTalenan(c, 660, 250, null);
+    const xs = [300, 600], w = 240, h = 140, across = GS.rand(0, 1);
     L.pairPieces = L.pair.map((fr, i) => {
       const food = makeFood('lapisKecil', xs[i], c.y, { w, h, layers: 5 });
       const poly = food.poly.map(q => ({ x: q.x, y: q.y, cut: false }));
@@ -1186,7 +1186,7 @@
   }
   /** Fractions of a set: klepon on a tampah, dragged one by one onto plates. */
   function buildSetLevel() {
-    const c = { x: 600, y: 588 }, N = L.count, r = L.ballR || 30;
+    const c = { x: 480, y: 560 }, N = L.count, r = L.ballR || 30;
     const cols = N <= 4 ? 2 : N <= 6 ? 3 : 4, rows = Math.ceil(N / cols), sp = 2 * r + 18;
     const rx = cols * sp / 2 + 46, ry = Math.min(190, rows * sp / 2 + 40);
     let s = '<ellipse cx="' + (c.x + 8) + '" cy="' + (c.y + 12) + '" rx="' + (rx + 4) + '" ry="' + (ry + 4) + '" fill="' + OUT + '" opacity=".18"/>' +
@@ -1235,7 +1235,7 @@
       '<circle cx="' + (xs[0] - 46) + '" cy="444" r="14" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>' +
       '<circle cx="' + (xs[n - 1] + 52) + '" cy="444" r="6" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>';
     GS.markup(layers.signs, s);
-    const lbl = (x, t, a) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': a, 'font-size': 30, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
+    const lbl = (x, t, a) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': a, 'font-size': 34, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
     lbl(xs[0] - 26, 'besar', 'start'); lbl(xs[n - 1] + 40, 'kecil', 'end');
     const cxs = n > 3 ? [175, 375, 575, 775] : [245, 480, 715];
     const over = n > 3 ? { w: 168, h: 104 } : null, w = over ? over.w : 200, h = over ? over.h : 120;
@@ -1487,7 +1487,7 @@
   }
   async function stackCompare(big, small, my, color) {
     if (!big.length || !small.length) { await pause(1200); return; }
-    const C = { x: 640, y: 590 };
+    const C = { x: 520, y: 545 };
     const dim = GS.el('rect', { x: -600, y: 306, width: 2480, height: 594, fill: '#FFF8EC', opacity: 0 }, layers.dim);
     tw(250, e => dim.setAttribute('opacity', (0.72 * e).toFixed(2)));
     // big share at its original shape, centred
@@ -1619,7 +1619,7 @@
     const strip = ps.find(p => asp(p) < 0.6), box = ps.find(p => asp(p) > 1.2);
     if (!strip || !box) { await pause(600); return; }
     if (!(await pause(500))) return;
-    const C = { x: 640, y: 560 };
+    const C = { x: 520, y: 545 };
     const dim = GS.el('rect', { x: -600, y: 306, width: 2480, height: 594, fill: '#FFF8EC', opacity: 0.72 }, layers.fx);
     const gs = GS.el('g', null, layers.top);
     const bw = box.bb.w * 1.6, bh = box.bb.h * 1.6;
