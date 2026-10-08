@@ -1095,6 +1095,7 @@
     const tot = tokens.reduce((a, t) => a + W(t), 0) + gap * (tokens.length - 1);
     el('path', { d: rr(-tot / 2 - 18, -42, tot + 36, 84, 26), fill: OL, opacity: 0.2, transform: 'translate(0 6)' }, st.g);
     el('path', { d: rr(-tot / 2 - 18, -42, tot + 36, 84, 26), fill: C.cream, stroke: OL, 'stroke-width': 4 }, st.g);
+    if (S.mode === 'dacing') st.g.setAttribute('transform', `translate(${n1(Math.max(700, Math.min(1080 - tot / 2 - 18, 820)))} 742)`);
     let x = -tot / 2;
     const ext = { '-1': [Infinity, -Infinity], '1': [Infinity, -Infinity] };
     tokens.forEach((t, i) => {
@@ -1148,7 +1149,7 @@
     [-1, 1].forEach(side => {
       const objs = S.notches.filter(c => c.side === side && c.count()).map(c => ({ w: c.sum(), d: c.d })).sort((a, b) => a.d - b.d);
       const rows = objs.reduce((a, o) => a + o.w, 0);
-      const rowH = Math.min(26, 150 / Math.max(rows, 1)), dr = Math.min(9, rowH * 0.36);
+      const rowH = Math.min(26, 108 / Math.max(rows, 1)), dr = Math.min(9, rowH * 0.36);
       const x0 = side < 0 ? PX - N * STEP - 40 : PX + 28, x1 = side < 0 ? PX - 28 : PX + N * STEP + 40;
       const h = 40 + Math.max(1, rows) * rowH;
       el('path', { d: rr(x0, y0 - 18, x1 - x0, h, 16), fill: C.cream, stroke: OL, 'stroke-width': 3, opacity: 0.94 }, g);
