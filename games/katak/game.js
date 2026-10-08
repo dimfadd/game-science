@@ -9,8 +9,9 @@
   const GAME = 'katak';
   const OUT = '#3B2A20';
   const SP = 100;             // world units per number on the line
-  const ZMIN = 0.17;
-  const LEVELS = 10;
+  const ZMIN = 0.12;
+  const TIER = GS.tier ? GS.tier() : 'k1';
+  const LEVELS = (window.MS && MS.kur && MS.kur.levels) ? MS.kur.levels(TIER) : (TIER === 'tk' ? 6 : 8);
   let speed = 1;              // test hook can shorten animations
   const T = ms => ms * speed;
   const sleep = ms => GS.wait(T(ms));
@@ -87,13 +88,28 @@
     if (n < 12) return W[n];
     if (n < 20) return W[n - 10] + ' belas';
     if (n < 100) { const t = Math.floor(n / 10), u = n % 10; return (t === 1 ? 'sepuluh' : W[t] + ' puluh') + (u ? ' ' + W[u] : ''); }
-    if (n === 100) return 'seratus';
-    if (n < 200) return 'seratus ' + words(n - 100);
+    if (n < 1000) { const h = Math.floor(n / 100), r = n % 100; return (h === 1 ? 'seratus' : W[h] + ' ratus') + (r ? ' ' + words(r) : ''); }
+    if (n < 1000000) { const k = Math.floor(n / 1000), r = n % 1000; return (k === 1 ? 'seribu' : words(k) + ' ribu') + (r ? ' ' + words(r) : ''); }
     return String(n);
   }
-  function speakSentence(s) {
-    return s.split(' ').map(t => (t === '+' ? 'tambah' : t === '−' ? 'kurang' : t === '×' ? 'kali' : t === '=' ? 'sama dengan' : words(+t))).join(' ');
+  const FRAC = { '½': 'setengah', '¼': 'seperempat', '¾': 'tiga perempat' };
+  function speakTok(t) {
+    const op = { '+': 'tambah', '−': 'kurang', '×': 'kali', ':': 'dibagi', '=': 'sama dengan' }[t];
+    if (op) return op;
+    const m = /^([\d.]*)([½¼¾]?)$/.exec(t);
+    if (!m) return t;
+    const whole = m[1] ? +m[1].replace(/\./g, '') : 0;
+    return ((m[1] && (whole || !m[2]) ? words(whole) : '') + (m[2] ? ' ' + FRAC[m[2]] : '')).trim();
   }
+  function speakSentence(s) { return s.split(' ').map(speakTok).join(' '); }
+  /** Format a value: thousands with a dot (Indonesian), halves and quarters as ½ ¼ ¾. */
+  function fmtV(v) {
+    const whole = Math.floor(v + 1e-9), fr = Math.round((v - whole) * 4);
+    const w = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const f = ['', '¼', '½', '¾'][fr];
+    return whole === 0 && f ? f : w + f;
+  }
+  const fmt = n => fmtV(n * L.unit);   // stone index -> label
 
   /* ---------------- art: Kodi, friend, croc, stone ---------------- */
   const KODI = { base: '#7CC26B', hl: '#A8DB8F', shade: '#4E9F45', belly: '#EAF4C8', spot: '#5BA84E' };
@@ -174,7 +190,16 @@
 
   const STONE = 'M-38 0C-38 -12 -22 -16 0 -16C22 -16 38 -12 38 -2C38 8 22 10 0 10C-22 10 -38 8 -38 0Z';
   let stoneN = 0;
-  function stoneArt(emph) {
+  function dotsArt(n, y0, r, gap) {
+    // up to 5 per row, centred: the count is visible without reading the numeral
+    let o = '';
+    const rows = n > 5 ? [5, n - 5] : [n];
+    rows.forEach((c, ri) => {
+      for (let k = 0; k < c; k++) o += '<circle cx="' + ((k - (c - 1) / 2) * gap).toFixed(1) + '" cy="' + (y0 + ri * gap * 0.75).toFixed(1) + '" r="' + r + '" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="1.4"/>';
+    });
+    return o;
+  }
+  function stoneArt(emph, dots) {
     const id = 'kt-st' + (++stoneN);
     return '<defs><clipPath id="' + id + '"><path d="' + STONE + '"/></clipPath></defs>' +
       '<ellipse cx="2" cy="8" rx="44" ry="9" fill="#2F80C9" opacity="0.35"/>' +
@@ -183,6 +208,7 @@
       '<ellipse cx="-14" cy="-9" rx="13" ry="4" fill="#B6B9BD"/>' +
       (emph ? '<ellipse cx="14" cy="-8" rx="11" ry="4.5" fill="#7CC26B"/><ellipse cx="11" cy="-10" rx="5" ry="2" fill="#A8DB8F"/>' : '') + '</g>' +
       '<path d="' + STONE + '" fill="none" stroke="' + OUT + '" stroke-width="3" stroke-linejoin="round"/>' +
+      (dots ? dotsArt(dots, dots > 5 ? -10 : -6, 3.8, 12) : '') +
       '<path d="M-40 6q7 -3 14 0t14 0t14 0t14 0t14 0t14 0" fill="none" stroke="#E6F5F0" stroke-width="2.4" stroke-linecap="round" opacity="0.8"/>';
   }
 
