@@ -1,0 +1,12 @@
+{
+  "name": "mat-sains-tests",
+  "private": true,
+  "description": "Playwright smoke and level tests for Mat Sains",
+  "scripts": {
+    "smoke": "node smoke.js",
+    "levels": "node levels.js"
+  },
+  "dependencies": {
+    "playwright-core": "1.56.0"
+  }
+}

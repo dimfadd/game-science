@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Mat Sains",
+  "short_name": "Mat Sains",
+  "description": "Game matematika dan fisika untuk anak TK sampai kelas 3 SD, dipandu Si Cil si kancil.",
+  "lang": "id",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#9ED8EC",
+  "theme_color": "#9ED8EC",
+  "categories": ["education", "games", "kids"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

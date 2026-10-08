@@ -1,0 +1,4 @@
+{
+  "about": "Rekaman narator. Kunci = kalimat yang diucapkan (huruf kecil, tanpa tanda baca, simbol matematika sudah jadi kata, lihat MS.voice.keyOf). Nilai = nama file di folder ini. Lihat docs/NARASI.md.",
+  "lines": {}
+}
