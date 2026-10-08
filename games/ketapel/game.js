@@ -1055,7 +1055,7 @@
   function wobbleTarget(t) {
     const el = t.kind === 'can' ? t.g : t.body;
     if (!el) return;
-    el.classList.remove('gs-wobble'); void el.getBBox(); el.classList.add('gs-wobble');
+    GS.fx(el, 'gs-wobble'); // body/can groups are positioned by transform: wobble an inner <g>
   }
   function missHint(res, t) {
     if (res.caught) return 'Tersangkut daun. Arahkan lebih tinggi!';

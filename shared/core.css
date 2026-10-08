@@ -1,4 +1,4 @@
-/* Kampung Sains shared styles.
+/* Mat Sains shared styles.
  * Layout: full-screen game stage under a slim HUD; overlays centred.
  * Single-theme by choice: the game is one sunny daytime world, so colors are set
  * explicitly and do not follow the OS dark mode (color-scheme: light). */
@@ -213,17 +213,71 @@ button { font: inherit; color: inherit; }
 }
 @keyframes gs-float-up { from { opacity: 0; transform: translate(-50%, -30%) scale(0.7); } 20% { opacity: 1; transform: translate(-50%, -60%) scale(1.1); } to { opacity: 0; transform: translate(-50%, -160%) scale(1); } }
 
+/* Feedback animations.
+ * They animate the individual `translate` / `rotate` / `scale` properties, never `transform`.
+ * On SVG elements the `transform` attribute IS the CSS `transform` property, so a keyframe that
+ * sets `transform` replaces the attribute for the whole animation and a group positioned with
+ * transform="translate(608 570)" jumps to the origin (it "flies away"). The individual properties
+ * compose with the attribute instead. Rotate/scale still pivot in the parent's space, so for a
+ * group that has its own transform, animate an inner untransformed <g> (see GS.fxTarget). */
 /* Generic wobble for "not yet" feedback (no red, ever). */
 .gs-wobble { animation: gs-wobble 400ms ease-in-out; transform-box: fill-box; transform-origin: 50% 100%; }
-@keyframes gs-wobble { 0%, 100% { transform: rotate(0); } 17% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } 83% { transform: rotate(-4deg); } }
+@keyframes gs-wobble { 0%, 100% { rotate: 0deg; } 17% { rotate: -6deg; } 50% { rotate: 6deg; } 83% { rotate: -4deg; } }
 
 /* Screen shake for heavy landings */
 .gs-shake { animation: gs-shake 150ms linear; }
-@keyframes gs-shake { 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 1px); } }
+@keyframes gs-shake { 0%, 100% { translate: 0 0; } 25% { translate: 3px -2px; } 50% { translate: -3px 2px; } 75% { translate: 2px 1px; } }
 
 /* Pulse used for drop targets */
 .gs-pulse { animation: gs-pulse 800ms ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes gs-pulse { 50% { transform: scale(1.08); opacity: 0.75; } }
+@keyframes gs-pulse { 0%, 100% { scale: 1; opacity: 1; } 50% { scale: 1.08; opacity: 0.75; } }
+
+/* ---------- start gate (first tap: audio + fullscreen) ---------- */
+.gs-gate {
+  position: fixed; inset: 0; z-index: 85;
+  display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(#9ED8EC 0%, #E6F5F0 70%, #7CC26B 70.5%, #6BB45C 100%);
+  opacity: 0; transition: opacity 220ms ease-out;
+}
+.gs-gate.show { opacity: 1; }
+.gs-gate-card {
+  width: min(560px, 100%); max-height: 100%; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: var(--panel); border: 4px solid var(--line); border-radius: 32px;
+  box-shadow: 0 10px 0 rgba(59, 42, 32, 0.35);
+  padding: 18px 24px 26px; text-align: center;
+  transform: scale(0.9); transition: transform 380ms var(--ease-pop);
+}
+.gs-gate.show .gs-gate-card { transform: none; }
+.gs-gate-mascot { height: 140px; display: grid; place-items: center; }
+.gs-gate-mascot svg { width: 150px; height: 150px; }
+.gs-gate-body { display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 0; }
+.gs-gate-title { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 5vw, 40px); line-height: 1.1; text-wrap: balance; }
+.gs-gate-play {
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px;
+  min-height: 104px; min-width: 240px; padding: 0 40px;
+  border: 4px solid var(--line); border-radius: 999px;
+  background: var(--primary); color: #fff;
+  font-family: var(--font-display); font-weight: 800; font-size: 44px; line-height: 1;
+  box-shadow: 0 7px 0 var(--line); cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  animation: gs-gate-breathe 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+}
+.gs-gate-play svg { width: 44px; height: 44px; }
+.gs-gate-play:active { transform: translateY(5px) scale(0.95); box-shadow: 0 2px 0 var(--line); animation: none; }
+@keyframes gs-gate-breathe { 50% { scale: 1.04; } }
+.gs-gate-hint { margin: 0; max-width: 30ch; font-size: 16px; line-height: 1.4; font-weight: 700; color: #5C4636; }
+@media (max-height: 500px) {
+  /* phone landscape: mascot beside the text so nothing is cut off */
+  .gs-gate-card { width: min(640px, 100%); flex-direction: row; gap: 18px; padding: 14px 22px 18px; text-align: left; }
+  .gs-gate-mascot { height: 130px; flex: none; }
+  .gs-gate-mascot svg { width: 130px; height: 130px; }
+  .gs-gate-body { align-items: flex-start; gap: 12px; }
+  .gs-gate-title { font-size: 28px; }
+  .gs-gate-play { min-height: 96px; min-width: 210px; font-size: 40px; padding: 0 32px; }
+  .gs-gate-hint { font-size: 14px; }
+}
 
 /* Rotate hint for very small portrait phones */
 .gs-rotate { display: none; }
@@ -237,8 +291,8 @@ button { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .gs-star { animation-duration: 1ms; animation-delay: 0ms; }
-  .gs-wobble, .gs-shake, .gs-pulse { animation: none; }
-  .gs-card { transition: none; }
+  .gs-wobble, .gs-shake, .gs-pulse, .gs-gate-play { animation: none; }
+  .gs-card, .gs-gate, .gs-gate-card { transition: none; }
 }
 
 /* ---------- short / phone-landscape screens ---------- */

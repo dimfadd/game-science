@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kampung Sains</title>
+<title>Mat Sains</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
@@ -55,14 +55,21 @@
   #cil { transition: transform 900ms var(--ease-in); }
   @media (prefers-reduced-motion: reduce) { .cloud, .kite { animation: none; } #cil { transition: none; } }
 
+  /* "Swipe the map" hint: a small pill in the bottom-right corner (a free patch of grass on
+     every phone width), gone after the first scroll of the map. */
   .swipe-hint { display: none; }
   @media (max-width: 760px) {
     .swipe-hint {
-      display: flex; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 2;
-      gap: 8px; align-items: center; padding: 6px 14px; background: var(--card); border: 3px solid var(--line); border-radius: 999px;
-      font-weight: 700; font-size: 15px; pointer-events: none;
+      display: flex; position: absolute; bottom: 10px; right: 10px; z-index: 2;
+      gap: 6px; align-items: center; padding: 4px 12px 4px 8px; background: var(--card); border: 3px solid var(--line); border-radius: 999px;
+      font-weight: 700; font-size: 14px; line-height: 1.2; pointer-events: none;
+      box-shadow: 0 3px 0 rgba(59, 42, 32, 0.25);
+      transition: opacity 300ms ease-out, translate 300ms ease-out;
     }
+    .swipe-hint svg { width: 22px; height: 22px; flex: none; }
+    .swipe-hint.gone { opacity: 0; translate: 0 8px; }
   }
+  @media (prefers-reduced-motion: reduce) { .swipe-hint { transition: none; } }
 
   /* Parent guide */
   .guide { max-width: 1120px; margin: 0 auto; padding-block: 40px 56px; padding-inline: 16px; }
@@ -74,7 +81,8 @@
     background: var(--card); border: 3px solid var(--line); border-radius: 24px; padding: 16px;
   }
   .g-art { width: 88px; height: 88px; border-radius: 18px; background: var(--sky-low); display: grid; place-items: center; overflow: hidden; }
-  .g-art svg { width: 100px; height: 100px; margin-top: 10px; }
+  /* The icon's viewBox is fitted to its drawing in the script below, so it sits centred and whole. */
+  .g-art svg { display: block; width: 76px; height: 76px; margin: 0; overflow: visible; }
   .g h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.1; }
   .g .kind { display: inline-block; margin: 6px 0 8px; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 700; }
   .kind.mat { background: #DCEAFB; color: #134C93; }
@@ -104,7 +112,7 @@
   <section class="map-wrap" aria-label="Peta Kampung">
     <div class="map-head">
       <div class="brand">
-        <h1>Kampung Sains</h1>
+        <h1>Mat Sains</h1>
         <p>Pilih tempat di peta, lalu main bersama Si Cil.</p>
       </div>
       <div class="head-tools">
@@ -115,7 +123,7 @@
     <div class="map-scroll" id="scroller">
       <svg id="map" viewBox="0 0 1600 900" role="group" aria-label="Peta dengan enam tempat bermain"></svg>
     </div>
-    <div class="swipe-hint" aria-hidden="true">Geser peta ke samping</div>
+    <div class="swipe-hint" id="swipeHint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h16M15 7l5 5-5 5M9 7l-5 5 5 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Geser peta</div>
   </section>
 
   <section class="guide" id="orang-tua">
@@ -129,7 +137,6 @@
       <div><h4>Fisika yang jujur</h4><p>Simulasi mengikuti hukum nyata: benda berat tidak jatuh lebih cepat, ukuran tidak menentukan berat.</p></div>
     </div>
     <div class="foot">
-      <a href="assets.html">Lihat galeri aset visual</a>
       <span class="confirm" id="resetBox"><button type="button" class="reset" id="reset">Hapus progres</button></span>
     </div>
   </section>
@@ -235,6 +242,12 @@
   // centre the map on Si Cil for narrow screens
   const sc = document.getElementById('scroller');
   requestAnimationFrame(() => { const r = map.getBoundingClientRect().width / 1600; sc.scrollLeft = Math.max(0, start.x * r - sc.clientWidth / 2); });
+  // the swipe hint goes away once the child has scrolled the map (or when nothing scrolls)
+  const hint = document.getElementById('swipeHint');
+  const hideHint = () => { hint.classList.add('gone'); sc.removeEventListener('scroll', onMapScroll); };
+  let scroll0 = null;
+  function onMapScroll() { if (scroll0 === null) scroll0 = sc.scrollLeft; else if (Math.abs(sc.scrollLeft - scroll0) > 24) hideHint(); }
+  setTimeout(() => { scroll0 = sc.scrollLeft; if (sc.scrollWidth <= sc.clientWidth + 4) hideHint(); else sc.addEventListener('scroll', onMapScroll, { passive: true }); }, 300);
 
   // --- parent guide cards ---
   const list = document.getElementById('games');
@@ -250,7 +263,20 @@
     c.querySelector('p').textContent = g.desc;
     c.querySelector('.prog').textContent = done + ' dari ' + g.levels + ' level, ' + s + ' bintang';
     list.appendChild(c);
+    fitIcon(c.querySelector('.g-art svg'));
   });
+  /** Art is drawn around a bottom-centre origin, so the shared viewBox leaves each icon low and
+      clipped in a square tile. Fit the viewBox to the drawing instead: square, centred, small margin. */
+  function fitIcon(svg) {
+    if (!svg) return;
+    svg.removeAttribute('width'); svg.removeAttribute('height');
+    let b = null;
+    try { const g = svg.firstElementChild; b = g && g.getBBox(); } catch (e) { b = null; }
+    if (!b || !b.width || !b.height) return;
+    const side = Math.max(b.width, b.height) * 1.08, cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+    svg.setAttribute('viewBox', [cx - side / 2, cy - side / 2, side, side].map(v => Math.round(v * 10) / 10).join(' '));
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }
 
   // --- reset progress with an in-page confirmation (no confirm() dialogs) ---
   const box = document.getElementById('resetBox');

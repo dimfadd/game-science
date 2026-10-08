@@ -848,7 +848,7 @@
     const t = GS.el('text', { y: 9, 'text-anchor': 'middle', 'font-size': 26, fill: '#fff', class: 'gs-num' }, b);
     t.textContent = String(knives);
   }
-  function wobbleEl(el) { if (!el) return; el.classList.remove('gs-wobble'); void el.getBBox(); el.classList.add('gs-wobble'); later(450, () => el.classList.remove('gs-wobble')); }
+  function wobbleEl(el) { if (!el) return; const t = GS.fx(el, 'gs-wobble'); later(450, () => t.classList.remove('gs-wobble')); }
 
   function showGuides() {
     if (guidesShown || !guideG || L.kind !== 'cut') return;

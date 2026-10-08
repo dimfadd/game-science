@@ -1,12 +1,15 @@
-/* Kampung Sains: shared runtime for every mini-game.
+/* Mat Sains: shared runtime for every mini-game.
  * Exposes window.GS with storage, sound, voice, tweening, SVG helpers,
- * drag handling, confetti, the in-game HUD and the level-complete overlay.
+ * drag handling, confetti, the in-game HUD, the start gate (fullscreen + audio unlock)
+ * and the level-complete overlay.
  * No dependencies; works offline from file:// and on touch tablets. */
 (function () {
   'use strict';
   const GS = (window.GS = window.GS || {});
 
   /* ---------------- storage (survives missing localStorage) ---------------- */
+  // The key keeps the old product name (Kampung Sains) on purpose: renaming it would
+  // make every child's saved stars disappear. Do not change it without a migration.
   const KEY = 'kampung-sains.v1';
   let mem = {};
   function readAll() {
@@ -49,8 +52,15 @@
     if (actx.state === 'suspended') actx.resume();
     return actx;
   }
-  // Browsers only allow audio after a user gesture: unlock on first touch.
-  window.addEventListener('pointerdown', function unlock() { ac(); window.removeEventListener('pointerdown', unlock); }, { once: true });
+  // Browsers only allow audio after a user gesture. Touch pointerdown is not a "gesture" for
+  // every browser, so try on each of these until the context is running.
+  const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+  function unlockAudio() {
+    const a = ac();
+    if (!a || a.state === 'running') GESTURES.forEach(t => window.removeEventListener(t, unlockAudio, true));
+  }
+  GESTURES.forEach(t => window.addEventListener(t, unlockAudio, true));
+  GS.unlockAudio = function () { ac(); };
 
   function tone(o) {
     const a = ac(); if (!a || GS.muted) return;
@@ -124,11 +134,9 @@
       .replace(/\s{2,}/g, ' ').trim();
   };
   GS.lastSay = '';
-  /** Speak and show a caption. Captions always appear even when muted or without TTS. */
-  GS.say = function (text, opts) {
-    GS.lastSay = text;
-    if (GS._bubble) GS._bubble(text);
-    if (GS.muted || !('speechSynthesis' in window)) return;
+  /** Audio output for GS.say. Overridable: shared/voice.js swaps in recorded clips + better TTS. */
+  GS.speakImpl = function (text, opts) {
+    if (!('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(GS.speakable(text));
@@ -139,9 +147,36 @@
       speechSynthesis.speak(u);
     } catch (e) { /* speech unavailable */ }
   };
+  /** Stop any speech in progress. Overridable together with GS.speakImpl. */
+  GS.stopSpeech = function () {
+    try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+  };
+  // Mobile browsers drop speech that starts before the first user gesture. Until then the
+  // latest line is queued (its caption still shows) and spoken on the first tap.
+  const AUTOTEST = /[?&]autotest\b/.test(location.search) || !!navigator.webdriver;
+  let speechReady = AUTOTEST, pendingSay = null;
+  function flushSay() {
+    speechReady = true;
+    const p = pendingSay; pendingSay = null;
+    if (p && !GS.muted && GS.lastSay === p[0]) GS.speakImpl(p[0], p[1]);
+  }
+  function onFirstGesture() {
+    if (GS._gateOpen === false) return; // the start gate's own button flushes the queue
+    ['pointerup', 'touchend', 'click', 'keydown'].forEach(t => window.removeEventListener(t, onFirstGesture, true));
+    flushSay();
+  }
+  if (!speechReady) ['pointerup', 'touchend', 'click', 'keydown'].forEach(t => window.addEventListener(t, onFirstGesture, true));
+  /** Speak and show a caption. Captions always appear even when muted or without TTS. */
+  GS.say = function (text, opts) {
+    GS.lastSay = text;
+    if (GS._bubble) GS._bubble(text);
+    if (GS.muted) return;
+    if (!speechReady) { pendingSay = [text, opts]; return; }
+    GS.speakImpl(text, opts);
+  };
   GS.setMuted = function (m) {
     GS.muted = m; GS.store.set('muted', m);
-    if (m && 'speechSynthesis' in window) speechSynthesis.cancel();
+    if (m) GS.stopSpeech();
     document.querySelectorAll('[data-gs-sound]').forEach(b => {
       b.setAttribute('aria-pressed', String(!m));
       b.innerHTML = m ? ICON.soundOff : ICON.soundOn;
@@ -202,6 +237,40 @@
     while (tmp.firstChild) g.appendChild(tmp.firstChild);
     return g;
   };
+  /**
+   * Element that a CSS feedback animation (gs-wobble, gs-pulse, ...) should go on.
+   * An SVG element positioned with a transform attribute must not be animated itself:
+   * its rotate/scale would pivot around the parent's origin (and a `transform` keyframe
+   * would replace the attribute, sending it to 0,0). Its children are moved into one
+   * untransformed inner <g class="gs-fx">, created once, and that is animated instead.
+   */
+  GS.fxTarget = function (el) {
+    if (!el || !(el instanceof SVGElement) || el instanceof SVGSVGElement || !el.hasAttribute('transform')) return el;
+    let w = el.__gsFx;
+    if (!w || w.parentNode !== el) {
+      w = document.createElementNS(SVGNS, 'g');
+      w.setAttribute('class', 'gs-fx');
+      while (el.firstChild) w.appendChild(el.firstChild);
+      el.appendChild(w);
+      el.__gsFx = w;
+    }
+    return w;
+  };
+  /** (Re)start a CSS animation class on el (safely, see fxTarget). Optional auto-remove after ms. */
+  GS.fx = function (el, cls, ms) {
+    const t = GS.fxTarget(el);
+    if (!t) return null;
+    t.classList.remove(cls);
+    void t.getBoundingClientRect();
+    t.classList.add(cls);
+    if (ms) setTimeout(() => t.classList.remove(cls), ms);
+    return t;
+  };
+  GS.fxStop = function (el, cls) {
+    if (!el) return;
+    el.classList.remove(cls);
+    if (el.__gsFx) el.__gsFx.classList.remove(cls);
+  };
   /** Convert a client (screen) point into the user space of an SVG element. */
   GS.svgPoint = function (svg, clientX, clientY, el) {
     const p = svg.createSVGPoint(); p.x = clientX; p.y = clientY;
@@ -248,6 +317,9 @@
     next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4.5 16 12l-8 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2.6"/></svg>',
     star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.8 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.7 3.1 1.2-6.3-4.6-4.4 6.3-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
+    expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    collapse: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4.8v14.4a1 1 0 0 0 1.5.9l11-7.2a1 1 0 0 0 0-1.7l-11-7.2A1 1 0 0 0 8 4.8z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
     hint: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.1V17h5v-1.1c0-.8.4-1.6 1.1-2.1A6 6 0 0 0 12 3z" fill="currentColor"/><rect x="9.5" y="18.5" width="5" height="2.5" rx="1.2" fill="currentColor"/></svg>'
   };
   GS.ICON = ICON;
@@ -298,6 +370,68 @@
     if (parts.length) requestAnimationFrame(loop); else { running = false; cctx.clearRect(0, 0, innerWidth, innerHeight); }
   }
 
+  /* ---------------- fullscreen ---------------- */
+  const docEl = document.documentElement;
+  const mq = q => !!(window.matchMedia && matchMedia(q).matches);
+  GS.fs = {
+    /** Running as an installed app (home-screen PWA): the browser UI is already gone. */
+    standalone: () => mq('(display-mode: fullscreen)') || mq('(display-mode: standalone)') || navigator.standalone === true,
+    available: () => !!((document.fullscreenEnabled || document.webkitFullscreenEnabled) && (docEl.requestFullscreen || docEl.webkitRequestFullscreen)),
+    active: () => !!(document.fullscreenElement || document.webkitFullscreenElement),
+    /** Enter fullscreen and try to lock landscape. Must be called from a tap/click. */
+    enter() {
+      const lock = () => { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => {}); } catch (e) { /* not supported */ } };
+      if (!GS.fs.available() || GS.fs.active()) { lock(); return; }
+      try {
+        const r = docEl.requestFullscreen ? docEl.requestFullscreen({ navigationUI: 'hide' }) : docEl.webkitRequestFullscreen();
+        if (r && r.then) r.then(lock, () => {}); else lock();
+      } catch (e) { /* refused */ }
+    },
+    exit() {
+      try {
+        const r = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen && document.webkitExitFullscreen();
+        if (r && r.catch) r.catch(() => {});
+      } catch (e) { /* not in fullscreen */ }
+    },
+    toggle() { if (GS.fs.active()) GS.fs.exit(); else GS.fs.enter(); }
+  };
+
+  /**
+   * Start gate for game pages: one big "Main!" button before the first level.
+   * The tap unlocks audio, enters fullscreen (touch devices), locks landscape and speaks the
+   * first instruction, which mobile browsers would otherwise block. Skipped for installed
+   * apps, when already fullscreen, and in automated tests (?autotest or navigator.webdriver).
+   */
+  GS._gateOpen = true;
+  function startGate(title) {
+    if (AUTOTEST || GS.fs.standalone() || GS.fs.active() || document.querySelector('.gs-gate')) return;
+    GS._gateOpen = false;
+    const g = document.createElement('div');
+    g.className = 'gs-gate';
+    g.setAttribute('role', 'dialog');
+    g.setAttribute('aria-modal', 'true');
+    g.setAttribute('aria-label', title || 'Mulai main');
+    const mascot = GS.art && GS.art.mascot ? GS.art.mascot({ mood: 'cheer', size: 150 }) : '';
+    const hint = !GS.fs.available() ? '<p class="gs-gate-hint">Supaya layar penuh, pasang Mat Sains di layar utama.</p>' : '';
+    g.innerHTML = '<div class="gs-gate-card"><div class="gs-gate-mascot">' + mascot + '</div><div class="gs-gate-body"><h1 class="gs-gate-title"></h1>' +
+      '<button type="button" class="gs-gate-play">' + ICON.play + '<span>Main!</span></button>' + hint + '</div></div>';
+    g.querySelector('.gs-gate-title').textContent = title || '';
+    document.body.appendChild(g);
+    const btn = g.querySelector('.gs-gate-play');
+    requestAnimationFrame(() => { g.classList.add('show'); try { btn.focus({ preventScroll: true }); } catch (e) { /* old browsers */ } });
+    btn.addEventListener('click', () => {
+      GS._gateOpen = true;
+      ac();
+      // Big screens with a mouse keep their window; phones and tablets go fullscreen.
+      if (mq('(pointer: coarse)')) GS.fs.enter();
+      GS.sfx.pop();
+      flushSay();
+      if (GS.lastSay && GS._bubble) GS._bubble(GS.lastSay);
+      g.classList.remove('show');
+      setTimeout(() => g.remove(), GS.reducedMotion ? 0 : 260);
+    });
+  }
+
   /* ---------------- HUD ---------------- */
   /**
    * GS.hud({ gameId, title, levelCount, onLevelPick(i), home })
@@ -325,6 +459,20 @@
     const snd = button('gs-sound', '', '', () => GS.setMuted(!GS.muted));
     snd.setAttribute('data-gs-sound', '');
     right.appendChild(snd);
+    // Fullscreen toggle: only where the API exists and the app is not installed (already full).
+    if (GS.fs.available() && !GS.fs.standalone()) {
+      const fs = button('gs-fs', 'Layar penuh', ICON.expand, () => GS.fs.toggle());
+      const sync = () => {
+        const on = GS.fs.active();
+        fs.innerHTML = on ? ICON.collapse : ICON.expand;
+        fs.setAttribute('aria-label', on ? 'Keluar dari layar penuh' : 'Layar penuh');
+        fs.setAttribute('aria-pressed', String(on));
+      };
+      document.addEventListener('fullscreenchange', sync);
+      document.addEventListener('webkitfullscreenchange', sync);
+      sync();
+      right.appendChild(fs);
+    }
     bar.append(home, title, right);
     document.body.prepend(bar);
 
@@ -354,6 +502,7 @@
     };
     cap.addEventListener('click', () => { if (GS.lastSay) GS.say(GS.lastSay); });
     GS.setMuted(GS.muted);
+    if (document.body.classList.contains('gs-game')) startGate(o.title);
     return {
       el: bar,
       setLevel(i) { title.querySelector('.gs-title-level').textContent = 'Level ' + (i + 1) + (o.levelCount ? ' / ' + o.levelCount : ''); },

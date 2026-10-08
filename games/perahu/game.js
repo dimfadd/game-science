@@ -941,7 +941,7 @@
       else {
         tries++;
         GS.sfx.oops();
-        man.fxw.classList.remove('gs-wobble'); void man.fxw.getBBox(); man.fxw.classList.add('gs-wobble');
+        GS.fx(man.fxw, 'gs-wobble');
         if (exactLevel) await sayWait('Belum ' + K + ' kilo. Masih kurang ' + (K - l) + ' kilo.', 'oops');
         else await sayWait('Masih bisa lebih berat, asal tidak lewat ' + K + ' kilo.', 'oops');
         if (my !== gen) return;
@@ -954,8 +954,7 @@
     function hint() {
       cargo.forEach(t => {
         if (P.bestMask & (1 << t.idx)) {
-          t.fx.classList.add('gs-pulse');
-          setTimeout(() => t.fx.classList.remove('gs-pulse'), 2600);
+          GS.fx(t.fx, 'gs-pulse', 2600);
         }
       });
       say('Coba barang yang berkedip.', 'point');
@@ -1263,14 +1262,14 @@
         b.rho = 1.7; wake(b);
         splash(tank.fx, b.x, TK.ws, sh.W * 0.6, 120);
         for (let k = 0; k < 8; k++) bubble(tank.fx, b.x + (k - 4) * sh.W / 10, b.y - sh.D * 0.5, TK.ws);
-        loadSt = null; jar.classList.remove('gs-pulse');
+        loadSt = null; GS.fxStop(jar, 'gs-pulse');
         await waitUntil(() => b.onBottom && b.calm, 8000);
         if (my !== gen) return;
         st.res({ count: st.n - 1, sank: true });
         return;
       }
       if (st.stopAt && st.n >= st.stopAt) {
-        loadSt = null; jar.classList.remove('gs-pulse');
+        loadSt = null; GS.fxStop(jar, 'gs-pulse');
         await waitUntil(() => b.calm, 4000);
         if (my !== gen) return;
         st.res({ count: st.n, sank: false });
@@ -1303,7 +1302,7 @@
       await waitUntil(() => b.calm, 5000);
       if (my !== gen) return null;
       say('Seret kelereng ke ' + sh.label + '. Hitung, ya!', 'point');
-      jar.classList.add('gs-pulse');
+      GS.fx(jar, 'gs-pulse'); // the jar group is placed by translate(): pulse an inner <g> so it stays put
       return new Promise(res => { loadSt = { sh, n: 0, stopAt, res, busy: false }; });
     }
     async function fillBar(sh, count) {

@@ -1430,10 +1430,10 @@
       kenek.pose('think'); hud.mood('think');
       kenekBubble('Belum penuh!');
       GS.say('Belum penuh. Angkot tidak mau berangkat.');
-      A.shake.classList.add('gs-wobble');
+      GS.fx(A.shake, 'gs-wobble');
       await sleep(1500);
       if (!alive(t)) return;
-      A.shake.classList.remove('gs-wobble');
+      GS.fxStop(A.shake, 'gs-wobble');
       // everyone hops back into the crowd
       for (let k = take - 1; k >= 0; k--) {
         const o = A.seats[k]; const sp = seatPos(k);
@@ -1516,8 +1516,8 @@
       hud.mood('oops');
       [[okT, B.boxT, B.tG], [okO, B.boxO, B.oG]].forEach(([ok, bx, ic]) => {
         if (ok) return;
-        bx.g.classList.remove('gs-wobble'); void bx.g.getBoundingClientRect(); bx.g.classList.add('gs-wobble');
-        ic.classList.remove('gs-wobble'); void ic.getBoundingClientRect(); ic.classList.add('gs-wobble');
+        GS.fx(bx.g, 'gs-wobble');
+        GS.fx(ic, 'gs-wobble');
       });
       if (!okT) GS.say('Hitung lagi angkotnya. Satu angkot, sepuluh orang.');
       else GS.say('Hitung lagi becaknya. Satu becak, satu orang.');

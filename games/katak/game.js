@@ -675,8 +675,7 @@
       const want = sgn(L.target - L.start), went = sgn(pos - L.start);
       const d = (pos - L.target) * want;
       showGap(pos, went !== want && pos !== L.target && went !== 0 ? null : d);
-      frog.squash.classList.add('gs-wobble');
-      setTimeout(() => frog.squash.classList.remove('gs-wobble'), 450);
+      GS.fx(frog.squash, 'gs-wobble', 450); // squash has its own transform: wobble an inner <g>
       if (went !== want && went !== 0) line = 'Temanmu ada di arah sebaliknya. Coba lagi, ya!';
       else if (d < 0) line = 'Hampir! Kurang ' + (-d) + ' lagi. Coba lagi, ya!';
       else line = 'Wah, kelewatan ' + d + '. Coba lagi, ya!';
