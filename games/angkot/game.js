@@ -57,6 +57,8 @@
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
   const SAT = ['nol', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan'];
   function words(n) {
+    if (n >= 1000) { const r = Math.floor(n / 1000), rest = n % 1000; return (r === 1 ? 'seribu' : words(r) + ' ribu') + (rest ? ' ' + words(rest) : ''); }
+    if (n >= 100) { const r = Math.floor(n / 100), rest = n % 100; return (r === 1 ? 'seratus' : SAT[r] + ' ratus') + (rest ? ' ' + words(rest) : ''); }
     if (n < 10) return SAT[n];
     if (n === 10) return 'sepuluh';
     if (n === 11) return 'sebelas';
@@ -64,7 +66,7 @@
     const t = Math.floor(n / 10), o = n % 10;
     return SAT[t] + ' puluh' + (o ? ' ' + SAT[o] : '');
   }
-  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const Cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   function toScreen(x, y) {
     const m = svg.getScreenCTM();
     if (!m) return { x: 0, y: 0 };
@@ -212,8 +214,8 @@
     PA(p, 'M' + (cx + 22) + ' ' + (top + 12) + ' L' + (cx + 22) + ' ' + (top + h - 10), 'none', P.redS, 5);
     PA(p, 'M' + (cx - 9) + ' ' + (top + 18) + ' V' + (top + h - 6) + ' M' + (cx + 9) + ' ' + (top + 18) + ' V' + (top + h - 6), 'none', P.redS, 2, { opacity: 0.7 });
   }
-  function buildAngkot() {
-    const A = { x: -760, count: 0, loads: [], seats: [], roof: [], state: 'arriving', angTries: 0 };
+  function buildAngkot(cap) {
+    const A = { x: -760, count: 0, loads: [], seats: [], roof: [], state: 'arriving', angTries: 0, cap: cap || 10 };
     const root = G(L_.angkot, { class: 'ak' });
     A.root = root;
     E(root, 296, 2, 300, 13, OUT, null, 0, { opacity: 0.18 });
@@ -247,10 +249,16 @@
       const cx = colX(c);
       PA(inter, 'M' + (cx - 10) + ' -290 v10 a6 6 0 0 0 12 0 v-10', 'none', P.stone, 2.5);
     }
-    for (let c = 0; c < 5; c++) seatBack(inter, colX(c), -262, 82);
+    if (A.cap === 5) {
+      R(inter, 112, -268, 384, 12, 0, P.woodS);
+      for (let c = 0; c < 5; c++) {
+        const bx = colX(c);
+        if (c % 2 === 0) { R(inter, bx - 20, -296, 40, 28, 8, [P.org, P.grn, P.pink][c / 2], OUT, 2.5); R(inter, bx - 6, -302, 12, 8, 3, 'none', OUT, 2.5); }
+      }
+    } else for (let c = 0; c < 5; c++) seatBack(inter, colX(c), -262, 82);
     A.far = G(idle, { 'clip-path': 'url(#' + winClip + ')' });
     const nearBacks = G(idle, { 'clip-path': 'url(#' + winClip + ')' });
-    for (let c = 0; c < 5; c++) seatBack(nearBacks, colX(c), -186, 80);
+    for (let c = 0; c < 5; c++) { if (A.cap === 5) seatBack(nearBacks, colX(c), -232, 120); else seatBack(nearBacks, colX(c), -186, 80); }
     A.near = G(idle, { 'clip-path': 'url(#' + winClip + ')' });
     A.marks = G(idle, { class: 'ak-markpulse', style: 'display:none' });
     // glass glints (only in the ceiling band, never over faces)
@@ -347,15 +355,17 @@
     GS.sfx.creak();
     return tw(260, e => place(A.doorPanel, -86 * GS.lerp(from, to, e), 0), 'outCubic');
   }
-  function seatPos(idx) {
+  function seatPos(A, idx) {
+    if (A && A.cap === 5) return { x: colX(idx), y: -96, layer: 'near', s: 0.8 };
     const c = idx % 5, row = Math.floor(idx / 5);
-    return { x: colX(c), y: row === 0 ? -168 : -94, layer: row === 0 ? 'far' : 'near' };
+    return { x: colX(c), y: row === 0 ? -168 : -94, layer: row === 0 ? 'far' : 'near', s: SEAT_S };
   }
   function addSeat(A, idx, v, owner, instant) {
-    const sp = seatPos(idx);
-    const n = personNode(A[sp.layer], v, sp.x, sp.y, SEAT_S, false);
+    const sp = seatPos(A, idx);
+    const n = personNode(A[sp.layer], v, sp.x, sp.y, sp.s, false);
     A.seats[idx] = { node: n, owner, v };
-    if (!instant) popIn(n, sp.x, sp.y, SEAT_S);
+    if (!instant) popIn(n, sp.x, sp.y, sp.s);
+    if (!instant && TK) floatAt(String(idx + 1), A.x + sp.x, GROUND + sp.y - 120);
     refreshMarks(A);
   }
   function addRoof(A, j, v, owner) {
@@ -379,11 +389,11 @@
     A.marks.innerHTML = '';
     if (!A.support) { A.marks.style.display = 'none'; return; }
     A.marks.style.display = '';
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < A.cap; i++) {
       if (A.seats[i]) continue;
-      const sp = seatPos(i);
-      const top = sp.layer === 'far' ? -258 : -182;
-      R(A.marks, sp.x - 25, top, 50, sp.layer === 'far' ? 70 : 66, 12, '#FFF8EC', P.sunS, 4, { 'stroke-dasharray': '10 7', 'fill-opacity': 0.55 });
+      const sp = seatPos(A, i);
+      const top = A.cap === 5 ? -226 : sp.layer === 'far' ? -258 : -182;
+      R(A.marks, sp.x - 25, top, 50, A.cap === 5 ? 110 : sp.layer === 'far' ? 70 : 66, 12, '#FFF8EC', P.sunS, 4, { 'stroke-dasharray': '10 7', 'fill-opacity': 0.55 });
     }
   }
   function spawnPuff(x, y, big) {
@@ -413,7 +423,7 @@
 
   async function arriveAngkot(pre, opts) {
     const t = tok;
-    const A = buildAngkot();
+    const A = buildAngkot(cfg.cap || 10);
     cur = A;
     for (let k = 0; k < pre; k++) addSeat(A, k, randVar(), 'pre', true);
     A.count = pre;
@@ -441,7 +451,7 @@
     GS.say('Penuh! Berangkat!');
     hud.mood('cheer');
     honk();
-    floatAt('10', A.x + 300, GROUND - 420);
+    floatAt(String(A.cap), A.x + 300, GROUND - 420);
     await sleep(900);
     if (!alive(t)) return;
     await setDoor(A, false);
@@ -660,11 +670,11 @@
       pips.push(m);
     }
   }
-  function setPips(done) {
+  function setPips(done, silent) {
     pips.forEach((m, k) => {
       const on = k < done, was = m.getAttribute('opacity') === '1';
       m.setAttribute('opacity', on ? '1' : '0.3');
-      if (on && !was) { GS.sfx.coin(); }
+      if (on && !was && !silent) { GS.sfx.coin(); }
     });
   }
 
@@ -696,6 +706,7 @@
     const maxRow = Math.max.apply(null, rows);
     const W = (maxRow - 1) * SP + (Rn > 1 ? SP * 0.5 : 0) + 30;
     gr.g = G(L_.gFront, { class: 'ak ak-group', tabindex: 0, role: 'button', 'aria-label': label === 'none' ? 'Rombongan' : 'Rombongan ' + n + ' orang' });
+    if (n === 1 && label === 'none') gr.single = true;
     gr.sq = G(gr.g);
     gr.bob = G(gr.sq);
     const B = gr.bob;
@@ -730,8 +741,14 @@
       R(sg, sx - 24, -124, 48, 44, 9, P.wood, OUT, 3);
       R(sg, sx - 19, -119, 38, 34, 6, P.cream, OUT, 2);
       if (label === 'both') T(sg, sx, -101, String(n), 28, P.ink, { class: 'gs-num' });
+      else if (label === 'dots') {
+        R(sg, sx - 19, -119, 38, 34, 6, P.cream);
+        T(sg, sx, -110, String(n), 17, P.ink, { class: 'gs-num' });
+        for (let d = 0; d < n; d++) C(sg, sx - (n - 1) * 4.5 + d * 9, -94, 3.6, gr.col[0], gr.col[1], 1.5);
+      }
       else { const e = G(sg); place(e, sx, -102); emblem(e, gr.emb, gr.col); }
     }
+    if (gr.single) sg.style.display = 'none';
     attachGroup(gr);
     return gr;
   }
@@ -865,6 +882,7 @@
   }
   function tapGroup(gr) {
     if (gr.state !== 'halte' || finished) return;
+    if (TK && cur && cur.state === 'ready') { GS.sfx.pick(); boardGroup(gr); return; }
     if (selected === gr) { deselect(); GS.sfx.click(); return; }
     if (selected) deselect();
     selected = gr;
@@ -920,8 +938,8 @@
       tw(200, e => { n.setAttribute('opacity', (1 - e).toFixed(2)); place(n, p.x * (1 - e), p.y - 60 * e, GRP_S * (1 - 0.3 * e)); }, 'inCubic');
       const idx = A.count;
       A.count++;
-      if (idx < 10) addSeat(A, idx, p.v, gr);
-      else { addRoof(A, idx - 10, p.v, gr); GS.sfx.creak(); }
+      if (idx < A.cap) addSeat(A, idx, p.v, gr);
+      else { addRoof(A, idx - A.cap, p.v, gr); GS.sfx.creak(); }
       GS.sfx.count(idx + 1);
       await sleep(250);
     }
@@ -929,8 +947,8 @@
     gr.g.style.display = 'none';
     await sleep(220);
     if (!alive(t)) return;
-    if (A.count === 10) poolDepart(A);
-    else if (A.count > 10) overfull(A);
+    if (A.count === A.cap) poolDepart(A);
+    else if (A.count > A.cap) overfull(A);
     else underfull(A);
   }
   function overfull(A) {
@@ -947,7 +965,7 @@
   function underfull(A) {
     A.state = 'ready';
     setDoor(A, false);
-    const left = 10 - A.count;
+    const left = A.cap - A.count;
     updateDock();
     if (!subsetExists(halte.map(g => g.n), left)) {
       GS.sfx.oops();
@@ -975,7 +993,7 @@
     GS.sfx.whoosh();
     await setDoor(A, true);
     const mine = [];
-    A.roof.forEach((o, j) => { if (o && o.owner === gr) mine.push({ o, idx: 10 + j }); });
+    A.roof.forEach((o, j) => { if (o && o.owner === gr) mine.push({ o, idx: A.cap + j }); });
     A.seats.forEach((o, i) => { if (o && o.owner === gr) mine.push({ o, idx: i }); });
     mine.sort((a, b) => b.idx - a.idx);
     for (const m of mine) {
@@ -983,17 +1001,17 @@
       const tr = m.o.node.getAttribute('transform') || '';
       const mm = /translate\(([-\d.]+) ([-\d.]+)\)(?: scale\(([-\d.]+)\))?/.exec(tr);
       if (mm) popOut(m.o.node, +mm[1], +mm[2], mm[3] ? +mm[3] : 1); else m.o.node.remove();
-      if (m.idx >= 10) A.roof[m.idx - 10] = null; else A.seats[m.idx] = null;
+      if (m.idx >= A.cap) A.roof[m.idx - A.cap] = null; else A.seats[m.idx] = null;
       A.count--;
       GS.sfx.pop();
       await sleep(110);
     }
     A.roof = A.roof.filter(Boolean);
-    A.seats.length = Math.min(A.seats.length, 10);
-    if (A.count <= 10) A.shake.classList.remove('ak-rumble');
+    A.seats.length = Math.min(A.seats.length, A.cap);
+    if (A.count <= A.cap) A.shake.classList.remove('ak-rumble');
     // the group re-forms at the door and walks back
     gr.g.style.display = '';
-    gr.signG.style.display = '';
+    gr.signG.style.display = gr.single ? 'none' : '';
     gr.people.forEach(p => { p.node.setAttribute('opacity', '1'); place(p.node, p.x, p.y, GRP_S); });
     setBlur(gr, A.angTries < 2);
     gr.x = A.x + 62; gr.y = GROUND + 8; gr.s = 1; gr.ds = 1; posGroup(gr);
@@ -1064,109 +1082,243 @@
   }
   function split2(nd) { if (nd <= 1) return [nd]; const a = rnd(1, nd - 1); return [a, nd - a]; }
   const G_ = arr => arr.map(n => ({ n }));
-  function oneChoiceRound() {
-    const a = rnd(3, 7), need = 10 - a;
-    const cands = [need - 2, need - 1, need + 1, need + 2, need + 3].filter(d => d >= 1 && d <= 9 && d !== need);
-    let d1, d2;
-    do { d1 = pick(cands); d2 = pick(cands); } while (d1 === d2 || d1 + d2 === need);
+  /** Angkot pre-filled with a; three groups, exactly one completes the angkot. */
+  function choiceRound(capN, lo, hi) {
+    const a = rnd(lo, hi), need = capN - a;
+    const cands = [need - 2, need - 1, need + 1, need + 2, need + 3].filter(d => d >= 1 && d <= capN - 1 && d !== need);
+    let d1, d2, guard = 0;
+    do { d1 = pick(cands); d2 = pick(cands); guard++; } while ((d1 === d2 || d1 + d2 === need) && guard < 200);
     return { angkots: [a], groups: GS.shuffle([{ n: need }, { n: d1, d: 'decoy' }, { n: d2, d: 'decoy' }]) };
+  }
+  function singles(n, extra) {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push({ n: 1 });
+    for (let i = 0; i < extra; i++) out.push({ n: 1, d: 'decoy' });
+    return out;
   }
   function strayFor(waves, cands) {
     for (const d of GS.shuffle(cands || [9, 8, 7, 1])) {
-      const ok = waves.every(w => !w.needs.some(nd => {
-        const s = w.sizes;
-        if (d === nd) return true;
-        return subsetExists(s, nd - d);
-      }));
+      const ok = waves.every(w => !w.needs.some(nd => d === nd || subsetExists(w.sizes, nd - d)));
       if (ok) return d;
     }
     return 9;
   }
-  const LEVELS = [
-    { kind: 'pool', label: 'none', slots: 'big', say: 'Angkot belum penuh. Pilih rombongan yang pas!',
-      make: () => [oneChoiceRound()] },
-    { kind: 'pool', label: 'none', slots: 'big', say: 'Dua angkot menunggu. Isi sampai tepat sepuluh!',
-      make: () => [oneChoiceRound(), oneChoiceRound()] },
-    { kind: 'pool', label: 'none', say: 'Angkot kosong. Gabungkan dua rombongan jadi sepuluh!',
-      make: () => { const as = GS.shuffle([2, 3, 4, 5]).slice(0, 3); return [{ angkots: [0, 0, 0], groups: GS.shuffle(G_(as.flatMap(a => [a, 10 - a]))) }]; } },
-    { kind: 'pool', label: 'both', say: 'Lihat angkanya. Pasangkan jadi sepuluh!',
-      make: () => { const as = GS.shuffle([1, 2, 3, 4, 5]).slice(0, 4); return [
+  const PL = o => Object.assign({ type: 'pool', cap: 10, label: 'none' }, o);
+  const digitsOf = (n, units) => units.map(u => Math.floor(n / u) % 10);
+  const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const lcm = (a, b) => { let x = a; while (x % b) x += a; return x; };
+
+  function calcBuild(units, lo, hi) {
+    let n; do { n = rnd(lo, hi); } while (n % 10 === 0);
+    return { type: 'calc', mode: 'build', units, target: n };
+  }
+  function readRound(units, lo, hi, zero) {
+    let n;
+    do { n = rnd(lo, hi); if (zero) { const d = digitsOf(n, units); d[units.length - 2] = 0; n = d.reduce((s, v, i) => s + v * units[i], 0); } } while (n < lo || n % 10 === 0);
+    return { type: 'calc', mode: 'count', op: 'read', units, parts: [n] };
+  }
+  function sumRound2(carry) {
+    let a, b;
+    do { a = rnd(11, 59); b = rnd(11, 39); } while (a % 10 === 0 || b % 10 === 0 || (carry ? (a % 10) + (b % 10) < 11 : (a % 10) + (b % 10) > 9) || a + b > 99);
+    return { type: 'calc', mode: 'count', op: 'sum', units: [10, 1], parts: [a, b], icons: true };
+  }
+  function subRound(tensOnly) {
+    let a, b;
+    do {
+      a = rnd(31, 89);
+      const ta = Math.floor(a / 10), oa = a % 10;
+      b = tensOnly ? 10 * rnd(1, ta - 1) : 10 * rnd(1, ta - 1) + rnd(1, Math.max(1, oa));
+      if (!tensOnly && b % 10 > oa) b = -1;
+    } while (b <= 0 || a % 10 === 0);
+    return { type: 'calc', mode: 'count', op: 'sub', units: [10, 1], parts: [a], take: b };
+  }
+  function sum3Round() {
+    let a, b, c;
+    do { a = rnd(101, 399); b = rnd(101, 399); c = rnd(11, 99); } while (a + b + c > 999);
+    return { type: 'calc', mode: 'count', op: 'sum', units: [100, 10, 1], parts: [a, b, c] };
+  }
+  function multRound(capN, lo, hi) {
+    const cnt = rnd(lo, hi);
+    return { type: 'calc', mode: 'count', op: 'mult', cap: capN, cnt, units: capN * cnt >= 100 ? [100, 10, 1] : [10, 1] };
+  }
+  function estRound() {
+    let parts, tot;
+    do { parts = [rnd(95, 330), rnd(95, 330), rnd(95, 330)]; tot = parts[0] + parts[1] + parts[2]; } while (tot % 100 === 50 || tot > 990 || parts.every(x => x % 100 < 10));
+    return { type: 'calc', mode: 'count', op: 'est', units: [100, 10, 1], parts, lock: [false, true, true] };
+  }
+  function shareRound(rem) {
+    const N = rnd(3, 5), k = rnd(3, Math.min(8, Math.floor((rem ? 38 : 40) / N)));
+    const r = rem ? rnd(1, N - 1) : 0;
+    return { type: 'share', N, k, n: N * k + r, rem: r };
+  }
+  function fleetRound(how, c) {
+    const m = rnd(2, 5);
+    const n = how === 'ceil' ? (m - 1) * c + rnd(1, c - 1) : m * c + rnd(1, c - 1);
+    return { type: 'fleet', how, c, n, m };
+  }
+  function multiRound(pr) { const [a, b] = GS.shuffle(pr); return { type: 'multi', a, b }; }
+  const PAIRS = [[6, 8], [4, 6], [3, 4], [4, 10], [6, 9], [3, 5]];
+  function cmpRound(kind) {
+    let A, B;
+    do {
+      A = rnd(21, 98); B = rnd(21, 98);
+      if (kind === 'ones') B = Math.floor(A / 10) * 10 + rnd(0, 9);
+      if (kind === 'eq') B = A;
+    } while ((kind !== 'eq' && A === B) || (kind === 'tens' && Math.floor(A / 10) === Math.floor(B / 10)) || A % 10 === 0 || B % 10 === 0);
+    return { type: 'compare', A, B };
+  }
+
+  /* ------------------------------------------------------------------ levels per grade tier (docs/KURIKULUM.md) */
+  const TIER = (GS.tier && GS.tier()) || 'k1';
+  const TK = TIER === 'tk';
+  const LEVELS_BY_TIER = {
+    tk: [
+      { say: 'Ketuk penumpang satu per satu. Hitung sampai penuh!', rounds: () => [PL({ cap: 5, waves: [{ angkots: [0], groups: singles(5, 1) }] })] },
+      { say: 'Sudah ada yang duduk. Ajak lagi sampai penuh!', rounds: () => { const a = rnd(1, 3); return [PL({ cap: 5, waves: [{ angkots: [a], groups: singles(5 - a, 2) }] })]; } },
+      { say: 'Rombongan mana yang pas? Ketuk dia!', rounds: () => [PL({ cap: 5, label: 'dots', waves: [choiceRound(5, 1, 3)] })] },
+      { say: 'Angkot kosong. Dua rombongan sampai penuh!', rounds: () => [PL({ cap: 5, label: 'dots', waves: [{ angkots: [0, 0], groups: GS.shuffle(G_([1, 4, 2, 3])) }] })] },
+      { say: 'Dua angkot menunggu. Isi sampai penuh!', rounds: () => [PL({ cap: 5, label: 'dots', waves: [choiceRound(5, 1, 3), choiceRound(5, 1, 3)] })] },
+      { say: 'Hitung orangnya, ya. Isi sampai penuh!', rounds: () => {
+        const a = rnd(1, 2), d = pick([1, 2, 3, 4].filter(x => x !== a && x !== 5 - a));
+        return [PL({ cap: 5, waves: [choiceRound(5, 1, 3), { angkots: [0], groups: GS.shuffle(G_([a, 5 - a]).concat([{ n: d, d: 'decoy' }])) }] })];
+      } }
+    ],
+    k1: [
+      { say: 'Angkot belum penuh. Pilih rombongan yang pas!', rounds: () => [PL({ waves: [choiceRound(10, 3, 7)] })] },
+      { say: 'Dua angkot menunggu. Isi sampai tepat sepuluh!', rounds: () => [PL({ waves: [choiceRound(10, 3, 7), choiceRound(10, 3, 7)] })] },
+      { say: 'Angkot kosong. Gabungkan dua rombongan jadi sepuluh!', rounds: () => { const as = GS.shuffle([2, 3, 4, 5]).slice(0, 3); return [PL({ waves: [{ angkots: [0, 0, 0], groups: GS.shuffle(G_(as.flatMap(a => [a, 10 - a]))) }] })]; } },
+      { say: 'Lihat angkanya. Pasangkan jadi sepuluh!', rounds: () => { const as = GS.shuffle([1, 2, 3, 4, 5]).slice(0, 4); return [PL({ label: 'both', waves: [
         { angkots: [0, 0], groups: GS.shuffle(G_([as[0], 10 - as[0], as[1], 10 - as[1]])) },
-        { angkots: [0, 0], groups: GS.shuffle(G_([as[2], 10 - as[2], as[3], 10 - as[3]])) }]; } },
-    { kind: 'pool', label: 'both', say: 'Tiga rombongan untuk satu angkot. Ayo isi!',
-      make: () => [
+        { angkots: [0, 0], groups: GS.shuffle(G_([as[2], 10 - as[2], as[3], 10 - as[3]])) }] })]; } },
+      { say: 'Tiga rombongan untuk satu angkot. Ayo isi!', rounds: () => [PL({ label: 'both', waves: [
         { angkots: [0, 0], groups: GS.shuffle(G_(triple(1).concat(triple(2)))) },
-        { angkots: [0], groups: GS.shuffle(G_(triple(1))) }] },
-    { kind: 'pool', label: 'both', say: 'Isi tepat sepuluh. Ada rombongan yang tidak cocok, lho!',
-      make: () => {
-        const p1 = pair(2, 5), t1 = triple(2), p2 = pair(2, 5), t2 = triple(2);
-        const w1 = p1.concat(t1), w2 = p2.concat(t2);
+        { angkots: [0], groups: GS.shuffle(G_(triple(1))) }] })] },
+      { say: 'Isi tepat sepuluh. Ada rombongan yang tidak cocok, lho!', rounds: () => {
+        const w1 = pair(2, 5).concat(triple(2)), w2 = pair(2, 5).concat(triple(2));
         const d = strayFor([{ needs: [10], sizes: w1 }, { needs: [10], sizes: w2 }]);
-        return [
+        return [PL({ label: 'both', waves: [
           { angkots: [0, 0], groups: GS.shuffle(G_(w1).concat([{ n: d, d: 'stray' }])) },
-          { angkots: [0, 0], groups: GS.shuffle(G_(w2)) }];
+          { angkots: [0, 0], groups: GS.shuffle(G_(w2)) }] })];
       } },
-    { kind: 'pool', label: 'num', say: 'Sekarang hanya angka. Isi tepat sepuluh!',
-      make: () => [
+      { say: 'Sekarang hanya angka. Isi tepat sepuluh!', rounds: () => [PL({ label: 'num', waves: [
         { angkots: [0, 0], groups: GS.shuffle(G_(pair(1, 5).concat(triple(1)))) },
-        { angkots: [0, 0], groups: GS.shuffle(G_(triple(1).concat(pair(1, 5)))) }] },
-    { kind: 'tens', label: 'none', say: 'Ketuk Isi angkot! Sisanya naik becak.' },
-    { kind: 'order', label: 'none', say: 'Ada pesanan! Kirim penumpang ke pasar.' },
-    { kind: 'pool', label: 'none', say: 'Tantangan! Lima angkot, tanpa angka.',
-      make: () => {
+        { angkots: [0, 0], groups: GS.shuffle(G_(triple(1).concat(pair(1, 5)))) }] })] },
+      { say: 'Tantangan! Lima angkot, tanpa angka.', rounds: () => {
         const a = rnd(2, 5), need = 10 - a, sp = split2(need);
         const d = strayFor([{ needs: [need], sizes: sp }], [1, 2, 3, 4].filter(x => x !== need));
-        return [
+        return [PL({ summary: true, waves: [
           { angkots: [0, 0], groups: GS.shuffle(G_(pair(1, 5).concat(triple(1)))) },
           { angkots: [0, 0], groups: GS.shuffle(G_(quad().concat(pair(1, 5)))) },
-          { angkots: [a], groups: GS.shuffle(G_(sp).concat([{ n: d, d: 'stray' }])) }];
+          { angkots: [a], groups: GS.shuffle(G_(sp).concat([{ n: d, d: 'stray' }])) }] })];
       } }
-  ];
+    ],
+    k2: [
+      { say: 'Ketuk Isi angkot! Sisanya naik becak.', rounds: () => [{ type: 'tens', lo: 21, hi: 59 }] },
+      { say: 'Kerumunan besar! Isi angkot, sisanya naik becak.', rounds: () => [{ type: 'tens', lo: 61, hi: 99 }] },
+      { say: 'Ada pesanan! Kirim penumpang ke pasar.', rounds: () => [calcBuild([10, 1], 21, 49), calcBuild([10, 1], 21, 49)] },
+      { say: 'Pesanan besar! Atur angkot dan becak.', rounds: () => [calcBuild([10, 1], 51, 99), calcBuild([10, 1], 51, 99)] },
+      { say: 'Dua rombongan digabung. Berapa semuanya?', rounds: () => [sumRound2(false), sumRound2(false)] },
+      { say: 'Ada yang turun di halte. Berapa sisanya?', rounds: () => [subRound(true), subRound(false)] },
+      { say: 'Terminal mana yang lebih ramai?', rounds: () => [cmpRound('tens'), cmpRound('ones'), cmpRound(Math.random() < 0.5 ? 'eq' : 'ones')] },
+      { say: 'Tantangan! Gabung, kirim, dan bandingkan.', rounds: () => [sumRound2(true), calcBuild([10, 1], 51, 99), cmpRound('ones')] }
+    ],
+    k3: [
+      { say: 'Satu bus isi seratus. Berapa penumpangnya?', rounds: () => [readRound([100, 10, 1], 120, 499), readRound([100, 10, 1], 501, 999)] },
+      { say: 'Hati-hati, ada kolom yang kosong!', rounds: () => [readRound([100, 10, 1], 101, 999, true), readRound([100, 10, 1], 101, 999, true)] },
+      { say: 'Kirim ratusan penumpang ke pasar!', rounds: () => [calcBuild([100, 10, 1], 101, 499), calcBuild([100, 10, 1], 501, 999)] },
+      { say: 'Angkot penuh semua. Berapa penumpangnya?', rounds: () => [multRound(10, 3, 9), multRound(pick([6, 7, 8]), 3, 6)] },
+      { say: 'Bagi penumpang sama rata ke semua angkot!', rounds: () => [shareRound(false), shareRound(false)] },
+      { say: 'Bagi sama rata. Sisanya naik becak!', rounds: () => [shareRound(true), shareRound(true)] },
+      { say: 'Tiga rombongan digabung. Berapa semuanya?', rounds: () => [sum3Round(), sum3Round()] },
+      { say: 'Tantangan! Bus, angkot, dan becak.', rounds: () => [calcBuild([100, 10, 1], 101, 999), shareRound(true), multRound(pick([6, 7, 8, 9]), 4, 9)] }
+    ],
+    k4: [
+      { say: 'Satu kereta isi seribu. Hitung penumpangnya!', rounds: () => [readRound([1000, 100, 10, 1], 1001, 9999), calcBuild([1000, 100, 10, 1], 1001, 9999)] },
+      { say: 'Semua harus terangkut. Butuh berapa angkot?', rounds: () => [fleetRound('ceil', 10), fleetRound('ceil', 10)] },
+      { say: 'Berapa angkot yang penuh? Sisanya naik becak.', rounds: () => [fleetRound('floor', rnd(6, 9)), fleetRound('floor', rnd(6, 9))] },
+      { say: 'Cari jumlah yang membuat dua angkot sama-sama penuh!', rounds: () => { const ps = GS.shuffle(PAIRS); return [multiRound([6, 8]), multiRound(ps.find(p => p[0] !== 6 || p[1] !== 8))]; } },
+      { say: 'Banyak angkot penuh. Berapa semua penumpangnya?', rounds: () => [multRound(rnd(6, 9), 11, 15), multRound(rnd(6, 9), 11, 15)] },
+      { say: 'Kira-kira berapa? Bulatkan ke ratusan.', rounds: () => [estRound(), estRound()] },
+      { say: 'Campuran! Pikirkan baik-baik.', rounds: () => [fleetRound('ceil', pick([6, 8])), multRound(rnd(6, 9), 11, 15), multiRound(pick(PAIRS))] },
+      { say: 'Tantangan besar! Kereta, angkot, dan becak.', rounds: () => [calcBuild([1000, 100, 10, 1], 1001, 9999), fleetRound('floor', rnd(6, 9)), estRound()] }
+    ]
+  };
+  const LEVELS = LEVELS_BY_TIER[TIER] || LEVELS_BY_TIER.k1;
 
   /* ------------------------------------------------------------------ HUD + runner */
   const hud = GS.hud({ gameId: GAME, title: 'Angkot Penuh!', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
   const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: buildLevel });
 
-  /* ------------------------------------------------------------------ level state */
-  let cfg = LEVELS[0], LV = 0, tries = 0, cur = null, kenek = null, halte = [], selected = null, dragging = null;
+  /* ------------------------------------------------------------------ level / round state */
+  let cfg = {}, LV = 0, tries = 0, cur = null, kenek = null, halte = [], selected = null, dragging = null;
   let finished = false, tapHinted = false, waves = [], waveIdx = 0, pres = [], departed = 0, btnDown = null;
-  let mode = {};
+  let mode = {}, rounds = [], roundIdx = 0, levelWon = false, levelTok = 0, roundReady = false, levelDef = null;
 
   function buildLevel(i) {
+    levelTok++;
+    LV = i; levelDef = LEVELS[i]; tries = 0; levelWon = false; tapHinted = false;
+    colorCursor = rnd(0, 5);
+    rounds = levelDef.rounds();
+    roundIdx = 0;
+    startRound(true);
+  }
+  function resetWorld() {
     tok++;
     timers.forEach(clearTimeout); timers = [];
     clearTimeout(bubbleT);
     world.innerHTML = '';
     dock.innerHTML = '';
     makeLayers();
-    LV = i; cfg = LEVELS[i]; tries = 0; cur = null; halte = []; selected = null; dragging = null;
-    finished = false; tapHinted = false; departed = 0; btnDown = null; mode = {}; colorCursor = rnd(0, 5);
-    drawHalte({ noPoster: cfg.kind === 'order' });
-    kenek = drawKenek(KEN_X, GROUND + 14);
+    cur = null; halte = []; selected = null; dragging = null; finished = false; departed = 0; btnDown = null; mode = {}; kenek = null;
+  }
+  function startRound(first) {
+    resetWorld();
+    cfg = rounds[roundIdx];
+    cfg.kind = cfg.type;
+    const say = first ? levelDef.say : null;
+    const T_ = cfg.type;
+    if (T_ !== 'multi' && T_ !== 'compare') drawHalte({ noPoster: T_ === 'calc' });
+    if (T_ === 'multi') kenek = drawKenek(1212, GROUND + 14);
+    else if (T_ === 'compare') kenek = drawKenek(640, GROUND + 14);
+    else kenek = drawKenek(KEN_X, GROUND + 14);
     hud.mood('think');
-    if (cfg.kind === 'pool') startPool();
-    else if (cfg.kind === 'tens') startTens();
-    else startOrder();
+    if (rounds.length > 1 || T_ !== 'pool') { drawPips(rounds.length, 'dot'); setPips(roundIdx, true); }
+    roundReady = true;
+    ({ pool: startPool, tens: startTens, calc: startCalc, share: startShare, fleet: startFleet, multi: startMulti, compare: startCompare })[T_](say);
+  }
+  function roundDone(text) {
+    if (!roundReady) return;
+    roundReady = false;
+    roundIdx++;
+    if (roundIdx >= rounds.length) { finish(text); return; }
+    setPips(roundIdx);
+    hud.mood('happy');
+    timers.push(setTimeout(() => startRound(false), 1300 / SPEED));
   }
   function finish(text) {
-    if (finished && mode.won) return;
-    finished = true; mode.won = true;
+    if (levelWon) return;
+    levelWon = true; finished = true;
     const stars = tries === 0 ? 3 : tries <= 2 ? 2 : 1;
     hud.mood('cheer');
-    kenek.pose('shout');
+    if (kenek) kenek.pose('shout');
+    updateDock();
     run.win(stars, text || 'Hebat! Semua angkot berangkat.');
   }
+  function sayFirst(say, fallback) { GS.say(say || fallback); }
 
-  /* ================================================================== POOL LEVELS (1-7, 10) */
-  function startPool() {
-    waves = cfg.make();
+  /* ================================================================== POOL ROUNDS (TK, Kelas 1) */
+  function startPool(say) {
+    waves = cfg.waves;
     waveIdx = -1;
     const total = waves.reduce((s, w) => s + w.angkots.length, 0);
-    drawPips(total, 'angkot');
-    slots = (cfg.slots === 'big' ? SLOTS_BIG : SLOTS_ALL).map(s => Object.assign({}, s, { occ: null }));
+    if (rounds.length === 1) drawPips(total, 'angkot');
+    const maxG = Math.max.apply(null, waves.map(w => w.groups.length));
+    const big = maxG <= 3;
+    const mul = TK ? (big ? 1.12 : 1.22) : 1;
+    slots = (big ? SLOTS_BIG : SLOTS_ALL).map(s => Object.assign({}, s, { occ: null, s: s.s * mul }));
     btnDown = mkBtn('Turunkan', true, () => sendBack(), GS.ICON.retry);
     btnDown.hidden = true;
-    GS.say(cfg.say);
+    sayFirst(say, 'Isi angkot sampai penuh!');
     nextWave(true);
   }
   async function nextWave(first) {
@@ -1196,22 +1348,21 @@
     await departAnim(A);
     if (!alive(t)) return;
     departed++;
-    setPips(departed);
+    if (rounds.length === 1) setPips(departed);
     cur = null;
     pres.shift();
     hud.mood('happy');
     if (pres.length) {
-      const needs = pres.map(p => 10 - p);
+      const needs = pres.map(p => cfg.cap - p);
       if (!canSolve(halte, needs)) await rebalance(needs);
       if (!alive(t)) return;
       arriveAngkot(pres[0], { say: pick(['Angkot berikutnya datang!', 'Ayo, angkot baru!']) });
     } else if (waveIdx < waves.length - 1) {
-      // decoys of this wave go home; strays stay
       await Promise.all(halte.filter(g => g.d !== 'stray').map(g => walkOff(g)));
       if (!alive(t)) return;
       nextWave(false);
     } else {
-      levelDone();
+      poolDone();
     }
   }
   async function rebalance(needs) {
@@ -1219,7 +1370,7 @@
     await Promise.all(olds.map(g => walkOff(g)));
     await spawnGroups(needs.flatMap(nd => split2(nd)).map(n => ({ n })));
   }
-  async function levelDone() {
+  async function poolDone() {
     const t = tok;
     finished = true;
     updateDock();
@@ -1242,13 +1393,13 @@
       }
     }
     if (!alive(t)) return;
-    if (LV === 9) {
+    if (cfg.summary) {
       await showSummary(departed);
       if (!alive(t)) return;
     }
     await sleep(350);
     if (!alive(t)) return;
-    finish(LV === 9 ? 'Luar biasa! Lima angkot penuh.' : 'Hebat! Semua angkot penuh.');
+    roundDone(cfg.summary ? 'Luar biasa! Lima angkot penuh.' : TK ? 'Hore! Angkotnya penuh.' : 'Hebat! Semua angkot penuh.');
   }
   async function showSummary(n) {
     const g = G(L_.top, { class: 'ak' });
@@ -1271,66 +1422,172 @@
     }
     eq.textContent = Array(n).fill('10').join(' + ') + ' = ' + (n * 10);
     GS.sfx.coin();
-    GS.say(cap(words(n)) + ' angkot penuh. ' + cap(words(n * 10)) + ' penumpang!');
+    GS.say(Cap(words(n)) + ' angkot penuh. ' + Cap(words(n * 10)) + ' penumpang!');
     await sleep(2600);
   }
 
-  /* ================================================================== LEVEL 8: puluhan & satuan */
-  function makeBoard(kind) {
-    const B = { tens: 0, ones: 0, dT: 0, dO: 0, kind };
+  /* ------------------------------------------------------------------ more vehicles: bus, train, angkot with any capacity */
+  function miniBus(p, opts) {
+    opts = opts || {};
+    const g = G(p, { class: 'ak' });
+    const sw = opts.sw || 4;
+    if (opts.shadow) E(g, 136, 2, 136, 7, OUT, null, 0, { opacity: 0.18 });
+    PA(g, 'M6 -30 V-126 Q6 -142 22 -142 H246 Q262 -142 265 -126 L270 -42 Q270 -24 254 -24 H18 Q6 -24 6 -30 Z', P.org, OUT, sw);
+    R(g, 20, -138, 170, 7, 3.5, P.orgH);
+    R(g, 8, -50, 260, 12, 0, P.orgS);
+    R(g, 8, -64, 260, 9, 0, P.cream);
+    for (let i = 0; i < 8; i++) {
+      R(g, 22 + i * 27, -126, 23, 50, 5, '#F6E6C9', OUT, sw * 0.6);
+      if (opts.full) { C(g, 33.5 + i * 27, -108, 7, ['#E0A87A', '#C98B5E', '#8A5A3C', '#EBC39C'][i % 4], OUT, 1.8); C(g, 33.5 + i * 27, -88, 7, ['#C98B5E', '#EBC39C', '#E0A87A', '#8A5A3C'][i % 4], OUT, 1.8); }
+    }
+    R(g, 242, -126, 22, 56, 6, P.glass, OUT, sw * 0.6);
+    R(g, 70, -160, 140, 18, 6, P.cream, OUT, sw * 0.75);
+    C(g, 266, -40, 7, '#FFF6D8', OUT, sw * 0.6);
+    const wh = [wheel(g, 58, -22, 21), wheel(g, 214, -22, 21)];
+    return { g, wheels: wh };
+  }
+  function miniTrain(p, opts) {
+    opts = opts || {};
+    const g = G(p, { class: 'ak' });
+    const sw = opts.sw || 4;
+    if (opts.shadow) E(g, 166, 2, 166, 7, OUT, null, 0, { opacity: 0.18 });
+    R(g, 0, -12, 334, 6, 3, P.stoneS);
+    const wh = [];
+    [0, 104].forEach(x0 => {
+      R(g, x0 + 4, -112, 96, 90, 12, P.grn, OUT, sw);
+      R(g, x0 + 10, -106, 60, 6, 3, P.grnH);
+      R(g, x0 + 4, -46, 96, 8, 0, P.sun);
+      for (let k = 0; k < 3; k++) {
+        R(g, x0 + 12 + k * 29, -96, 24, 34, 5, '#F6E6C9', OUT, sw * 0.6);
+        if (opts.full) C(g, x0 + 24 + k * 29, -82, 7, ['#E0A87A', '#C98B5E', '#8A5A3C'][k], OUT, 1.8);
+      }
+      wh.push(wheel(g, x0 + 26, -18, 12), wheel(g, x0 + 78, -18, 12));
+    });
+    R(g, 100, -70, 8, 10, 2, OUT);
+    PA(g, 'M212 -24 V-108 Q212 -122 226 -122 H296 Q324 -122 330 -92 V-24 Z', P.red, OUT, sw);
+    R(g, 222, -116, 50, 6, 3, P.redH);
+    R(g, 284, -110, 34, 30, 6, P.glass, OUT, sw * 0.6);
+    R(g, 212, -46, 118, 8, 0, P.sun);
+    C(g, 328, -40, 7, '#FFF6D8', OUT, sw * 0.6);
+    wh.push(wheel(g, 240, -18, 14), wheel(g, 300, -18, 14));
+    return { g, wheels: wh };
+  }
+  /** Angkot with any capacity: seats in two rows (ten-frame style); odd capacity leaves one cell for luggage. */
+  const HEADC = ['#E0A87A', '#C98B5E', '#8A5A3C', '#EBC39C'];
+  function capAngkot(p, capN, opts) {
+    opts = opts || {};
+    const cols = Math.ceil(capN / 2), L = 70 + cols * 26 + 36;
+    const g = G(p, { class: 'ak' });
+    const sw = opts.sw || 4;
+    if (opts.shadow) E(g, L / 2, 2, L / 2, 7, OUT, null, 0, { opacity: 0.18 });
+    const shake = G(g);
+    PA(shake, 'M6 -30 V-92 Q6 -106 20 -106 H' + (L - 32) + ' Q' + (L - 20) + ' -106 ' + (L - 16) + ' -96 L' + (L - 4) + ' -66 V-32 Q' + (L - 4) + ' -22 ' + (L - 14) + ' -22 H16 Q6 -22 6 -30 Z', P.blue, OUT, sw);
+    R(shake, 18, -102, L * 0.55, 6, 3, P.blueH);
+    R(shake, 8, -50, L - 12, 10, 0, P.sun);
+    R(shake, 12, -94, 24, 64, 5, P.blueS, OUT, sw * 0.6);
+    R(shake, 42, -96, cols * 26 + 6, 42, 7, '#F6E6C9', OUT, sw * 0.75);
+    PA(shake, 'M' + (L - 26) + ' -96 L' + (L - 18) + ' -96 L' + (L - 8) + ' -66 L' + (L - 26) + ' -66 Z', P.glass, OUT, sw * 0.75);
+    C(shake, L - 4, -42, 6, '#FFF6D8', OUT, sw * 0.6);
+    const seats = [];
+    for (let i = 0; i < cols * 2; i++) {
+      const c = i % cols, r = Math.floor(i / cols);
+      const x = 58 + c * 26, y = r ? -66 : -84;
+      if (i < capN) { seats.push({ x, y }); C(shake, x, y, 7.5, '#E9D9BC', '#CDB894', 2); }
+      else { PA(shake, 'M' + (x - 8) + ' ' + (y + 8) + ' Q' + (x - 9) + ' ' + (y - 6) + ' ' + x + ' ' + (y - 8) + ' Q' + (x + 9) + ' ' + (y - 6) + ' ' + (x + 8) + ' ' + (y + 8) + ' Z', P.woodH, OUT, 1.6); }
+    }
+    if (opts.sign !== false) {
+      R(shake, L / 2 - 34, -124, 68, 20, 6, P.cream, OUT, sw * 0.7);
+      T(shake, L / 2, -114, 'isi ' + capN, 15, P.ink, { class: 'gs-num' });
+    }
+    const heads = G(shake);
+    const wh = [wheel(shake, 44, -20, 17), wheel(shake, L - 40, -20, 17)];
+    const A = { g, shake, wheels: wh, L, seats, filled: 0, cap: capN, headG: heads };
+    A.fill = function () {
+      if (A.filled >= A.seats.length) return false;
+      const s = A.seats[A.filled++];
+      const h = G(heads);
+      C(h, s.x, s.y, 8, HEADC[(A.filled + s.x) % 4], OUT, 1.8);
+      PA(h, 'M' + (s.x - 7.5) + ' ' + (s.y - 2) + ' Q' + s.x + ' ' + (s.y - 13) + ' ' + (s.x + 7.5) + ' ' + (s.y - 2) + ' Z', OUT);
+      return true;
+    };
+    A.clear = function () { heads.innerHTML = ''; A.filled = 0; };
+    if (opts.full) for (let i = 0; i < capN; i++) A.fill();
+    return A;
+  }
+
+  /* ------------------------------------------------------------------ board: place-value columns with steppers */
+  const UNITS = { 1000: { title: 'RIBUAN', icon: 'train' }, 100: { title: 'RATUSAN', icon: 'bus' }, 10: { title: 'PULUHAN', icon: 'angkot' }, 1: { title: 'SATUAN', icon: 'becak' } };
+  function iconFor(p, kind, x, y, w, extra) {
+    const m = G(p);
+    if (kind === 'angkot') { place(m, x, y, w / 200); miniAngkot(m, { sw: 8, full: extra && extra.full }); }
+    else if (kind === 'bus') { place(m, x, y, w / 270); miniBus(m, { sw: 9 }); }
+    else if (kind === 'train') { place(m, x, y, w / 334); miniTrain(m, { sw: 10 }); }
+    else if (kind === 'becak') { place(m, x + w / 2, y, w / 250); buildBecakIcon(m); }
+    else if (kind === 'cap') { const cpA = capAngkot(G(m), extra.cap, { sw: 7, sign: false, full: extra.full }); place(m, x, y, w / cpA.L); }
+    else if (kind === 'dot') { place(m, x + w / 2, y - 14, 1); C(m, 0, 0, 13, HEADC[Math.floor(x) % 4], OUT, 2.5); PA(m, 'M-12 -3 Q0 -18 12 -3 Z', OUT); }
+    return m;
+  }
+  function makeBoard(colsIn) {
+    const cols = colsIn.map(c => typeof c === 'number' ? Object.assign({ unit: c }, UNITS[c]) : c);
+    const n = cols.length, W = n === 1 ? 300 : n === 2 ? 258 : n === 3 ? 232 : 206;
+    const B = { cols, vals: cols.map(() => 0), dig: cols.map(() => 0), locks: cols.map(() => false), boxes: [], iconG: [], x0: [], W, locked: false, onStep: () => {} };
     const g = G(L_.ui, { class: 'ak' });
     B.g = g;
-    R(g, 18, 8, 544, 234, 22, P.wood, OUT, 4);
+    R(g, 18, 8, n * W + 28, 234, 22, P.wood, OUT, 4);
     R(g, 26, 13, 200, 6, 3, P.woodH);
-    R(g, 32, 22, 516, 206, 14, '#2F6B4C', OUT, 3);
-    PA(g, 'M290 34 V216', 'none', '#E8F0E0', 3, { 'stroke-dasharray': '2 10', opacity: 0.7 });
-    T(g, 161, 44, 'PULUHAN', 24, P.cream, { class: 't-display', 'letter-spacing': '1' });
-    T(g, 419, 44, 'SATUAN', 24, P.cream, { class: 't-display', 'letter-spacing': '1' });
-    B.tG = G(g); B.oG = G(g); B.labels = G(g, { style: 'display:none' });
-    function digitBox(cx) {
-      const d = G(g);
-      R(d, cx - 36, 160, 72, 60, 12, P.cream, OUT, 3);
-      const t = T(d, cx, 191, '?', 44, P.ink, { class: 'gs-num' });
-      return { g: d, t, cx };
-    }
-    B.boxT = digitBox(161); B.boxO = digitBox(419);
+    R(g, 32, 22, n * W, 206, 14, '#2F6B4C', OUT, 3);
+    B.labels = G(g, { style: 'display:none' });
     B.steps = G(g, { style: 'display:none' });
-    const stepper = (cx, sign, which, label) => {
-      const b = G(B.steps, { class: 'ak-btn', tabindex: 0, role: 'button', 'aria-label': label });
-      place(b, cx, 190);
-      const f = G(b);
-      R(f, -36, -30, 72, 60, 16, P.ui, OUT, 3.5);
-      R(f, -28, -24, 30, 8, 4, '#5E9BE6');
-      PA(f, sign > 0 ? 'M-12 0 H12 M0 -12 V12' : 'M-12 0 H12', 'none', '#fff', 6);
-      R(b, -42, -36, 84, 72, 18, 'none', P.sun, 4, { class: 'ak-ring' });
-      const act = () => {
-        if (B.locked) return;
-        tw(160, e => place(f, 0, 0, e < 0.4 ? 1 - 0.2 * (e / 0.4) : 0.92 + 0.08 * ((e - 0.4) / 0.6)), 'linear');
-        GS.sfx.tick();
-        B.onStep(which, sign);
-      };
-      b.addEventListener('click', act);
-      b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
-      return b;
+    const bw = W >= 230 ? 72 : 62, off = W >= 230 ? 82 : 70;
+    cols.forEach((c, i) => {
+      const x0 = 32 + i * W, cx = x0 + W / 2;
+      B.x0.push(x0);
+      if (i) PA(g, 'M' + x0 + ' 34 V216', 'none', '#E8F0E0', 3, { 'stroke-dasharray': '2 10', opacity: 0.7 });
+      T(g, cx, 44, c.title, n >= 4 ? 20 : 24, P.cream, { class: 't-display', 'letter-spacing': '1' });
+      B.iconG.push(G(g));
+      const d = G(g);
+      R(d, cx - 34, 160, 68, 60, 12, P.cream, OUT, 3);
+      B.boxes.push({ g: d, t: T(d, cx, 191, '?', 44, P.ink, { class: 'gs-num' }), cx });
+      [-1, 1].forEach(sign => {
+        const b = G(B.steps, { class: 'ak-btn', tabindex: 0, role: 'button', 'aria-label': (sign > 0 ? 'Tambah ' : 'Kurangi ') + c.title.toLowerCase() });
+        place(b, cx + sign * off, 190);
+        const f = G(b);
+        R(f, -bw / 2, -30, bw, 60, 16, P.ui, OUT, 3.5);
+        R(f, -bw / 2 + 8, -24, 30, 8, 4, '#5E9BE6');
+        PA(f, sign > 0 ? 'M-12 0 H12 M0 -12 V12' : 'M-12 0 H12', 'none', '#fff', 6);
+        R(b, -bw / 2 - 6, -36, bw + 12, 72, 18, 'none', P.sun, 4, { class: 'ak-ring' });
+        const act = () => {
+          if (B.locked || B.locks[i]) return;
+          tw(160, e => place(f, 0, 0, e < 0.4 ? 1 - 0.2 * (e / 0.4) : 0.92 + 0.08 * ((e - 0.4) / 0.6)), 'linear');
+          GS.sfx.tick();
+          B.onStep(i, sign);
+        };
+        b.addEventListener('click', act);
+        b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
+        b.__col = i;
+      });
+    });
+    B.render = function (popIdx) {
+      B.labels.innerHTML = '';
+      cols.forEach((c, i) => {
+        B.iconG[i].innerHTML = '';
+        const sp = Math.min(48, (W - 24) / 5), w = sp * 0.9;
+        for (let k = 0; k < B.vals[i]; k++) {
+          const x = B.x0[i] + 12 + (k % 5) * sp, y = 100 + Math.floor(k / 5) * 46;
+          const m = iconFor(B.iconG[i], c.icon, x, y, w, c);
+          if (c.unit) T(B.labels, x + w / 2, y + 12, fmt((k + 1) * c.unit), 14, P.sunH, { class: 'gs-num' });
+          if (popIdx === i && k === B.vals[i] - 1) { const tr = m.getAttribute('transform'); tw(220, e => m.setAttribute('transform', tr + ' scale(' + Math.max(0.01, e).toFixed(3) + ')'), 'outBack'); }
+        }
+      });
     };
-    stepper(161 - 82, -1, 't', 'Kurangi puluhan'); stepper(161 + 82, 1, 't', 'Tambah puluhan');
-    stepper(419 - 82, -1, 'o', 'Kurangi satuan'); stepper(419 + 82, 1, 'o', 'Tambah satuan');
-    B.renderIcons = function (popLast) {
-      B.tG.innerHTML = ''; B.oG.innerHTML = ''; B.labels.innerHTML = '';
-      for (let k = 0; k < B.tens; k++) {
-        const x = 52 + (k % 5) * 48, y = 100 + Math.floor(k / 5) * 44;
-        const m = G(B.tG); place(m, x, y, 0.23); miniAngkot(m, { sw: 8 });
-        T(B.labels, x + 23, y + 12, String((k + 1) * 10), 15, P.sunH, { class: 'gs-num' });
-        if (popLast && k === B.tens - 1 && popLast === 't') popIn(m, x, y, 0.23);
-      }
-      for (let k = 0; k < B.ones; k++) {
-        const x = 330 + (k % 5) * 44, y = 100 + Math.floor(k / 5) * 44;
-        const m = G(B.oG); place(m, x, y, 0.19); buildBecakIcon(m);
-        T(B.labels, x, y + 10, String(k + 1), 15, P.sunH, { class: 'gs-num' });
-        if (popLast && k === B.ones - 1 && popLast === 'o') popIn(m, x, y, 0.19);
-      }
+    B.setDigit = (i, v) => { B.boxes[i].t.textContent = v; };
+    B.setDigits = arr => arr.forEach((v, i) => B.setDigit(i, v));
+    B.showSteps = on => {
+      B.steps.style.display = on ? '' : 'none';
+      [...B.steps.children].forEach(b => { b.style.display = B.locks[b.__col] ? 'none' : ''; });
     };
-    B.setDigits = function (t, o) { B.boxT.t.textContent = t; B.boxO.t.textContent = o; };
+    B.mark = ok => B.boxes.forEach(bx => { const r = bx.g.querySelector('rect'); r.setAttribute('fill', ok ? '#E3F4F1' : P.cream); r.setAttribute('stroke', ok ? P.teal : OUT); });
+    B.number = () => B.dig.reduce((s, v, i) => s + v * (cols[i].unit || 1), 0);
     return B;
   }
   function buildBecakIcon(p) {
@@ -1340,48 +1597,57 @@
     return b;
   }
 
-  function startTens() {
-    mode = { round: 0, rounds: 2, phase: 'fill', crowd: [], busy: false, roundTries: 0 };
-    drawPips(2, 'dot');
-    mode.board = makeBoard('tens');
-    mode.board.onStep = (which, sign) => {
-      const B = mode.board;
-      if (which === 't') B.dT = GS.clamp(B.dT + sign, 0, 9); else B.dO = GS.clamp(B.dO + sign, 0, 9);
-      B.setDigits(B.dT, B.dO);
-    };
+  /* ------------------------------------------------------------------ crowd at the halte */
+  function crowdSpots(n) {
+    const spots = [];
+    if (n <= 50) for (let r = 0; r < 5; r++) for (let c = 0; c < 10; c++) spots.push({ x: 66 + c * 50 + (r % 2) * 18 + rnd(-5, 5), y: 506 + r * 30 + rnd(-3, 3), s: 0.42 });
+    else for (let r = 0; r < 7; r++) for (let c = 0; c < 15; c++) spots.push({ x: 52 + c * 33 + (r % 2) * 15 + rnd(-3, 3), y: 486 + r * 24 + rnd(-2, 2), s: 0.36 });
+    return spots;
+  }
+  function makeCrowd(n) {
+    const spots = GS.shuffle(crowdSpots(n)).slice(0, n).sort((a, b) => a.y - b.y);
+    return spots.map((sp, i) => {
+      const v = randVar();
+      const node = personNode(L_.gFront, v, sp.x, sp.y, 0.01, true);
+      timers.push(setTimeout(() => popIn(node, sp.x, sp.y, sp.s), i * Math.max(6, 18 - n / 8) / SPEED));
+      return { node, x: sp.x, y: sp.y, v, s: sp.s };
+    });
+  }
+  function restorePerson(r) {
+    const node = personNode(L_.gFront, r.v, r.x, r.y, 0.01, true);
+    r.node = node; popIn(node, r.x, r.y, r.s);
+    return r;
+  }
+  function crowdSign(n) {
+    const g = G(L_.ui, { class: 'ak' });
+    place(g, 440, 380);
+    R(g, -4, 0, 8, 60, 3, P.woodS, OUT, 2.5);
+    R(g, -78, -46, 156, 56, 12, P.wood, OUT, 3.5);
+    R(g, -70, -39, 140, 42, 8, P.cream, OUT, 2.5);
+    T(g, 0, -18, n + ' orang', 28, P.ink, { class: 'gs-num' });
+    return g;
+  }
+  /** One person hops from the crowd into a seat of a small angkot (world coords). */
+  function flyPerson(r, tx, ty, s1) {
+    L_.drag.appendChild(r.node);
+    return tw(280, e => place(r.node, GS.lerp(r.x, tx, e), GS.lerp(r.y, ty, e) - Math.sin(Math.PI * e) * 70, GS.lerp(r.s, s1 || 0.25, e)), 'linear').then(() => r.node.remove());
+  }
+
+  /* ================================================================== TENS ROUND (puluhan & satuan) */
+  function startTens(say) {
+    mode = { phase: 'fill', crowd: [], busy: false, roundTries: 0, trips: 0 };
+    const B = mode.board = makeBoard([10, 1]);
+    B.onStep = (i, sign) => { B.dig[i] = GS.clamp(B.dig[i] + sign, 0, 9); B.setDigit(i, B.dig[i]); };
     mode.btnFill = mkBtn('Isi angkot!', false, () => fillAngkot());
     mode.btnBecak = mkBtn('Becak', true, () => callBecak());
     mode.btnCek = mkBtn('Cek!', false, () => checkTens());
     mode.btnCek.hidden = true;
-    GS.say(cfg.say);
+    sayFirst(say, 'Ketuk Isi angkot! Sisanya naik becak.');
     arriveAngkot(0);
-    tensRound();
-    updateDock();
-  }
-  function crowdSpots() {
-    const spots = [];
-    for (let r = 0; r < 5; r++) for (let c = 0; c < 10; c++) spots.push({ x: 66 + c * 50 + (r % 2) * 18 + rnd(-5, 5), y: 506 + r * 30 + rnd(-3, 3) });
-    return spots;
-  }
-  function tensRound() {
-    const prev = mode.n || 0;
-    let n;
-    do { n = rnd(21, 49); } while (n % 10 === 0 || Math.floor(n / 10) === Math.floor(prev / 10));
-    mode.n = n; mode.phase = 'fill'; mode.roundTries = 0;
-    const B = mode.board;
-    B.tens = 0; B.ones = 0; B.dT = 0; B.dO = 0; B.locked = false;
-    B.renderIcons(); B.setDigits('?', '?');
-    B.steps.style.display = 'none'; B.labels.style.display = 'none';
-    mode.btnFill.hidden = false; mode.btnBecak.hidden = false; mode.btnCek.hidden = true;
-    const spots = GS.shuffle(crowdSpots()).slice(0, n).sort((a, b) => a.y - b.y);
-    mode.crowd = spots.map((s, i) => {
-      const v = randVar();
-      const node = personNode(L_.gFront, v, s.x, s.y, 0.42, true);
-      const o = { node, x: s.x, y: s.y, v, s: 0.42 };
-      timers.push(setTimeout(() => popIn(node, s.x, s.y, 0.42), i * 18 / SPEED));
-      place(node, s.x, s.y, 0.01);
-      return o;
-    });
+    let n; do { n = rnd(cfg.lo, cfg.hi); } while (n % 10 === 0);
+    mode.n = n;
+    B.render(); B.setDigits(['?', '?']);
+    mode.crowd = makeCrowd(n);
     updateDock();
   }
   async function fillAngkot() {
@@ -1390,6 +1656,7 @@
     if (mode.phase !== 'fill' || mode.busy || !A || A.state !== 'ready' || !mode.crowd.length) return;
     mode.busy = true; A.state = 'boarding'; updateDock();
     const take = Math.min(10, mode.crowd.length);
+    const gap = mode.trips >= 2 ? 100 : 190;
     mode.crowd.sort((a, b) => (b.x + b.y * 0.6) - (a.x + a.y * 0.6));
     const riders = mode.crowd.splice(0, take);
     await setDoor(A, true);
@@ -1397,16 +1664,14 @@
     const flights = [];
     for (let k = 0; k < take; k++) {
       const r = riders[k];
-      L_.drag.appendChild(r.node);
       const idx = k;
-      flights.push(tw(300, e => place(r.node, GS.lerp(r.x, doorX, e), GS.lerp(r.y, doorY, e) - Math.sin(Math.PI * e) * 60, GS.lerp(0.42, 0.3, e)), 'linear').then(() => {
-        r.node.remove();
+      flights.push(flyPerson(r, doorX, doorY, 0.3).then(() => {
         if (!alive(t)) return;
         addSeat(A, idx, r.v, 'crowd');
         A.count++;
         GS.sfx.count(idx + 1);
       }));
-      await sleep(190);
+      await sleep(gap);
       if (!alive(t)) return;
     }
     await Promise.all(flights);
@@ -1416,12 +1681,13 @@
       await departAnim(A);
       if (!alive(t)) return;
       const B = mode.board;
-      B.tens++; B.renderIcons('t'); GS.sfx.coin();
+      B.vals[0]++; B.render(0); GS.sfx.coin();
+      mode.trips++;
       cur = null;
-      mode.busy = false;
       if (mode.crowd.length >= 10) GS.say(pick(['Masih banyak. Isi angkot lagi!', 'Ayo, angkot berikutnya!']));
       else GS.say('Sisanya sedikit. Angkot atau becak?');
       await arriveAngkot(0);
+      if (!alive(t)) return;
       mode.busy = false;
       updateDock();
     } else {
@@ -1434,15 +1700,11 @@
       await sleep(1500);
       if (!alive(t)) return;
       GS.fxStop(A.shake, 'gs-wobble');
-      // everyone hops back into the crowd
       for (let k = take - 1; k >= 0; k--) {
-        const o = A.seats[k]; const sp = seatPos(k);
-        if (o) popOut(o.node, sp.x, sp.y, SEAT_S);
+        const o = A.seats[k]; const sp = seatPos(A, k);
+        if (o) popOut(o.node, sp.x, sp.y, sp.s);
         A.seats[k] = null; A.count--;
-        const r = riders[k];
-        const node = personNode(L_.gFront, r.v, r.x, r.y, 0.42, true);
-        r.node = node; popIn(node, r.x, r.y, 0.42);
-        mode.crowd.push(r);
+        mode.crowd.push(restorePerson(riders[k]));
         GS.sfx.pop();
         await sleep(90);
       }
@@ -1472,7 +1734,7 @@
     mode.crowd.sort((a, b) => (b.x + b.y * 0.6) - (a.x + a.y * 0.6));
     const list = mode.crowd.splice(0);
     await becakParade(list.length, i => { const r = list[i]; r.node.remove(); return r; }, () => {
-      const B = mode.board; B.ones++; B.renderIcons('o');
+      const B = mode.board; B.vals[1]++; B.render(1);
     });
     if (!alive(t)) return;
     mode.busy = false;
@@ -1481,8 +1743,8 @@
   function compose() {
     mode.phase = 'compose';
     const B = mode.board;
-    B.dT = 0; B.dO = 0; B.setDigits(0, 0);
-    B.steps.style.display = '';
+    B.dig = [0, 0]; B.setDigits(B.dig);
+    B.showSteps(true);
     mode.btnFill.hidden = true; mode.btnBecak.hidden = true; mode.btnCek.hidden = false;
     mode.btnCek.disabled = false;
     hud.mood('think');
@@ -1493,185 +1755,632 @@
     const t = tok;
     const B = mode.board;
     if (mode.phase !== 'compose' || mode.busy) return;
-    const okT = B.dT === B.tens, okO = B.dO === B.ones;
+    const okT = B.dig[0] === B.vals[0], okO = B.dig[1] === B.vals[1];
     if (okT && okO) {
       mode.busy = true; B.locked = true; mode.btnCek.disabled = true;
       GS.sfx.coin();
       hud.mood('happy');
-      [B.boxT, B.boxO].forEach(bx => { const r = bx.g.querySelector('rect'); r.setAttribute('fill', '#E3F4F1'); r.setAttribute('stroke', P.teal); });
+      B.mark(true);
       floatAt(String(mode.n), 290, 120);
-      GS.say(cap(words(mode.n)) + ' penumpang! ' + B.tens + ' puluhan, ' + B.ones + ' satuan.');
+      GS.say(Cap(words(mode.n)) + ' penumpang! ' + B.vals[0] + ' puluhan, ' + B.vals[1] + ' satuan.');
       await sleep(2800);
       if (!alive(t)) return;
-      mode.round++;
-      setPips(mode.round);
-      mode.busy = false;
-      if (mode.round >= mode.rounds) { finish('Hebat! Kamu paham puluhan dan satuan.'); return; }
-      [B.boxT, B.boxO].forEach(bx => { const r = bx.g.querySelector('rect'); r.setAttribute('fill', P.cream); r.setAttribute('stroke', OUT); });
-      GS.say('Kerumunan baru datang! Ketuk Isi angkot!');
-      tensRound();
+      roundDone('Hebat! Kamu paham puluhan dan satuan.');
     } else {
       tries++; mode.roundTries++;
       GS.sfx.oops();
       hud.mood('oops');
-      [[okT, B.boxT, B.tG], [okO, B.boxO, B.oG]].forEach(([ok, bx, ic]) => {
-        if (ok) return;
-        GS.fx(bx.g, 'gs-wobble');
-        GS.fx(ic, 'gs-wobble');
-      });
+      [[okT, 0], [okO, 1]].forEach(([ok, i]) => { if (!ok) { GS.fx(B.boxes[i].g, 'gs-wobble'); GS.fx(B.iconG[i], 'gs-wobble'); } });
       if (!okT) GS.say('Hitung lagi angkotnya. Satu angkot, sepuluh orang.');
       else GS.say('Hitung lagi becaknya. Satu becak, satu orang.');
       if (mode.roundTries >= 2) B.labels.style.display = '';
     }
   }
 
-  /* ================================================================== LEVEL 9: kirim pesanan */
+  /* ================================================================== CALC ROUNDS: kirim ke pasar, the gate counts */
   function drawGate() {
     const g = G(L_.halte, { class: 'ak' });
     const front = G(L_.fx, { class: 'ak' });
-    // roof + beam
     PA(g, 'M1000 300 L1140 236 L1280 300 Z', P.red, OUT, 4);
     PA(g, 'M1030 292 L1140 244 L1180 262', 'none', P.redH, 5);
     R(g, 1004, 296, 274, 54, 10, P.wood, OUT, 4);
     R(g, 1014, 302, 120, 7, 3, P.woodH);
     T(g, 1140, 326, 'PASAR', 34, P.cream, { class: 't-display', 'letter-spacing': '3' });
-    // left pillar behind the road traffic
     R(g, 1028, 348, 38, GROUND - 336, 6, P.redS, OUT, 4);
     R(g, 1034, 356, 8, GROUND - 360, 4, P.red);
-    // counter board hanging under the beam
     R(g, 1086, 348, 4, 18, 2, OUT); R(g, 1190, 348, 4, 18, 2, OUT);
-    R(g, 1070, 362, 140, 92, 16, P.cream, OUT, 4);
+    R(g, 1066, 362, 148, 92, 16, P.cream, OUT, 4);
     T(g, 1140, 381, 'sampai', 18, '#6B5444', { class: 't-body', 'font-weight': 700 });
-    const num = T(g, 1140, 420, '0', 52, P.ink, { class: 'gs-num' });
-    // right pillar in front (vehicles disappear behind it)
+    const num = T(g, 1140, 420, '0', 46, P.ink, { class: 'gs-num' });
     R(front, 1214, 348, 40, GROUND - 336, 6, P.redS, OUT, 4);
     R(front, 1220, 356, 8, GROUND - 360, 4, P.red);
     E(front, 1234, GROUND + 12, 34, 7, OUT, null, 0, { opacity: 0.18 });
     return { num };
   }
+  function cardBase(h) {
+    const g = G(L_.ui, { class: 'ak' });
+    R(g, 24, 318, 544, h || 318, 20, P.cream, OUT, 4);
+    C(g, 296, 326, 8, P.red, OUT, 3);
+    return g;
+  }
   function orderCard(n, hint) {
     if (mode.card) mode.card.remove();
-    const g = G(L_.ui, { class: 'ak' });
-    mode.card = g;
-    place(g, 296, 420);
-    R(g, -170, -78, 340, 166, 18, P.cream, OUT, 4);
-    C(g, 0, -70, 8, P.red, OUT, 3);
-    T(g, 0, -42, 'Kirim ke pasar:', 26, P.ink, { class: 't-body', 'font-weight': 700 });
+    const g = mode.card = cardBase(300);
+    T(g, 296, 368, 'Kirim ke pasar:', 28, P.ink, { class: 't-body', 'font-weight': 700 });
+    T(g, 296, 440, fmt(n), 76, P.ui, { class: 'gs-num' });
+    T(g, 296, 510, 'penumpang', 28, P.ink, { class: 't-body', 'font-weight': 700 });
     if (hint) {
-      T(g, -64, 12, String(n), 60, P.ui, { class: 'gs-num' });
-      T(g, 58, 12, '= ' + (Math.floor(n / 10) * 10) + ' + ' + (n % 10), 34, P.teal, { class: 'gs-num' });
-    } else T(g, 0, 12, String(n), 64, P.ui, { class: 'gs-num' });
-    T(g, 0, 60, 'penumpang', 26, P.ink, { class: 't-body', 'font-weight': 700 });
+      const parts = digitsOf(n, cfg.units).map((d, i) => d * cfg.units[i]).filter(Boolean).map(fmt);
+      T(g, 296, 570, fmt(n) + ' = ' + parts.join(' + '), 30, P.teal, { class: 'gs-num' });
+    }
   }
-  function startOrder() {
-    mode = { round: 0, rounds: 2, busy: false, roundTries: 0 };
-    drawPips(2, 'dot');
+  function vehiclesOf(n, units) {
+    const out = [];
+    units.forEach(u => { const d = Math.floor(n / u) % 10 + (u === units[0] ? Math.floor(n / (u * 10)) * 10 : 0); for (let k = 0; k < d; k++) out.push({ kind: UNITS[u].icon, val: u }); });
+    return out;
+  }
+  /** Icon row (one per vehicle) inside the question card. */
+  function iconRow(g, list, x, y, k, faded) {
+    const sizes = { train: 52, bus: 50, angkot: 46, becak: 34, cap: 52 };
+    let cx = x;
+    const nodes = [];
+    list.forEach((v, k) => {
+      const w = (sizes[v.kind] || 40) * (k || 1);
+      if (k && list[k - 1].kind !== v.kind) cx += 10;
+      const m = iconFor(g, v.kind, cx, y, w, v.kind === 'cap' ? { cap: v.cap, full: true } : { full: true });
+      if (faded && faded(k)) m.setAttribute('opacity', '0.3');
+      nodes.push(m);
+      cx += w + 4;
+    });
+    return { nodes, w: cx - x };
+  }
+  function calcCard(S) {
+    const g = mode.card = cardBase(318);
+    mode.cardNodes = [];
+    if (S.op === 'read') {
+      T(g, 296, 356, 'Berapa penumpangnya?', 28, P.ink, { class: 't-body', 'font-weight': 700 });
+      const n = S.parts[0];
+      let y = 420;
+      S.units.forEach(u => {
+        const d = Math.floor(n / u) % 10;
+        const list = Array(d).fill(0).map(() => ({ kind: UNITS[u].icon }));
+        if (d) { const r = iconRow(g, list, 48, y, 1); mode.cardNodes.push(...r.nodes); }
+        y += S.units.length > 3 ? 52 : 64;
+      });
+    } else if (S.op === 'sum' && S.icons) {
+      T(g, 296, 356, 'Digabung, berapa semuanya?', 28, P.ink, { class: 't-body', 'font-weight': 700 });
+      S.parts.forEach((n, i) => {
+        const y = 440 + i * 110;
+        T(g, 66, y - 18, String(n), 40, P.ui, { class: 'gs-num' });
+        if (i) T(g, 66, y - 66, '+', 34, P.ink, { class: 'gs-num' });
+        const r = iconRow(g, vehiclesOf(n, [10, 1]), 100, y, 0.72);
+        mode.cardNodes.push(...r.nodes);
+      });
+    } else if (S.op === 'sum' || S.op === 'est') {
+      T(g, 296, 360, S.op === 'est' ? 'Kira-kira berapa semuanya?' : 'Tiga rombongan digabung:', 28, P.ink, { class: 't-body', 'font-weight': 700 });
+      T(g, 296, 450, S.parts.map(fmt).join(' + '), 48, P.ui, { class: 'gs-num' });
+      T(g, 296, 530, S.op === 'est' ? 'Bulatkan ke ratusan terdekat.' : '= ?', S.op === 'est' ? 26 : 48, P.ink, { class: S.op === 'est' ? 't-body' : 'gs-num', 'font-weight': 700 });
+    } else if (S.op === 'sub') {
+      T(g, 296, 356, S.parts[0] + ' penumpang. ' + S.take + ' turun di halte.', 26, P.ink, { class: 't-body', 'font-weight': 700 });
+      const vs = vehiclesOf(S.parts[0], [10, 1]);
+      mode.cardNodes.push(...iconRow(g, vs.filter(v => v.val === 10), 48, 440, 1).nodes);
+      mode.cardNodes.push(...iconRow(g, vs.filter(v => v.val === 1), 48, 510, 1).nodes);
+      mode.subMsg = T(g, 296, 578, '', 30, P.ink, { class: 't-body', 'font-weight': 700 });
+    } else if (S.op === 'mult') {
+      T(g, 296, 356, S.cnt + ' angkot, tiap angkot isi ' + S.cap, 28, P.ink, { class: 't-body', 'font-weight': 700 });
+      const per = S.cnt > 10 ? 5 : 5, rowsN = Math.ceil(S.cnt / per);
+      for (let k = 0; k < S.cnt; k++) {
+        const x = 52 + (k % per) * 100, y = 420 + Math.floor(k / per) * (rowsN > 2 ? 52 : 62);
+        mode.cardNodes.push(iconFor(g, 'cap', x, y, 90, { cap: S.cap, full: true }));
+      }
+      T(g, 296, 606, S.cnt + ' × ' + S.cap + ' = ?', 34, P.ui, { class: 'gs-num' });
+    }
+  }
+  function startCalc(say) {
+    const S = cfg;
+    mode = { busy: false, roundTries: 0 };
     mode.gate = drawGate();
-    mode.board = makeBoard('order');
-    const B = mode.board;
-    B.steps.style.display = '';
-    B.onStep = (which, sign) => {
-      if (mode.busy) return;
-      if (which === 't') { const v = GS.clamp(B.tens + sign, 0, 9); if (v === B.tens) return; B.tens = v; B.renderIcons(sign > 0 ? 't' : null); }
-      else { const v = GS.clamp(B.ones + sign, 0, 9); if (v === B.ones) return; B.ones = v; B.renderIcons(sign > 0 ? 'o' : null); }
-      B.setDigits(B.tens, B.ones);
-    };
+    const B = mode.board = makeBoard(S.units);
+    if (S.lock) B.locks = S.lock.slice();
+    if (S.mode === 'build') {
+      B.onStep = (i, sign) => {
+        if (mode.busy) return;
+        const v = GS.clamp(B.vals[i] + sign, 0, 9);
+        if (v === B.vals[i]) return;
+        B.vals[i] = v; B.render(sign > 0 ? i : -1); B.setDigit(i, v);
+      };
+      B.render(); B.setDigits(B.vals);
+      orderCard(S.target, false);
+      mode.expected = S.target;
+      sayFirst(say, 'Pesanan baru!');
+      timers.push(setTimeout(() => GS.say('Kirim ' + S.target + ' penumpang. Atur kendaraannya di papan!'), 2200 / SPEED));
+    } else {
+      B.onStep = (i, sign) => { if (mode.busy) return; B.dig[i] = GS.clamp(B.dig[i] + sign, 0, 9); B.setDigit(i, B.dig[i]); };
+      B.setDigits(B.dig);
+      if (S.op === 'mult') mode.vehicles = Array(S.cnt).fill(0).map(() => ({ kind: 'cap', cap: S.cap, val: S.cap }));
+      else if (S.op === 'sub') mode.vehicles = vehiclesOf(S.parts[0] - S.take, [10, 1]);
+      else mode.vehicles = S.parts.flatMap(n => vehiclesOf(n, S.units.length > 2 ? S.units : [10, 1]));
+      mode.truth = mode.vehicles.reduce((s, v) => s + v.val, 0);
+      mode.expected = S.op === 'est' ? Math.round(mode.truth / 100) * 100 : mode.truth;
+      calcCard(S);
+      sayFirst(say, 'Berapa penumpang yang sampai?');
+      if (S.op === 'sub') unloadAnim();
+      else timers.push(setTimeout(() => GS.say(S.op === 'est' ? 'Pilih ratusannya, lalu Kirim!' : 'Susun angkanya di papan, lalu Kirim!'), 2400 / SPEED));
+    }
+    B.showSteps(true);
     mode.btnSend = mkBtn('Kirim!', false, () => kirim());
-    orderRound();
   }
-  function orderRound() {
-    const prev = mode.target || 0;
-    let n;
-    do { n = rnd(21, 49); } while (n % 10 === 0 || Math.floor(n / 10) === Math.floor(prev / 10));
-    mode.target = n; mode.roundTries = 0;
-    const B = mode.board;
-    B.tens = 0; B.ones = 0; B.locked = false; B.renderIcons(); B.setDigits(0, 0);
-    B.labels.style.display = 'none';
-    mode.gate.num.textContent = '0';
-    orderCard(n, false);
-    mode.btnSend.disabled = false;
-    hud.mood('think');
-    GS.say('Kirim ' + n + ' penumpang ke pasar. Atur angkot dan becak!');
+  async function unloadAnim() {
+    const t = tok, S = cfg;
+    mode.busy = true;
+    await sleep(1400);
+    if (!alive(t)) return;
+    const tb = Math.floor(S.take / 10), ob = S.take % 10, ta = Math.floor(S.parts[0] / 10);
+    const idx = [];
+    for (let k = 0; k < tb; k++) idx.push(k);
+    for (let k = 0; k < ob; k++) idx.push(ta + k);
+    for (const k of idx) {
+      const m = mode.cardNodes[k];
+      if (m) tw(260, e => m.setAttribute('opacity', (1 - 0.72 * e).toFixed(2)), 'outCubic');
+      GS.sfx.pop();
+      await sleep(160);
+      if (!alive(t)) return;
+    }
+    mode.subMsg.textContent = 'Sisa berapa yang ke pasar?';
+    GS.say(S.take + ' penumpang turun. Berapa yang ke pasar?');
+    mode.busy = false;
   }
-  async function kirim() {
+  function vehicleNode(parent, v) {
+    const m = G(parent);
+    let len, wheels, sc;
+    if (v.kind === 'train') { sc = 0.55; const o = miniTrain(m, { full: true, shadow: true }); wheels = o.wheels; len = 334 * sc; place(o.g, 0, 0, sc); }
+    else if (v.kind === 'bus') { sc = 0.6; const o = miniBus(m, { full: true, shadow: true }); wheels = o.wheels; len = 270 * sc; place(o.g, 0, 0, sc); }
+    else if (v.kind === 'angkot') { sc = 0.7; const o = miniAngkot(m, { full: true, shadow: true }); wheels = o.wheels; len = 200 * sc; place(o.g, 0, 0, sc); }
+    else if (v.kind === 'cap') { sc = 0.7; const o = capAngkot(m, v.cap, { full: true, shadow: true }); wheels = o.wheels; len = o.L * sc; place(o.g, 0, 0, sc); }
+    else { sc = 0.45; const b = buildBecak(m); personNode(b.seat, randVar(), 50, -58, 0.5, false); wheels = b.wheels; len = 240 * sc; place(b.g, 120 * sc, 0, sc); }
+    return { node: m, len, wheels, r: (v.kind === 'becak' ? 34 : v.kind === 'train' ? 12 : v.kind === 'bus' ? 21 : 17) * sc };
+  }
+  /** Drive a convoy through the PASAR gate; the gate counter adds each vehicle's passengers. Returns the total. */
+  async function convoy(veh, gate) {
     const t = tok;
-    const B = mode.board, gate = mode.gate;
-    if (mode.busy) return;
-    if (B.tens + B.ones === 0) { GS.sfx.oops(); GS.say('Pilih dulu angkot dan becaknya.'); return; }
-    mode.busy = true; B.locked = true; mode.btnSend.disabled = true;
-    hud.mood('happy');
-    kenek.pose('shout');
-    honk();
-    // build the convoy behind a clip so vehicles vanish into the gate
     const cid = uid('gate');
     const wrap = G(L_.angkot, { class: 'ak' });
-    const cp = el('clipPath', { id: cid }, wrap); R(cp, -4000, 0, 5234, 800);
-    const clipG = G(wrap, { 'clip-path': 'url(#' + cid + ')' });
-    const train = G(clipG);
-    const veh = [];
-    let x = 640;
-    for (let k = 0; k < B.tens; k++) {
-      const m = G(train); place(m, x - 190, GROUND + 6, 0.95);
-      const ma = miniAngkot(m, { full: true, shadow: true });
-      veh.push({ front: x, val: 10, wheels: ma.wheels, r: 17 * 0.95 });
-      x -= 240;
-    }
-    for (let k = 0; k < B.ones; k++) {
-      const bk = buildBecak(train);
-      setBecakX(bk, x - 70, GROUND + 6, 0.5);
-      personNode(bk.seat, randVar(), 50, -58, 0.5, false);
-      veh.push({ front: x, val: 1, wheels: bk.wheels, r: 34 * 0.5 });
-      x -= 140;
-    }
-    const gateX = 1214;
-    const dist = gateX - x + 220;
-    let total = 0, counted = 0, lastSpoken = '';
-    const speed = 380;
+    const cp = el('clipPath', { id: cid }, wrap); R(cp, -9000, 0, 10234, 800);
+    const train = G(G(wrap, { 'clip-path': 'url(#' + cid + ')' }));
+    let x = 660;
+    const list = veh.map(v => {
+      const o = vehicleNode(train, v);
+      place(o.node, x - o.len, GROUND + 6);
+      const item = { front: x, val: v.val, wheels: o.wheels, r: o.r };
+      x -= o.len + 26;
+      return item;
+    });
+    const gateX = 1214, dist = gateX - x + 40;
+    const speed = Math.max(380, dist / 8);
+    let total = 0, counted = 0;
+    const talk = list.length <= 8;
     engine(2);
+    honk();
     await tw(dist / speed * 1000, e => {
       const dx = e * dist;
       train.setAttribute('transform', 'translate(' + f1(dx) + ' 0)');
-      veh.forEach(v => { const d = (dx / v.r) * 57.2958; v.wheels.forEach(w => w.setAttribute('transform', 'rotate(' + d.toFixed(1) + ')')); });
-      while (counted < veh.length && veh[counted].front - 40 + dx >= gateX) {
-        total += veh[counted].val;
+      list.forEach(v => { const d = (dx / v.r) * 57.2958; v.wheels.forEach(w => w.setAttribute('transform', 'rotate(' + d.toFixed(1) + ')')); });
+      while (counted < list.length && list[counted].front - 40 + dx >= gateX) {
+        total += list[counted].val;
         counted++;
-        gate.num.textContent = String(total);
         if (!alive(t)) return;
+        gate.num.textContent = fmt(total);
         GS.sfx.count(Math.min(24, counted + 2));
-        if (veh[counted - 1].val === 10) { lastSpoken = cap(words(total)); GS.say(lastSpoken + '!'); }
+        if (talk && list[counted - 1].val >= 10) GS.say(Cap(words(total)) + '!');
       }
     }, 'inOutCubic');
     wrap.remove();
+    return total;
+  }
+  async function kirim() {
+    const t = tok;
+    const S = cfg, B = mode.board, gate = mode.gate;
+    if (mode.busy) return;
+    let veh, answer = null;
+    if (S.mode === 'build') {
+      if (B.vals.every(v => !v)) { GS.sfx.oops(); GS.say('Pilih dulu kendaraannya di papan.'); return; }
+      veh = [];
+      B.cols.forEach((c, i) => { for (let k = 0; k < B.vals[i]; k++) veh.push({ kind: c.icon, val: c.unit }); });
+    } else {
+      answer = B.number();
+      veh = mode.vehicles;
+    }
+    mode.busy = true; B.locked = true; mode.btnSend.disabled = true;
+    hud.mood('happy');
+    kenek.pose('shout');
+    gate.num.textContent = '0';
+    const total = await convoy(veh, gate);
     if (!alive(t)) return;
     kenek.pose('idle');
-    await sleep(500);
+    await sleep(450);
     if (!alive(t)) return;
-    if (total === mode.target) {
+    const ok = S.mode === 'build' ? total === S.target : answer === mode.expected;
+    if (ok) {
       GS.sfx.coin();
       hud.mood('cheer');
-      floatAt(String(total), 1140, 330);
-      GS.say('Pas! ' + cap(words(total)) + ' penumpang sampai di pasar.');
+      B.mark(true);
+      floatAt(fmt(total), 1140, 330);
+      if (S.op === 'est') GS.say('Pas! Ada ' + words(total) + ', kira-kira ' + words(mode.expected) + '.');
+      else GS.say('Pas! ' + Cap(words(total)) + ' penumpang sampai di pasar.');
       await sleep(2600);
       if (!alive(t)) return;
-      mode.round++;
-      setPips(mode.round);
-      mode.busy = false;
-      if (mode.round >= mode.rounds) { finish('Hebat! Pesanan sampai dengan pas.'); return; }
-      orderRound();
+      roundDone('Hebat! Semua sampai di pasar.');
+      return;
+    }
+    tries++; mode.roundTries++;
+    GS.sfx.oops();
+    hud.mood('oops');
+    if (S.mode === 'build') {
+      const diff = total - S.target;
+      floatAt((diff < 0 ? 'kurang ' : 'lebih ') + fmt(Math.abs(diff)), 1140, 330);
+      GS.say('Sampai ' + total + '. Pesanannya ' + S.target + '. ' + (diff < 0 ? 'Kurang ' : 'Lebih ') + Math.abs(diff) + '.');
+      if (mode.roundTries >= 2) { orderCard(S.target, true); B.labels.style.display = ''; }
     } else {
+      B.boxes.forEach((bx, i) => { if (!B.locks[i]) GS.fx(bx.g, 'gs-wobble'); });
+      if (S.op === 'est') GS.say('Ada ' + total + ' penumpang. Ratusan terdekat berapa?');
+      else GS.say('Yang sampai ' + total + '. Jawabanmu ' + answer + '. Coba lagi!');
+      if (mode.roundTries >= 2 && !mode.hint) {
+        const hintTxt = S.op === 'mult' ? 'Hitung loncat: ' + [1, 2, 3].map(k => k * S.cap).join(', ') + ', ...'
+          : S.op === 'est' ? 'Tepatnya ' + fmt(mode.truth) + '.'
+          : S.units.length > 2 ? 'Bus 100, angkot 10, becak 1.' : 'Angkot 10, becak 1.';
+        mode.hint = T(mode.card, 296, 626, hintTxt, 22, P.teal, { class: 't-body', 'font-weight': 700 });
+      }
+    }
+    await sleep(2400);
+    if (!alive(t)) return;
+    gate.num.textContent = '0';
+    B.locked = false; mode.busy = false; mode.btnSend.disabled = false;
+    hud.mood('think');
+  }
+
+  /* ================================================================== SHARE ROUNDS: bagi sama rata */
+  const capLen = c => 70 + Math.ceil(c / 2) * 26 + 36;
+  function parkingPos(i, n, L) {
+    const s = Math.min(0.6, 640 / (n * (L + 14)));
+    return { x: 622 + i * (L + 14) * s, y: GROUND + 6, s };
+  }
+  function startShare(say) {
+    const S = cfg;
+    mode = { busy: false, roundTries: 0 };
+    mode.crowd = makeCrowd(S.n);
+    crowdSign(S.n);
+    mode.cars = [];
+    for (let i = 0; i < S.N; i++) {
+      const pp = parkingPos(i, S.N, capLen(10));
+      const host = G(L_.angkot);
+      const A = capAngkot(host, 10, { shadow: true, sign: false });
+      place(host, pp.x, pp.y, pp.s);
+      A.pos = pp; A.host = host;
+      mode.cars.push(A);
+    }
+    const B = mode.board = makeBoard([{ title: 'TIAP ANGKOT', icon: 'dot' }]);
+    B.onStep = (i, sign) => { if (mode.busy) return; B.vals[0] = GS.clamp(B.vals[0] + sign, 0, 10); B.setDigit(0, B.vals[0]); B.render(sign > 0 ? 0 : -1); };
+    B.setDigits([0]); B.render(); B.showSteps(true);
+    mode.btnGo = mkBtn('Bagikan!', false, () => bagikan());
+    sayFirst(say, 'Bagi sama rata!');
+    timers.push(setTimeout(() => GS.say('Ada ' + S.n + ' penumpang dan ' + S.N + ' angkot. Tiap angkot berapa?'), 2300 / SPEED));
+  }
+  function seatWorld(A, i) {
+    const s = A.seats[Math.min(i, A.seats.length - 1)];
+    return { x: A.pos.x + s.x * A.pos.s, y: A.pos.y + s.y * A.pos.s };
+  }
+  async function bagikan() {
+    const t = tok, S = cfg, B = mode.board;
+    if (mode.busy) return;
+    const k = B.vals[0];
+    if (!k) { GS.sfx.oops(); GS.say('Pilih dulu, tiap angkot berapa orang.'); return; }
+    mode.busy = true; B.locked = true; mode.btnGo.disabled = true;
+    mode.crowd.sort((a, b) => (b.x + b.y * 0.6) - (a.x + a.y * 0.6));
+    const taken = [];
+    let count = 0;
+    const flights = [];
+    outer: for (let round = 0; round < k; round++) {
+      for (const A of mode.cars) {
+        if (!mode.crowd.length) break outer;
+        const r = mode.crowd.shift();
+        taken.push(r);
+        const sw = seatWorld(A, A.filled);
+        const idx = ++count;
+        flights.push(flyPerson(r, sw.x, sw.y + 10, 0.22).then(() => { if (alive(t)) { A.fill(); GS.sfx.count(Math.min(24, idx)); } }));
+        await sleep(S.n > 24 ? 70 : 110);
+        if (!alive(t)) return;
+      }
+    }
+    await Promise.all(flights);
+    await sleep(400);
+    if (!alive(t)) return;
+    const short = mode.cars.filter(A => A.filled < k);
+    const left = mode.crowd.length;
+    if (short.length) return shareFail(taken, 'Penumpangnya tidak cukup. Ada angkot yang cuma dapat ' + short[short.length - 1].filled + '.', short);
+    if (left >= S.N) return shareFail(taken, 'Masih ada ' + left + ' orang. Tiap angkot bisa dapat satu lagi.', null);
+    hud.mood('cheer');
+    GS.sfx.coin();
+    if (left) {
+      GS.say('Sisa ' + left + ' naik becak.');
+      await sleep(900);
+      const list = mode.crowd.splice(0);
+      await becakParade(list.length, i => { const r = list[i]; r.node.remove(); return r; });
+      if (!alive(t)) return;
+    }
+    GS.say(S.n + ' dibagi ' + S.N + ', tiap angkot ' + k + (left ? ', sisa ' + left : '') + '. Berangkat!');
+    honk();
+    await Promise.all(mode.cars.map((A, i) => sleep(i * 120).then(() => tw(1200, e => place(A.host, GS.lerp(A.pos.x, 1500, e), A.pos.y, A.pos.s), 'inCubic'))));
+    if (!alive(t)) return;
+    await sleep(800);
+    roundDone('Hebat! Semua dapat sama rata.');
+  }
+  async function shareFail(taken, msg, shortCars) {
+    const t = tok;
+    tries++; mode.roundTries++;
+    GS.sfx.oops(); hud.mood('oops'); kenek.pose('think');
+    GS.say(msg);
+    (shortCars || []).forEach(A => GS.fx(A.shake, 'gs-wobble'));
+    if (!shortCars) mode.crowd.forEach(r => r.node && GS.fx(r.node, 'gs-wobble'));
+    await sleep(2400);
+    if (!alive(t)) return;
+    mode.cars.forEach(A => A.clear());
+    taken.forEach(r => mode.crowd.push(restorePerson(r)));
+    mode.board.locked = false; mode.busy = false; mode.btnGo.disabled = false;
+    kenek.pose('idle'); hud.mood('think');
+  }
+
+  /* ================================================================== FLEET ROUNDS: berapa angkot? (pembulatan / bersisa) */
+  function startFleet(say) {
+    const S = cfg;
+    mode = { busy: false, roundTries: 0, cars: [] };
+    mode.crowd = makeCrowd(S.n);
+    crowdSign(S.n);
+    const B = mode.board = makeBoard([{ title: 'ANGKOT ISI ' + S.c, icon: 'cap', cap: S.c }]);
+    B.vals[0] = 1;
+    B.onStep = (i, sign) => { if (mode.busy) return; const v = GS.clamp(B.vals[0] + sign, 1, 6); if (v === B.vals[0]) return; B.vals[0] = v; B.setDigit(0, v); B.render(sign > 0 ? 0 : -1); };
+    B.setDigits([1]); B.render(); B.showSteps(true);
+    mode.btnGo = mkBtn('Berangkat!', false, () => fleetGo());
+    sayFirst(say, 'Berapa angkot?');
+    const q = S.how === 'ceil' ? S.n + ' penumpang, angkot isi ' + S.c + '. Butuh berapa angkot?' : S.n + ' penumpang, angkot isi ' + S.c + '. Berapa angkot yang penuh?';
+    timers.push(setTimeout(() => GS.say(q), 2400 / SPEED));
+  }
+  async function fleetGo() {
+    const t = tok, S = cfg, B = mode.board;
+    if (mode.busy) return;
+    const m = B.vals[0];
+    mode.busy = true; B.locked = true; mode.btnGo.disabled = true;
+    mode.cars = [];
+    for (let i = 0; i < m; i++) {
+      const pp = parkingPos(i, m, capLen(S.c));
+      const host = G(L_.angkot);
+      const A = capAngkot(host, S.c, { shadow: true });
+      A.pos = pp; A.host = host;
+      mode.cars.push(A);
+      place(host, pp.x + 300, pp.y, pp.s);
+      tw(420, e => place(host, GS.lerp(pp.x + 300, pp.x, e), pp.y, pp.s), 'outCubic');
+      brake();
+      await sleep(140);
+    }
+    await sleep(400);
+    if (!alive(t)) return;
+    mode.crowd.sort((a, b) => (b.x + b.y * 0.6) - (a.x + a.y * 0.6));
+    const taken = [];
+    let count = 0;
+    const flights = [];
+    for (const A of mode.cars) {
+      for (let s = 0; s < S.c; s++) {
+        if (!mode.crowd.length) break;
+        const r = mode.crowd.shift();
+        taken.push(r);
+        const sw = seatWorld(A, s);
+        const idx = ++count;
+        flights.push(flyPerson(r, sw.x, sw.y + 10, 0.22).then(() => { if (alive(t)) { A.fill(); GS.sfx.count(Math.min(24, idx)); } }));
+        await sleep(S.n > 30 ? 60 : 95);
+        if (!alive(t)) return;
+      }
+    }
+    await Promise.all(flights);
+    await sleep(400);
+    if (!alive(t)) return;
+    const left = mode.crowd.length;
+    const empty = mode.cars.filter(A => A.filled === 0), partial = mode.cars.filter(A => A.filled < S.c);
+    let fail = null, bad = null;
+    if (S.how === 'ceil') {
+      if (left) fail = 'Masih ada ' + left + ' orang tertinggal.';
+      else if (empty.length) { fail = 'Ada angkot yang kosong.'; bad = empty; }
+    } else {
+      if (partial.length) { fail = 'Angkot ini belum penuh, tidak mau berangkat.'; bad = partial; }
+      else if (left >= S.c) fail = 'Sisanya ' + left + '. Masih cukup untuk satu angkot penuh.';
+    }
+    if (fail) {
       tries++; mode.roundTries++;
-      GS.sfx.oops();
-      hud.mood('oops');
-      const diff = total - mode.target;
-      floatAt((diff < 0 ? 'kurang ' : 'lebih ') + Math.abs(diff), 1140, 330);
-      GS.say('Sampai ' + total + '. Pesanannya ' + mode.target + '. ' + (diff < 0 ? 'Kurang ' : 'Lebih ') + Math.abs(diff) + '.');
-      if (mode.roundTries >= 2) { orderCard(mode.target, true); B.labels.style.display = ''; }
+      GS.sfx.oops(); hud.mood('oops'); kenek.pose('think');
+      GS.say(fail);
+      (bad || []).forEach(A => GS.fx(A.shake, 'gs-wobble'));
       await sleep(2400);
       if (!alive(t)) return;
-      mode.gate.num.textContent = '0';
-      B.locked = false; mode.busy = false; mode.btnSend.disabled = false;
-      hud.mood('think');
+      mode.cars.forEach(A => A.host.remove());
+      mode.cars = [];
+      taken.forEach(r => mode.crowd.push(restorePerson(r)));
+      B.locked = false; mode.busy = false; mode.btnGo.disabled = false;
+      kenek.pose('idle'); hud.mood('think');
+      return;
     }
+    hud.mood('cheer'); GS.sfx.coin();
+    if (S.how === 'floor' && left) {
+      GS.say('Sisa ' + left + ' naik becak.');
+      await sleep(800);
+      const list = mode.crowd.splice(0);
+      await becakParade(list.length, i => { const r = list[i]; r.node.remove(); return r; });
+      if (!alive(t)) return;
+      GS.say(S.n + ' dibagi ' + S.c + ' sama dengan ' + m + ', sisa ' + left + '.');
+    } else if (S.how === 'ceil') {
+      GS.say(S.n + ' penumpang butuh ' + m + ' angkot. Semua terangkut!');
+    } else GS.say(S.n + ' dibagi ' + S.c + ' sama dengan ' + m + '.');
+    honk();
+    await Promise.all(mode.cars.map((A, i) => sleep(i * 120).then(() => tw(1200, e => place(A.host, GS.lerp(A.pos.x, 1500, e), A.pos.y, A.pos.s), 'inCubic'))));
+    if (!alive(t)) return;
+    await sleep(900);
+    roundDone('Hebat! Semua penumpang terangkut.');
+  }
+
+  /* ================================================================== MULTI ROUNDS: kelipatan, dua angkot sama-sama penuh */
+  const LANE_Y = [470, GROUND + 6];
+  function startMulti(say) {
+    const S = cfg;
+    mode = { busy: false, roundTries: 0, lanes: [] };
+    const bgL = G(L_.halte, { class: 'ak' });
+    R(bgL, 0, 362, 1280, 128, 0, '#8E8A86');
+    R(bgL, 0, 362, 1280, 6, 0, '#77736F');
+    for (let x = 20; x < 1280; x += 60) R(bgL, x, 486, 30, 4, 2, '#F3EEE2');
+    [S.a, S.b].forEach((c, li) => {
+      const y = LANE_Y[li];
+      const sg = G(L_.ui, { class: 'ak' });
+      place(sg, 24, y - 128);
+      R(sg, 0, 0, 150, 116, 16, P.cream, OUT, 3.5);
+      const ic = G(sg); const o = capAngkot(G(ic), c, { sign: false, sw: 5 }); place(ic, 75 - o.L * 0.36, 82, 0.72);
+      T(sg, 75, 100, 'isi ' + c, 22, P.ink, { class: 'gs-num' });
+      mode.lanes.push({ c, y, cars: [], g: G(L_.angkot) });
+    });
+    const B = mode.board = makeBoard([10, 1]);
+    B.onStep = (i, sign) => { if (mode.busy) return; B.dig[i] = GS.clamp(B.dig[i] + sign, 0, i === 0 ? 4 : 9); B.setDigit(i, B.dig[i]); };
+    B.setDigits(B.dig); B.showSteps(true);
+    mode.btnGo = mkBtn('Isi!', false, () => multiGo());
+    sayFirst(say, 'Cari jumlah yang pas!');
+    timers.push(setTimeout(() => GS.say('Angkot isi ' + S.a + ' dan isi ' + S.b + '. Berapa orang supaya semua penuh?'), 2600 / SPEED));
+  }
+  async function multiGo() {
+    const t = tok, S = cfg, B = mode.board;
+    if (mode.busy) return;
+    const n = B.number();
+    if (!n) { GS.sfx.oops(); GS.say('Pilih dulu berapa orang.'); return; }
+    mode.busy = true; B.locked = true; mode.btnGo.disabled = true;
+    mode.lanes.forEach(L => {
+      const cnt = Math.ceil(n / L.c);
+      const L0 = 70 + Math.ceil(L.c / 2) * 26 + 36;
+      L.s = Math.min(0.5, 960 / (cnt * (L0 + 10)));
+      L.step = (L0 + 10) * L.s;
+    });
+    for (let i = 0; i < n; i++) {
+      mode.lanes.forEach(L => {
+        const ci = Math.floor(i / L.c);
+        if (!L.cars[ci]) {
+          const host = G(L.g);
+          const A = capAngkot(host, L.c, { shadow: true, sign: false });
+          A.host = host;
+          place(host, 190 + ci * L.step, L.y, L.s);
+          popIn(host, 190 + ci * L.step, L.y, L.s);
+          L.cars[ci] = A;
+        }
+        L.cars[ci].fill();
+      });
+      GS.sfx.count(Math.min(24, i + 1));
+      await sleep(n > 30 ? 55 : 85);
+      if (!alive(t)) return;
+    }
+    await sleep(500);
+    if (!alive(t)) return;
+    const res = mode.lanes.map(L => { const last = L.cars[L.cars.length - 1]; return { L, full: last.filled === L.c, miss: L.c - last.filled, last }; });
+    if (res.every(r => r.full)) {
+      hud.mood('cheer'); GS.sfx.coin();
+      GS.say(n + ' pas! Angkot isi ' + S.a + ' dan isi ' + S.b + ' sama-sama penuh.');
+      honk();
+      await Promise.all(mode.lanes.flatMap(L => L.cars.map((A, i) => sleep(i * 60).then(() => { const tr = A.host.getAttribute('transform'); return tw(1200, e => A.host.setAttribute('transform', 'translate(' + f1(1400 * e) + ' 0) ' + tr), 'inCubic'); }))));
+      if (!alive(t)) return;
+      await sleep(600);
+      roundDone('Hebat! Kamu menemukan kelipatan yang sama.');
+      return;
+    }
+    tries++; mode.roundTries++;
+    GS.sfx.oops(); hud.mood('oops'); kenek.pose('think');
+    const bad = res.filter(r => !r.full);
+    bad.forEach(r => GS.fx(r.last.shake, 'gs-wobble'));
+    GS.say(bad.map(r => 'Angkot isi ' + r.L.c + ' yang terakhir kurang ' + r.miss + '.').join(' '));
+    await sleep(2600);
+    if (!alive(t)) return;
+    mode.lanes.forEach(L => { L.g.innerHTML = ''; L.cars = []; });
+    B.locked = false; mode.busy = false; mode.btnGo.disabled = false;
+    kenek.pose('idle'); hud.mood('think');
+  }
+
+  /* ================================================================== COMPARE ROUNDS: terminal mana lebih ramai */
+  function startCompare(say) {
+    const S = cfg;
+    mode = { busy: false, roundTries: 0, sides: [] };
+    [S.A, S.B].forEach((n, si) => {
+      const g = G(L_.ui, { class: 'ak' });
+      const x0 = si ? 700 : 40;
+      R(g, x0, 96, 540, 420, 22, P.cream, OUT, 4);
+      R(g, x0, 96, 540, 52, 22, si ? P.org : P.blue, OUT, 4);
+      T(g, x0 + 270, 123, 'Terminal ' + (si ? 'B' : 'A'), 28, si ? P.ink : '#fff', { class: 't-display' });
+      T(g, x0 + 270, 196, String(n), 64, si ? P.orgS : P.blueS, { class: 'gs-num' });
+      const tens = Math.floor(n / 10), ones = n % 10;
+      const items = { t: [], o: [] };
+      for (let k = 0; k < tens; k++) items.t.push(iconFor(g, 'angkot', x0 + 34 + (k % 5) * 98, 292 + Math.floor(k / 5) * 58, 84, { full: true }));
+      for (let k = 0; k < ones; k++) items.o.push(iconFor(g, 'becak', x0 + 44 + (k % 5) * 98, 438 + Math.floor(k / 5) * 62, 58));
+      mode.sides.push(items);
+    });
+    const slot = mode.slot = G(L_.ui, { class: 'ak' });
+    place(slot, 640, 300);
+    C(slot, 0, 0, 52, P.cream, OUT, 4, { 'stroke-dasharray': '10 8' });
+    mode.sign = G(slot);
+    mode.btns = [['<', 'kurang dari'], ['=', 'sama dengan'], ['>', 'lebih dari']].map(([s, lab]) => {
+      const b = mkBtn(s, s === '=', () => chooseSign(s));
+      b.setAttribute('aria-label', 'Terminal A ' + lab + ' terminal B');
+      b.style.minWidth = '96px';
+      return b;
+    });
+    sayFirst(say, 'Mana yang lebih ramai?');
+    timers.push(setTimeout(() => GS.say('Pilih tanda yang benar: lebih, kurang, atau sama.'), 2300 / SPEED));
+  }
+  async function chooseSign(sym) {
+    const t = tok, S = cfg;
+    if (mode.busy) return;
+    mode.busy = true;
+    mode.btns.forEach(b => { b.disabled = true; });
+    mode.sign.innerHTML = '';
+    const sg = G(mode.sign);
+    T(sg, 0, 4, sym, 84, P.ink, { class: 'gs-num' });
+    popIn(sg, 0, 0, 1);
+    GS.sfx.drop();
+    await sleep(500);
+    if (!alive(t)) return;
+    // pair the vehicles one to one; whatever is left over shows which terminal has more
+    const [a, b] = mode.sides;
+    for (const key of ['t', 'o']) {
+      const m = Math.min(a[key].length, b[key].length);
+      for (let k = 0; k < m; k++) {
+        a[key][k].setAttribute('opacity', '0.3'); b[key][k].setAttribute('opacity', '0.3');
+        GS.sfx.tick();
+        await sleep(90);
+        if (!alive(t)) return;
+      }
+      if (a[key].length !== b[key].length) break;
+    }
+    const truth = S.A < S.B ? '<' : S.A > S.B ? '>' : '=';
+    const W = { '<': 'kurang dari', '>': 'lebih dari', '=': 'sama dengan' };
+    await sleep(300);
+    if (!alive(t)) return;
+    if (sym === truth) {
+      GS.sfx.coin(); hud.mood('cheer');
+      const ring = mode.slot.querySelector('circle'); ring.setAttribute('fill', '#E3F4F1'); ring.setAttribute('stroke', P.teal); ring.removeAttribute('stroke-dasharray');
+      GS.say(S.A + ' ' + W[truth] + ' ' + S.B + '.');
+      await sleep(2400);
+      if (!alive(t)) return;
+      roundDone('Hebat! Kamu pandai membandingkan.');
+      return;
+    }
+    tries++; mode.roundTries++;
+    GS.sfx.oops(); hud.mood('oops');
+    GS.fx(sg, 'gs-wobble');
+    GS.say(truth === '=' ? 'Lihat, tidak ada yang tersisa. Sama banyak!' : 'Lihat yang tersisa. Terminal ' + (truth === '>' ? 'A' : 'B') + ' lebih ramai.');
+    await sleep(1600);
+    if (!alive(t)) return;
+    await tw(400, e => { sg.setAttribute('opacity', (1 - e).toFixed(2)); }, 'inCubic');
+    mode.sign.innerHTML = '';
+    mode.sides.forEach(sd => ['t', 'o'].forEach(k => sd[k].forEach(m => m.setAttribute('opacity', '1'))));
+    mode.busy = false;
+    mode.btns.forEach(b => { b.disabled = false; });
   }
 
   /* ------------------------------------------------------------------ debug / test hook */
@@ -1683,55 +2392,68 @@
       setTimeout(poll, 40);
     })();
   });
+  async function solveRound() {
+    const t = tok, S = cfg;
+    if (S.type === 'pool') {
+      while (alive(t) && !finished) {
+        await until(() => finished || !alive(t) || (cur && (cur.state === 'ready' || cur.state === 'overfull') && halte.every(g => g.state === 'halte')));
+        if (finished || !alive(t)) break;
+        if (cur.loads.length) { await sendBack(); continue; }
+        const plan = findPlan(halte, cur.cap - cur.count, pres.slice(1).map(p => cfg.cap - p));
+        if (!plan) throw new Error('no plan');
+        for (const gr of plan) {
+          await until(() => !alive(t) || (cur && cur.state === 'ready'));
+          if (!alive(t)) return;
+          await boardGroup(gr);
+        }
+        const done = departed;
+        await until(() => finished || !alive(t) || departed > done, 30000);
+      }
+    } else if (S.type === 'tens') {
+      while (alive(t) && mode.crowd.length >= 10) {
+        await until(() => !alive(t) || (cur && cur.state === 'ready' && !mode.busy));
+        if (!alive(t)) return;
+        await fillAngkot();
+      }
+      await until(() => !alive(t) || (cur && cur.state === 'ready' && !mode.busy));
+      if (!alive(t)) return;
+      await callBecak();
+      await until(() => !alive(t) || mode.phase === 'compose');
+      if (!alive(t)) return;
+      const B = mode.board;
+      B.dig = B.vals.slice(); B.setDigits(B.dig);
+      await checkTens();
+    } else {
+      await until(() => !alive(t) || !mode.busy);
+      if (!alive(t)) return;
+      const B = mode.board;
+      if (S.type === 'calc') {
+        if (S.mode === 'build') { B.vals = digitsOf(S.target, S.units); B.render(); B.setDigits(B.vals); }
+        else { B.dig = digitsOf(mode.expected, S.units); B.setDigits(B.dig); }
+        await kirim();
+      } else if (S.type === 'share') { B.vals[0] = S.k; B.setDigits([S.k]); B.render(); await bagikan(); }
+      else if (S.type === 'fleet') { B.vals[0] = S.m; B.setDigits([S.m]); B.render(); await fleetGo(); }
+      else if (S.type === 'multi') { B.dig = digitsOf(lcm(S.a, S.b), [10, 1]); B.setDigits(B.dig); await multiGo(); }
+      else if (S.type === 'compare') await chooseSign(S.A < S.B ? '<' : S.A > S.B ? '>' : '=');
+    }
+  }
   window.__game = {
     go: i => run.go(i),
+    count: () => LEVELS.length,
+    tier: () => TIER,
     speed: s => { SPEED = s || 1; },
-    state: () => ({ level: LV, tries, finished, angkot: cur && { state: cur.state, count: cur.count }, halte: halte.map(g => g.n), mode: { phase: mode.phase, n: mode.n, target: mode.target, round: mode.round } }),
-    board: g => boardGroup(g),
+    state: () => ({ tier: TIER, level: LV, round: roundIdx, rounds: rounds.length, type: cfg.type, tries, won: levelWon, angkot: cur && { state: cur.state, count: cur.count, cap: cur.cap }, halte: halte.map(g => g.n) }),
     halte: () => halte,
     async solve() {
-      const t = tok;
-      if (cfg.kind === 'pool') {
-        while (alive(t) && !finished) {
-          await until(() => finished || (cur && (cur.state === 'ready' || cur.state === 'overfull') && halte.every(g => g.state === 'halte')) || !alive(t));
-          if (finished || !alive(t)) break;
-          if (cur.loads.length) { await sendBack(); continue; }
-          const plan = findPlan(halte, 10 - cur.count, pres.slice(1).map(p => 10 - p));
-          if (!plan) throw new Error('no plan');
-          for (const gr of plan) {
-            await until(() => cur && cur.state === 'ready');
-            await boardGroup(gr);
-          }
-          const done = departed;
-          await until(() => finished || !alive(t) || departed > done, 30000);
-        }
-      } else if (cfg.kind === 'tens') {
-        for (let r = 0; r < 2 && alive(t); r++) {
-          while (mode.crowd.length >= 10) {
-            await until(() => cur && cur.state === 'ready' && !mode.busy);
-            await fillAngkot();
-          }
-          await until(() => cur && cur.state === 'ready' && !mode.busy);
-          await callBecak();
-          await until(() => mode.phase === 'compose');
-          mode.board.dT = mode.board.tens; mode.board.dO = mode.board.ones;
-          mode.board.setDigits(mode.board.dT, mode.board.dO);
-          const rr = mode.round;
-          checkTens();
-          await until(() => mode.round > rr || finished, 20000);
-        }
-      } else {
-        for (let r = 0; r < 2 && alive(t); r++) {
-          await until(() => !mode.busy);
-          const B = mode.board;
-          B.tens = Math.floor(mode.target / 10); B.ones = mode.target % 10; B.renderIcons(); B.setDigits(B.tens, B.ones);
-          const rr = mode.round;
-          await kirim();
-          await until(() => mode.round > rr || finished, 30000);
-        }
+      const lt = levelTok;
+      while (!levelWon && lt === levelTok) {
+        await until(() => roundReady || levelWon || lt !== levelTok, 20000);
+        if (levelWon || lt !== levelTok) break;
+        const r = roundIdx;
+        await solveRound();
+        await until(() => levelWon || roundIdx !== r || lt !== levelTok, 60000);
       }
-      await until(() => mode.won || !alive(t), 60000).catch(() => {});
-      return { finished, won: !!mode.won, tries };
+      return { won: levelWon, tries };
     }
   };
 

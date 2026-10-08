@@ -22,7 +22,7 @@
     stone: '#8C8F94', stoneSh: '#63666B', stoneHl: '#B4B7BB'
   };
   const D = { PX: 640, PY: 150, ARM: 290, CHAIN: 165, MAX: 18 };
-  const SS = { PX: 640, PY: 430, HALF: 430, STEP: 125, MAX: 14 };
+  const SS = { PX: 640, PY: 430, HALF: 430, STEP: 125, MAX: 14, N: 3 };
   SS.GROUND = Math.round(SS.PY + SS.HALF * Math.sin(SS.MAX * Math.PI / 180) + 12);
   const TRAY = { x: 640, y: 652 };
   const el = GS.el;
@@ -30,20 +30,8 @@
   const dock = document.getElementById('dock');
 
   /* ============================== levels (defined below) ============================== */
-  const LEVELS = [
-    { title: 'Mana lebih berat?', mode: 'dacing', make: L1 },
-    { title: 'Sama banyak', mode: 'dacing', make: L2 },
-    { title: 'Tanda < = >', mode: 'dacing', make: L3 },
-    { title: 'Pasangan bilangan', mode: 'dacing', make: L4 },
-    { title: 'Penjumlahan', mode: 'dacing', make: L5 },
-    { title: 'Bilangan hilang', mode: 'dacing', make: L6 },
-    { title: 'Sama dengan', mode: 'dacing', make: L7 },
-    { title: 'Pengurangan', mode: 'dacing', make: L8 },
-    { title: 'Setengah', mode: 'dacing', make: L9 },
-    { title: 'Jungkat-jungkit', mode: 'seesaw', make: L10 },
-    { title: 'Kakak dan adik', mode: 'seesaw', make: L11 },
-    { title: 'Tenaga putar', mode: 'seesaw', make: L12 }
-  ];
+  const TIER = (GS.tier && GS.tier()) || 'k1';
+  const LEVELS = tierLevels(TIER);
 
   const hud = GS.hud({ gameId: GAME, title: 'Timbangan Pasar', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
   const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: buildLevel });
@@ -143,6 +131,7 @@
   /* ============================== items ============================== */
   function makeItem(def) {
     const it = Object.assign({ w: 1, h: 40, fixed: false }, def);
+    it.def = def;
     it.id = uid('it');
     it.g = el('g', { class: 'item' + (it.fixed ? ' fixed' : '') });
     it.hop = el('g', null, it.g);
@@ -160,7 +149,8 @@
     GS.markup(art, mk);
     it.heavy = heaviness(def.kind);
     if (def.decor) def.decor(it);
-    const hw = Math.max(76, it.fw + 18), hh = Math.max(76, it.h + 20);
+    const minHit = TIER === 'tk' ? 100 : 76;
+    const hw = Math.max(minHit, it.fw + 18), hh = Math.max(minHit, it.h + 20);
     it.hit = el('rect', { x: -hw / 2, y: -it.h / 2 - hh / 2, width: hw, height: hh, fill: 'transparent' }, it.g);
     it.x = 0; it.y = 0; it.sx = 1; it.sy = 1; it.lift = 1;
     GS.drag(it.g, { svg, onStart: p => dragStart(it, p), onMove: p => dragMove(it, p), onEnd: p => dragEnd(it, p) });
@@ -248,6 +238,7 @@
   }
   function layout(c, anim, fresh) {
     for (const bin of c.bins) {
+      if (bin.sort) bin.items.sort((p, q) => q.w - p.w);
       const W = bin.x1 - bin.x0, cx = (bin.x0 + bin.x1) / 2;
       const rows = [[]]; let rw = 0;
       for (const it of bin.items) {
@@ -300,6 +291,7 @@
     cleanup();
     const L = LEVELS[i];
     S.mode = L.mode;
+    SS.N = L.notches || 3; SS.STEP = SS.N === 4 ? 100 : 125;
     setScene(L.mode);
     if (L.mode === 'dacing') { buildDacing(); buildTray(); } else buildSeesaw();
     drawTitle(L.title);
@@ -493,6 +485,8 @@
     el('ellipse', { cx: 0, cy: -1, rx: 102, ry: 12.5, fill: C.bambooIn, stroke: OL, 'stroke-width': 2.4 }, body);
     const wv = el('g', { 'clip-path': `url(#${inId})`, opacity: 0.12 }, body);
     for (let x = -120; x < 120; x += 9) el('path', { d: `M${x} -16l18 32M${x + 18} -16l-18 32`, stroke: OL, 'stroke-width': 1.4 }, wv);
+    pan.tapHit = el('ellipse', { cx: 0, cy: -40, rx: 132, ry: 84, fill: 'transparent', display: 'none', class: 'peg-hit' }, body);
+    pan.tapHit.addEventListener('click', () => { if (lv && lv.panTap) lv.panTap(side < 0 ? 0 : 1); });
     pan.back = el('g', null, body);
     pan.content = el('g', null, body);
     pan.front = el('g', null, body);
@@ -592,7 +586,7 @@
     const plank = el('g', null, rig);
     S.beamG = plank;
     const pg = el('g', { transform: `translate(${PX} ${PY})` }, plank);
-    for (const s of [-1, 1]) {
+    if (SS.N < 4) for (const s of [-1, 1]) {
       el('path', { d: `M${s * (HALF - 24)} -12V-50`, stroke: OL, 'stroke-width': 9, 'stroke-linecap': 'round' }, pg);
       el('path', { d: `M${s * (HALF - 24)} -12V-50`, stroke: C.woodSh, 'stroke-width': 4.5, 'stroke-linecap': 'round' }, pg);
       shape3(pg, rr(s * (HALF - 24) - 14, -60, 28, 12, 6), { base: s < 0 ? C.blue : C.orange, sh: s < 0 ? C.blueSh : C.orangeSh, off: [0, -3], sw: 3 });
@@ -600,7 +594,7 @@
     shape3(pg, rr(-HALF, -12, HALF * 2, 24, 11), { base: '#C98B4E', sh: C.wood, hl: '#E0A86E', hlb: [-200, -7, 160, 2.6], off: [0, -5] });
     el('path', { d: `M${-HALF + 20} 2H-30M30 2H${HALF - 20}`, stroke: C.woodSh, 'stroke-width': 2, opacity: 0.4 }, pg);
     S.notches = [];
-    for (const s of [-1, 1]) for (let d = 1; d <= 3; d++) {
+    for (const s of [-1, 1]) for (let d = 1; d <= SS.N; d++) {
       const x = s * d * STEP;
       el('rect', { x: x - 5, y: -17, width: 10, height: 7, rx: 2, fill: C.woodSh, stroke: OL, 'stroke-width': 2 }, pg);
       el('circle', { cx: x, cy: 1, r: 10.5, fill: s < 0 ? C.blueTint : C.orangeTint, stroke: s < 0 ? C.blue : C.orange, 'stroke-width': 2.6 }, pg);
@@ -743,6 +737,7 @@
       return;
     }
     if (lv.canRelease && !lv.canRelease()) { if (lv.cantMsg) say(lv.cantMsg); GS.sfx.oops(); return; }
+    if (lv.customRelease) return lv.customRelease();
     const g = S.gen;
     S.busy = true; S.locked = false; dockRender();
     await pegPop();
@@ -766,7 +761,7 @@
     const g = S.gen;
     S.relocking = true; dockRender();
     waterpass(false);
-    await simRun({ tgt: 0, k: 26, c: 10, kick: 0 });
+    await simRun(lv && lv.fastRelock ? { tgt: 0, k: 110, c: 21 } : { tgt: 0, k: 26, c: 10, kick: 0 });
     if (g !== S.gen) return;
     await pegInsert();
     if (g !== S.gen) return;
@@ -820,6 +815,7 @@
   }
   function stars() { return S.tries === 0 ? 3 : S.tries <= 2 ? 2 : 1; }
   function finish(text) {
+    if (lv && lv.__mix) { if (lv.round < lv.rounds - 1) return nextRound(); text = lv.winText(); }
     S.over = true; dockRender();
     const g = S.gen;
     setTimeout(() => { if (g === S.gen) run.win(stars(), text); }, 1100);
@@ -1058,13 +1054,14 @@
     const text = parts.join(' + ');
     const per = 5;
     const rowsOf = k => Math.ceil(k / per);
-    const dotRows = parts.reduce((a, k) => a + rowsOf(k), 0);
+    const showDots = n <= 20;
+    const dotRows = showDots ? parts.reduce((a, k) => a + rowsOf(k), 0) : 0;
     const w = Math.max(84, text.length * 17 + 26), h = 48 + dotRows * 14 + (parts.length - 1) * 5;
     el('path', { d: `M0 ${-h / 2}V${-h / 2 - 14}`, stroke: OL, 'stroke-width': 2.4 }, g);
     el('path', { d: rr(-w / 2, -h / 2, w, h, 14), fill: C.cream, stroke: side < 0 ? C.blue : C.orange, 'stroke-width': 4 }, g);
-    txt(g, 0, -h / 2 + 22, text, { size: 30 });
+    txt(g, 0, -h / 2 + 22, text, { size: text.length > 5 ? 24 : 30 });
     let y = -h / 2 + 46;
-    parts.forEach((k, i) => {
+    if (showDots) parts.forEach((k, i) => {
       const r = rowsOf(k);
       dotsAt(g, k, 0, y + (r - 1) * 7, { fill: i ? C.brassDk : OL, r: 4.4, gap: 13.5 });
       y += r * 14 + 5;
@@ -1092,7 +1089,8 @@
     st.g.innerHTML = '';
     if (!tokens) return;
     const signVal = S.last ? (S.last.dir === 'B' ? '=' : S.last.dir === 'L' ? '>' : '<') : '?';
-    const W = t => t.t === 'op' ? 34 : t.t === 'sign' ? 66 : t.t === 'txt' ? t.v.length * 15 + 30 : Math.max(58, String(t.v == null ? '?' : t.v).length * 24 + 30);
+    const show = v => v == null ? '?' : typeof v === 'number' ? fmt(v) : String(v);
+    const W = t => t.t === 'op' ? 34 : t.t === 'sign' ? 66 : t.t === 'txt' ? t.v.length * 15 + 30 : Math.max(58, show(t.v).length * (show(t.v).length > 4 ? 20 : 24) + 30);
     const gap = 8;
     const tot = tokens.reduce((a, t) => a + W(t), 0) + gap * (tokens.length - 1);
     el('path', { d: rr(-tot / 2 - 18, -42, tot + 36, 84, 26), fill: OL, opacity: 0.2, transform: 'translate(0 6)' }, st.g);
@@ -1128,7 +1126,7 @@
         const tint = side < 0 ? C.blueTint : side > 0 ? C.orangeTint : '#FFFFFF';
         const sc = side < 0 ? C.blue : side > 0 ? C.orange : OL;
         el('path', { d: rr(x, -29, w, 58, 16), fill: empty ? '#FFFFFF' : tint, stroke: empty ? C.muted : sc, 'stroke-width': 3.5, 'stroke-dasharray': empty ? '7 6' : null }, g);
-        txt(g, cx, 1, empty ? '?' : String(t.v), { size: 36, fill: empty ? C.muted : C.ink });
+        txt(g, cx, 1, show(t.v), { size: show(t.v).length > 4 ? 30 : 36, fill: empty ? C.muted : C.ink });
       }
       if (st.prev[i] && st.prev[i] !== key && !GS.reducedMotion) {
         GS.tween(300, e => g.setAttribute('transform', `translate(${n1(cx)} 0) scale(${n1((1.25 - 0.25 * e) * 100) / 100}) translate(${n1(-cx)} 0)`), 'outBack');
@@ -1145,60 +1143,96 @@
   function renderGrid() {
     if (S.mode !== 'seesaw' || !S.grid) return;
     const g = S.grid; g.innerHTML = '';
-    const { PX, STEP } = SS, y0 = 584, rowH = 26;
+    const { PX, STEP, N } = SS, y0 = 584;
     const bal = S.last && S.last.balanced;
     [-1, 1].forEach(side => {
       const objs = S.notches.filter(c => c.side === side && c.count()).map(c => ({ w: c.sum(), d: c.d })).sort((a, b) => a.d - b.d);
       const rows = objs.reduce((a, o) => a + o.w, 0);
-      const x0 = side < 0 ? PX - 3 * STEP - 40 : PX + 28, x1 = side < 0 ? PX - 28 : PX + 3 * STEP + 40;
+      const rowH = Math.min(26, 150 / Math.max(rows, 1)), dr = Math.min(9, rowH * 0.36);
+      const x0 = side < 0 ? PX - N * STEP - 40 : PX + 28, x1 = side < 0 ? PX - 28 : PX + N * STEP + 40;
       const h = 40 + Math.max(1, rows) * rowH;
       el('path', { d: rr(x0, y0 - 18, x1 - x0, h, 16), fill: C.cream, stroke: OL, 'stroke-width': 3, opacity: 0.94 }, g);
-      for (let d = 1; d <= 3; d++) txt(g, PX + side * d * STEP, y0, String(d), { size: 17, fill: C.muted });
+      for (let d = 1; d <= N; d++) txt(g, PX + side * d * STEP, y0, String(d), { size: 17, fill: C.muted });
       let r = 0;
       objs.forEach(o => {
         const top = y0 + 22 + r * rowH;
         for (let k = 0; k < o.w; k++) {
           const yy = top + k * rowH;
           const xa = PX + side * STEP, xb = PX + side * o.d * STEP;
-          el('path', { d: rr(Math.min(xa, xb) - 15, yy - 10, Math.abs(xb - xa) + 30, 20, 10), fill: side < 0 ? C.blueTint : C.orangeTint }, g);
+          el('path', { d: rr(Math.min(xa, xb) - 15, yy - dr - 1, Math.abs(xb - xa) + 30, 2 * dr + 2, dr + 1), fill: side < 0 ? C.blueTint : C.orangeTint }, g);
           for (let d = 1; d <= o.d; d++) {
             const x = PX + side * d * STEP;
-            if (side < 0) el('circle', { cx: x, cy: yy, r: 9, fill: C.blue, stroke: OL, 'stroke-width': 2 }, g);
-            else el('rect', { x: x - 8.5, y: yy - 8.5, width: 17, height: 17, rx: 4, fill: C.orange, stroke: OL, 'stroke-width': 2 }, g);
+            if (side < 0) el('circle', { cx: x, cy: yy, r: dr, fill: C.blue, stroke: OL, 'stroke-width': 2 }, g);
+            else el('rect', { x: x - dr, y: yy - dr, width: 2 * dr, height: 2 * dr, rx: 4, fill: C.orange, stroke: OL, 'stroke-width': 2 }, g);
           }
         }
-        txt(g, PX + side * 64, top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: 19, fill: C.ink });
+        txt(g, PX + side * 64, top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: rowH < 18 ? 16 : 19, fill: C.ink });
         r += o.w;
       });
       const tot = objs.reduce((a, o) => a + o.w * o.d, 0);
-      const tx = PX + side * (3 * STEP + 84), ty = y0 + 22;
+      const tx = PX + side * (N * STEP + 84), ty = y0 + 22;
       el('circle', { cx: tx, cy: ty, r: 30, fill: bal ? C.tealTint : side < 0 ? C.blueTint : C.orangeTint, stroke: bal ? C.teal : side < 0 ? C.blue : C.orange, 'stroke-width': 4 }, g);
       txt(g, tx, ty + 1, String(tot), { size: 32 });
     });
   }
 
   /* ============================== item factories ============================== */
+  const fmt = v => typeof v === 'number' ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : String(v);
   const ramb = (o) => Object.assign({ kind: 'rambutan', w: 1, h: 42 }, o || {});
   const marb = (o) => Object.assign({ kind: 'kelereng', w: 1, h: 27 }, o || {});
-  const wt = (n, o) => Object.assign({ kind: 'weight', arg: n, w: n, h: 60 }, o || {});
+  /** Brass weight with a printed label, for values the shared art cannot show (100, 500 g, 1 kg ...). */
+  function customWeightArt(text) {
+    const hw = Math.max(26, 12 + text.length * 7), T = -62, B = -9;
+    const body = `M${-hw} ${B}L${-hw} ${T}A${hw} 6 0 0 1 ${hw} ${T}L${hw} ${B}A${hw} 6 0 0 1 ${-hw} ${B}Z`;
+    const fs = text.length > 4 ? 21 : 25;
+    const mk = `<rect x="${-hw - 4}" y="-12" width="${2 * hw + 8}" height="11" rx="5" fill="${C.brassSh}" stroke="${OL}" stroke-width="3.4"/>` +
+      `<path d="${body}" fill="${C.brass}" stroke="${OL}" stroke-width="3.6" stroke-linejoin="round"/>` +
+      `<path d="M${hw - 7} ${T + 7}V${B - 3}" stroke="${C.brassSh}" stroke-width="6" stroke-linecap="round" opacity=".6"/>` +
+      `<path d="M${-hw + 7} ${T + 9}V${B - 9}" stroke="${C.brassHl}" stroke-width="4" stroke-linecap="round"/>` +
+      `<ellipse cx="0" cy="${T}" rx="${hw}" ry="6" fill="#EBC572" stroke="${OL}" stroke-width="3"/>` +
+      `<rect x="-5" y="${T - 11}" width="10" height="10" rx="2" fill="${C.brass}" stroke="${OL}" stroke-width="2.6"/>` +
+      `<ellipse cx="0" cy="${T - 14}" rx="8.5" ry="7" fill="${C.brass}" stroke="${OL}" stroke-width="2.8"/>` +
+      `<text x="0" y="${(T + B) / 2 + 3}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" font-weight="600" fill="${C.ink}" style="font-family: Fredoka, 'Baloo 2', sans-serif">${text}</text>`;
+    return { mk, box: { x: -hw - 4, y: T - 21, width: 2 * hw + 8, height: -(T - 21) } };
+  }
+  const wt = (n, o) => {
+    o = o || {};
+    const base = { kind: 'weight', arg: n, w: n, h: 60 };
+    if (n > 99 || o.label) { const cw = customWeightArt(o.label || fmt(n)); Object.assign(base, { custom: cw.mk, customKey: 'cw' + (o.label || n), box: cw.box }); }
+    return Object.assign(base, o);
+  };
   function karung(n, o) {
     return Object.assign({
-      kind: 'karung', w: n, h: 104, fixed: true, labelN: n, labelDots: true,
+      kind: 'karung', w: n, h: 104, fixed: true, labelN: n, labelDots: n <= 10,
       decor: it => { it.labelG = el('g', null, it.inner); drawKarungLabel(it); }
     }, o || {});
   }
   function drawKarungLabel(it) {
     const g = it.labelG; g.innerHTML = '';
     const sc = it.sc, cy = (-36 - (it.ab.y + it.ab.height)) * sc; // art label patch centre (y -36 in art units)
-    const dots = it.labelDots, n = it.labelN;
+    const n = it.labelN, s = fmt(n);
+    const dots = it.labelDots && typeof n === 'number' && n <= 10;
     if (dots) {
       el('path', { d: rr(-32, cy - 24, 64, 58, 10), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-      txt(g, 0, cy - 7, String(n), { size: 26 });
+      txt(g, 0, cy - 7, s, { size: 26 });
       dotsAt(g, n, 0, cy + 18, { r: 3.4, gap: 10, fill: OL });
     } else {
-      el('path', { d: rr(-26, cy - 20, 52, 40, 10), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
-      txt(g, 0, cy + 1, String(n), { size: 28 });
+      const w = Math.max(52, s.length * 15 + 16);
+      el('path', { d: rr(-w / 2, cy - 20, w, 40, 10), fill: C.cream, stroke: OL, 'stroke-width': 3 }, g);
+      txt(g, 0, cy + 1, s, { size: s.length > 5 ? 22 : 28 });
     }
+  }
+  /** Sealed cloth bag (kantong) holding g units; its own label is drawn over the art's. */
+  function kantong(g, o) {
+    return Object.assign({
+      kind: 'kantong', w: g, h: 58, fixed: true,
+      decor: it => {
+        const cy = (-20 - (it.ab.y + it.ab.height)) * it.sc, r = 12 * it.sc + 3;
+        const lg = el('g', null, it.inner);
+        el('circle', { cx: 0, cy, r, fill: C.cream, stroke: OL, 'stroke-width': 2.6 }, lg);
+        txt(lg, 0, cy + 1, fmt(g), { size: String(g).length > 1 ? 17 : 21 });
+      }
+    }, o || {});
   }
   function signCard(glyph) {
     const mk = `<path d="${rr(-34, -74, 68, 72, 14)}" fill="${OL}" opacity=".2" transform="translate(0 4)"/>` +
@@ -1220,6 +1254,18 @@
       }
     }, o || {});
   }
+  /** Tens and ones (or any denominations) as tray stock. */
+  function stockOf(denoms, counts, o) {
+    const out = [];
+    denoms.forEach((d, i) => { for (let k = 0; k < counts[i]; k++) out.push(wt(d, Object.assign({}, o || {}, o && o.unit ? { label: fmt(d) + o.unit } : {}))); });
+    return out;
+  }
+  /** Greedy move of weights from the tray into a container to make `need` (used by solvers). */
+  function greedyFill(c, need, bin) {
+    const ds = [...new Set(S.tray.items().map(it => it.w))].sort((a, b) => b - a);
+    for (const d of ds) while (need >= d) { const it = S.tray.items().find(x => x.w === d); if (!it) break; moveItem(it, c, bin); need -= d; }
+    return need;
+  }
 
   /* ============================== dacing level helpers ============================== */
   const pan = i => S.pans[i].c;
@@ -1228,18 +1274,29 @@
     const c = pan(i);
     c.bins = bins.map(b => Object.assign({ items: [], pack: 0.95, stack: 0.62 }, b));
   }
-  function basketDecor(i, centers) {
-    const p = S.pans[i];
+  function clearPanDecor(i) { const p = S.pans[i]; p.back.innerHTML = ''; p.front.innerHTML = ''; p.baskets = null; }
+  function basketDecor(i, centers, w, kind) {
+    const p = S.pans[i], hw = (w || 94) / 2;
     p.baskets = centers.map(cx => {
       const bk = el('g', { transform: `translate(${cx} 12)` }, p.back);
-      el('ellipse', { cx: 0, cy: -34, rx: 46, ry: 10, fill: '#8A5E2E', stroke: OL, 'stroke-width': 3 }, bk);
+      el('ellipse', { cx: 0, cy: -34, rx: hw - 1, ry: 10, fill: kind === 'box' ? '#6E4426' : '#8A5E2E', stroke: OL, 'stroke-width': 3 }, bk);
       const fr = el('g', { transform: `translate(${cx} 12)` }, p.front);
-      shape3(fr, 'M-47 -34L47 -34L40 -3Q38 3 32 3L-32 3Q-38 3 -40 -3Z', { base: C.bamboo, sh: C.bambooSh, hl: C.bambooHl, hlb: [-30, -28, 14, 3], off: [-5, -4], sw: 3.5,
-        extra: g => { for (let y = -28; y < 2; y += 7) el('path', { d: `M-46 ${y}H46`, stroke: '#9A6E36', 'stroke-width': 1.4, opacity: 0.6 }, g); } });
-      el('path', { d: rr(-49, -39, 98, 10, 5), fill: C.bambooSh, stroke: OL, 'stroke-width': 3 }, fr);
-      const lab = el('g', null, fr);
-      return { lab };
+      if (kind === 'box') {
+        shape3(fr, rr(-hw, -34, 2 * hw, 37, 6), { base: C.wood, sh: C.woodSh, hl: C.woodHl, hlb: [-hw + 12, -28, 8, 3], off: [-5, -4], sw: 3.5 });
+        el('path', { d: `M${-hw + 4} -16H${hw - 4}`, stroke: C.woodSh, 'stroke-width': 2, opacity: 0.6 }, fr);
+      } else {
+        shape3(fr, `M${-hw} -34L${hw} -34L${hw - 7} -3Q${hw - 9} 3 ${hw - 15} 3L${-hw + 15} 3Q${-hw + 9} 3 ${-hw + 7} -3Z`, { base: C.bamboo, sh: C.bambooSh, hl: C.bambooHl, hlb: [-hw + 16, -28, 10, 3], off: [-5, -4], sw: 3.5,
+          extra: g => { for (let y = -28; y < 2; y += 7) el('path', { d: `M${-hw} ${y}H${hw}`, stroke: '#9A6E36', 'stroke-width': 1.4, opacity: 0.6 }, g); } });
+        el('path', { d: rr(-hw - 2, -39, 2 * hw + 4, 10, 5), fill: C.bambooSh, stroke: OL, 'stroke-width': 3 }, fr);
+      }
+      return { lab: el('g', null, fr) };
     });
+  }
+  function basketLabel(b, text, accent) {
+    const g = b.lab; g.innerHTML = '';
+    const s = String(text), w = Math.max(30, s.length * 12 + 14);
+    el('path', { d: rr(-w / 2, -27, w, 26, 7), fill: accent ? C.blueTint : C.cream, stroke: accent ? C.blue : OL, 'stroke-width': 2.6 }, g);
+    txt(g, 0, -13.5, s, { size: 20 });
   }
   function sackDecor(i) {
     const p = S.pans[i];
@@ -1253,13 +1310,19 @@
     el('ellipse', { cx, cy: 2, rx: w / 2, ry: 8, fill: '#FFFFFF', opacity: 0.35, stroke: OL, 'stroke-width': 2.6, 'stroke-dasharray': '6 5' }, p.back);
   }
   const outcomeWord = (a, b) => a > b ? 'lebih dari' : a < b ? 'kurang dari' : 'sama dengan';
+  /** Feedback for "build on one side" levels: which way to adjust, from the tilt. */
+  function buildMsg(r, buildSide) {
+    const down = r.dir === 'L' ? -1 : 1;
+    return down === buildSide ? 'Kebanyakan. Ambil satu, ya.' : 'Masih kurang berat. Tambah lagi.';
+  }
+  const rambH = n => n > 12 ? 30 : n > 9 ? 34 : 42;
 
-  /* ============================== LEVEL 1: Mana lebih berat? ============================== */
-  function L1() {
-    const pairs = [['kapas', 0.05, 'batu', 1.2], ['balon', 0.01, 'gembok', 0.4], ['bantal', 0.3, 'baut', 0.15]];
+  /* ============================== LEVEL: Mana lebih berat? ============================== */
+  function L1(cfg) {
+    const pairs = (cfg && cfg.pairs) || [['kapas', 0.05, 'batu', 1.2], ['balon', 0.01, 'gembok', 0.4], ['bantal', 0.3, 'baut', 0.15]];
     const size = { kapas: 104, batu: 46, balon: 132, gembok: 52, bantal: 80, baut: 50 };
     let cur = null;
-    const o = { rounds: 3, predictNow: true, near: false, pause: 2400, noTray: true };
+    const o = { rounds: pairs.length, predictNow: true, near: false, pause: 2400 };
     o.setup = r => {
       const [a, wa, b, wb] = pairs[r];
       const big = { kind: a, w: wa, h: size[a], fixed: true, float: true }, small = { kind: b, w: wb, h: size[b], fixed: true };
@@ -1285,37 +1348,37 @@
     return o;
   }
 
-  /* ============================== LEVEL 2: Sama banyak ============================== */
-  function L2() {
+  /* ============================== LEVEL: Sama banyak ============================== */
+  function L2(cfg) {
+    cfg = Object.assign({ a: [4, 6], b: [1, 3], tray: 5, cap: 10, h: 42 }, cfg || {});
     const o = { rounds: 1 };
-    let a, b;
     o.setup = () => {
-      a = rand(4, 6); b = rand(1, 3);
-      setPanBins(0, [{ x0: -100, x1: 100, y: 14, cap: 10 }]);
-      setPanBins(1, [{ x0: -100, x1: 100, y: 14, cap: 10 }]);
-      spawn(Array.from({ length: a }, () => ramb()), pan(0));
-      spawn(Array.from({ length: b }, () => ramb()), pan(1), { delay: 200 });
-      spawn(Array.from({ length: 5 }, () => ramb()), S.tray, { delay: 400 });
-      say('Buat timbangan seimbang, ya!');
+      const a = rand(cfg.a[0], cfg.a[1]), b = rand(cfg.b[0], cfg.b[1]);
+      setPanBins(0, [{ x0: -100, x1: 100, y: 14, cap: cfg.cap }]);
+      setPanBins(1, [{ x0: -100, x1: 100, y: 14, cap: cfg.cap }]);
+      spawn(Array.from({ length: a }, () => ramb({ h: cfg.h })), pan(0));
+      spawn(Array.from({ length: b }, () => ramb({ h: cfg.h })), pan(1), { delay: 200 });
+      spawn(Array.from({ length: cfg.tray }, () => ramb({ h: cfg.h })), S.tray, { delay: 400 });
+      say(TIER === 'tk' ? 'Buat sama banyak, ya!' : 'Buat timbangan seimbang, ya!');
     };
     o.fullMsg = 'Piringnya sudah penuh.';
     o.result = async r => { if (r.balanced) { say('Seimbang! Sama banyak.'); finish('Seimbang! Sama banyak.'); } else unbalanced(r); };
     o.solve = async () => {
       const Lc = pan(0).count(), Rc = pan(1).count();
-      if (Rc < Lc) S.tray.items().slice(0, Lc - Rc).forEach(it => moveItem(it, pan(1)));
+      if (Rc < Lc) { const need = Lc - Rc, have = S.tray.count(); S.tray.items().slice(0, Math.min(need, have)).forEach(it => moveItem(it, pan(1))); if (need > have) pan(0).items().slice(0, need - have).forEach(it => moveItem(it, S.tray)); }
       else if (Rc > Lc) pan(1).items().slice(0, Rc - Lc).forEach(it => moveItem(it, S.tray));
       await waitLocked(); await release();
     };
     return o;
   }
 
-  /* ============================== LEVEL 3: Tanda < = > ============================== */
-  function L3() {
+  /* ============================== LEVEL: Tanda < = > ============================== */
+  function L3(cfg) {
+    cfg = Object.assign({ lo: 5, hi: 10 }, cfg || {});
     const MAP = { '>': 'L', '=': 'B', '<': 'R' };
     const kinds = GS.shuffle(['gt', 'lt', 'eq']);
     let a, b, cards = [];
     const o = { rounds: 3, predictNow: true, near: false, pause: 2000 };
-    // sign slot on the post
     const g = el('g', { transform: `translate(${D.PX} 384)` }, S.layers.rig);
     shape3(g, rr(-50, -98, 100, 104, 20), { base: C.brass, sh: C.brassSh, hl: C.brassHl, hlb: [-30, -90, 16, 4], off: [-4, -4] });
     el('path', { d: rr(-41, -89, 82, 86, 14), fill: C.cream, stroke: OL, 'stroke-width': 2.6, 'stroke-dasharray': '7 6' }, g);
@@ -1327,11 +1390,12 @@
     o.accept = (it, c) => it.kind === 'sign' ? (c === slot || c === S.tray) : !c.isSlot;
     o.setup = r => {
       const k = kinds[r];
-      if (k === 'eq') { a = b = rand(5, 10); }
-      else { const hi = rand(6, 10), lo = rand(5, hi - 1); a = k === 'gt' ? hi : lo; b = k === 'gt' ? lo : hi; }
+      if (k === 'eq') { a = b = rand(cfg.lo, cfg.hi); }
+      else { const hi = rand(cfg.lo + 1, cfg.hi), lo = rand(cfg.lo, hi - 1); a = k === 'gt' ? hi : lo; b = k === 'gt' ? lo : hi; }
+      const h = rambH(Math.max(a, b));
       setPanBins(0, [{ x0: -100, x1: 100, y: 14 }]); setPanBins(1, [{ x0: -100, x1: 100, y: 14 }]);
-      spawn(Array.from({ length: a }, () => ramb({ fixed: true })), pan(0));
-      spawn(Array.from({ length: b }, () => ramb({ fixed: true })), pan(1), { delay: 200 });
+      spawn(Array.from({ length: a }, () => ramb({ fixed: true, h })), pan(0), { stagger: 35 });
+      spawn(Array.from({ length: b }, () => ramb({ fixed: true, h })), pan(1), { delay: 200, stagger: 35 });
       if (!cards.length) cards = spawn(['<', '=', '>'].map(signCard), S.tray, { delay: 400 });
       else cards.forEach(cd => { if (cd.c !== S.tray) moveItem(cd, S.tray); });
       o.predictNow = true; S.pred = null;
@@ -1341,7 +1405,7 @@
     o.onPredict = d => {
       const glyph = Object.keys(MAP).find(k => MAP[k] === d);
       const cd = cards.find(x => x.glyph === glyph);
-      S.pred = null; // set by placed()
+      S.pred = null;
       moveItem(cd, slot);
     };
     o.placed = (it, c) => {
@@ -1387,44 +1451,41 @@
     return o;
   }
 
-  /* ============================== LEVEL 4: Pasangan bilangan ============================== */
-  function L4() {
-    const o = { rounds: 2, near: true };
-    let n = 6, found = [], kar = null;
-    // collection rack
+  /* ============================== LEVEL: Pasangan bilangan ============================== */
+  function L4(cfg) {
+    const ns = (cfg && cfg.ns) || [6, 10];
+    const o = { rounds: ns.length, near: true };
+    let n = ns[0], found = [], kar = null, given = 0;
     const rack = el('g', { transform: 'translate(1072 128)' }, S.layers.ui);
-    shape3(rack, rr(0, 0, 192, 300, 18), { base: C.wood, sh: C.woodSh, hl: C.woodHl, hlb: [30, 10, 30, 4], off: [-5, -5] });
-    el('path', { d: rr(10, 10, 172, 280, 12), fill: '#F6E9D2', stroke: OL, 'stroke-width': 2.4 }, rack);
-    const cols = [6, 10].map((k, ci) => {
-      const cx = 52 + ci * 88;
+    const rw = ns.length > 1 ? 192 : 112;
+    shape3(rack, rr(0, 0, rw, 300, 18), { base: C.wood, sh: C.woodSh, hl: C.woodHl, hlb: [30, 10, 30, 4], off: [-5, -5] });
+    el('path', { d: rr(10, 10, rw - 20, 280, 12), fill: '#F6E9D2', stroke: OL, 'stroke-width': 2.4 }, rack);
+    const cols = ns.map((k, ci) => {
+      const cx = 56 + ci * 88;
       el('path', { d: rr(cx - 34, 20, 68, 36, 10), fill: '#E8D3A6', stroke: OL, 'stroke-width': 2.6 }, rack);
       txt(rack, cx, 39, String(k), { size: 26 });
-      const slots = [0, 1, 2].map(j => {
+      return [0, 1, 2].map(j => {
         const y = 92 + j * 66;
         el('path', { d: rr(cx - 38, y - 24, 76, 48, 12), fill: 'none', stroke: C.muted, 'stroke-width': 2.4, 'stroke-dasharray': '6 5' }, rack);
         return { x: cx, y, g: el('g', null, rack) };
       });
-      return slots;
     });
     o.setup = r => {
-      n = r === 0 ? 6 : 10; found = [];
+      n = ns[r]; found = [];
       setPanBins(0, [{ x0: -100, x1: 100, y: 14 }]);
       if (r === 0) {
         setPanBins(1, [{ x0: -100, x1: -10, y: -6, cap: 10, stack: 0.5, pack: 0.78 }, { x0: 10, x1: 100, y: -6, cap: 10, stack: 0.5, pack: 0.78 }]);
-        S.pans[1].back.innerHTML = ''; S.pans[1].front.innerHTML = '';
+        clearPanDecor(1);
         basketDecor(1, [-55, 55]);
       }
       kar = spawn([karung(n)], pan(0))[0];
-      spawn(Array.from({ length: r === 0 ? 6 : 4 }, () => ramb({ keep: true, h: 38 })), S.tray, { delay: 250 });
-      say(r === 0 ? 'Isi dua keranjang sampai seimbang.' : 'Karungnya sekarang 10. Cari 3 pasangan!');
+      spawn(Array.from({ length: n - given }, () => ramb({ keep: true, h: 38 })), S.tray, { delay: 250 });
+      given = n;
+      say(r === 0 ? 'Isi dua keranjang sampai seimbang.' : `Karungnya sekarang ${n}. Cari 3 pasangan!`);
     };
     o.changed = () => {
       const bs = S.pans[1].baskets; if (!bs) return;
-      pan(1).bins.forEach((b, i) => {
-        const g = bs[i].lab; g.innerHTML = '';
-        el('path', { d: rr(-18, -27, 36, 26, 7), fill: C.cream, stroke: OL, 'stroke-width': 2.6 }, g);
-        txt(g, 0, -13.5, String(b.items.length), { size: 21 });
-      });
+      pan(1).bins.forEach((b, i) => basketLabel(bs[i], b.items.length));
     };
     o.accept = (it, c) => !(c.isPan && c.side < 0);
     o.fixedTap = () => say(`Karung ini isinya ${n}.`);
@@ -1447,19 +1508,18 @@
       say(`Pasangan baru: ${x} dan ${y}!`);
       if (found.length >= 3) {
         await wait(1600);
-        if (o.round === 0) {
-          say('Tiga pasangan! Sekarang karungnya 10.');
+        if (o.round < o.rounds - 1) {
           o.round++;
+          say(`Tiga pasangan! Sekarang karungnya ${ns[o.round]}.`);
           await sweep(it => it === kar);
           await relock();
-          S.roundFails = 0; roundPips(); o.setup(1); refresh();
-        } else finish('Hebat! Banyak cara membuat 6 dan 10.');
+          S.roundFails = 0; roundPips(); o.setup(o.round); refresh();
+        } else finish(ns.length > 1 ? `Hebat! Banyak cara membuat ${ns.join(' dan ')}.` : `Hebat! Banyak cara membuat ${n}.`);
       } else { await wait(1300); say('Cari pasangan lain!'); relock(); }
     };
     o.solve = async () => {
       let x = 1; while (x < n && (found.indexOf([x, n - x].sort((p, q) => p - q).join('+')) >= 0)) x++;
       const bins = pan(1).bins, want = [x, n - x];
-      // move extras out first, then fill
       for (let i = 0; i < 2; i++) while (bins[i].items.length > want[i]) moveItem(bins[i].items[bins[i].items.length - 1], S.tray);
       for (let i = 0; i < 2; i++) while (bins[i].items.length < want[i]) moveItem(S.tray.items()[0], pan(1), bins[i]);
       await waitLocked(); await release();
@@ -1467,16 +1527,18 @@
     return o;
   }
 
-  /* ============================== LEVEL 5: Penjumlahan ============================== */
-  function L5() {
-    const o = { rounds: 2 };
+  /* ============================== LEVEL: Penjumlahan (pilih satu anak timbangan) ============================== */
+  function L5(cfg) {
+    cfg = Object.assign({ a: [2, 6], b: [2, 6], rounds: 2 }, cfg || {});
+    const o = { rounds: cfg.rounds };
     let a, b, s;
     o.setup = () => {
-      a = rand(2, 6); b = rand(2, 6); s = a + b;
-      setPanBins(0, [{ x0: -104, x1: -6, y: 14 }, { x0: 6, x1: 104, y: 14 }]);
+      a = rand(cfg.a[0], cfg.a[1]); b = rand(cfg.b[0], cfg.b[1]); s = a + b;
+      const h = Math.max(a, b) > 6 ? 30 : 42;
+      setPanBins(0, [{ x0: -104, x1: -6, y: 14, stack: 0.55 }, { x0: 6, x1: 104, y: 14, stack: 0.55 }]);
       setPanBins(1, [{ x0: -60, x1: 60, y: 14, cap: 1, swap: true, accept: it => it.kind === 'weight' }]);
-      spawn(Array.from({ length: a }, () => ramb({ fixed: true, bin: 0 })), pan(0));
-      spawn(Array.from({ length: b }, () => ramb({ fixed: true, bin: 1 })), pan(0), { delay: 150 });
+      spawn(Array.from({ length: a }, () => ramb({ fixed: true, bin: 0, h })), pan(0), { stagger: 35 });
+      spawn(Array.from({ length: b }, () => ramb({ fixed: true, bin: 1, h })), pan(0), { delay: 150, stagger: 35 });
       spawn(GS.shuffle([s, s - 1, s + 1, s + 2]).map(k => wt(k)), S.tray, { delay: 350 });
       say('Pilih satu anak timbangan yang pas.');
     };
@@ -1496,22 +1558,23 @@
     return o;
   }
 
-  /* ============================== LEVEL 6: Bilangan hilang ============================== */
-  function L6() {
-    const o = { rounds: 2, fade: true };
+  /* ============================== LEVEL: Bilangan hilang (karung tertutup) ============================== */
+  function L6(cfg) {
+    cfg = Object.assign({ n: [10, 15], m: [5, 8], stock: [5, 2, 2, 1, 1], rounds: 2 }, cfg || {});
+    const o = { rounds: cfg.rounds, fade: true };
     let n, m, kar;
     o.setup = () => {
-      m = rand(5, 8); n = rand(Math.max(10, m + 2), 15);
+      m = rand(cfg.m[0], cfg.m[1]); n = rand(Math.max(cfg.n[0], m + 2), cfg.n[1]);
       setPanBins(0, [{ x0: -60, x1: 60, y: 14 }]);
-      setPanBins(1, [{ x0: -104, x1: -20, y: 14, accept: it => it.kind === 'karung' }, { x0: -8, x1: 104, y: 14, cap: 6, stack: 0.7, accept: it => it.kind === 'weight' }]);
-      S.pans[1].back.innerHTML = '';
+      setPanBins(1, [{ x0: -104, x1: -20, y: 14, accept: it => it.kind === 'karung' }, { x0: -8, x1: 104, y: 14, cap: 8, stack: 0.6, pack: 0.85, accept: it => it.kind === 'weight' }]);
+      clearPanDecor(1);
       slotOutline(1, 48, 104);
       spawn([wt(n, { fixed: true, h: 66 })], pan(0));
       kar = spawn([karung(m, { labelDots: false, bin: 0 })], pan(1), { delay: 150 })[0];
-      spawn([5, 2, 2, 1, 1].map(k => wt(k)), S.tray, { delay: 300 });
+      spawn(cfg.stock.map(k => wt(k)), S.tray, { delay: 300 });
       say('Karung tidak bisa dibuka. Tambah anak timbangan sampai seimbang.');
     };
-    o.changed = () => { if (kar && kar.labelDots !== S.roundFails >= 2) { kar.labelDots = S.roundFails >= 2; drawKarungLabel(kar); } };
+    o.changed = () => { if (kar && m <= 10 && kar.labelDots !== S.roundFails >= 2) { kar.labelDots = S.roundFails >= 2; drawKarungLabel(kar); } };
     o.accept = (it, c) => !(c.isPan && c.side < 0);
     o.fixedTap = it => say(it.kind === 'karung' ? `Karung ini tidak bisa dibuka. Isinya ${m}.` : `Ini anak timbangan ${n}.`);
     const extra = () => pan(1).bins[1].items.reduce((a2, it) => a2 + it.w, 0);
@@ -1525,42 +1588,45 @@
     o.winText = () => 'Hebat! Kamu menemukan bilangan hilang.';
     o.solve = async () => {
       pan(1).bins[1].items.slice().forEach(it => moveItem(it, S.tray));
-      let need = n - m;
-      for (const k of [5, 2, 2, 1, 1]) {
-        if (k > need) continue;
-        const it = S.tray.items().find(x => x.w === k);
-        if (it) { moveItem(it, pan(1), pan(1).bins[1]); need -= k; }
-      }
+      greedyFill(pan(1), n - m, pan(1).bins[1]);
       await waitLocked(); await release();
     };
     return o;
   }
 
-  /* ============================== LEVEL 7: Sama dengan itu hubungan ============================== */
-  function L7() {
-    const o = { rounds: 3, fade: true };
+  /* ============================== LEVEL: Sama dengan itu hubungan ============================== */
+  function L7(cfg) {
+    cfg = Object.assign({ big: false }, cfg || {});
+    const big = cfg.big, step = big ? 5 : 1;
+    const o = { rounds: 3, fade: !big };
     let a, b, c, x, sent = null;
     const truth = GS.shuffle([true, false]);
+    const R = (lo, hi) => rand(Math.ceil(lo / step), Math.floor(hi / step)) * step;
     o.setup = r => {
       setPanBins(0, [{ x0: -100, x1: 100, y: 14 }]);
-      S.pans[1].back.innerHTML = '';
+      clearPanDecor(1);
       if (r === 0) {
         o.predictNow = false;
-        do { a = rand(2, 6); b = rand(2, 6); } while (a + b > 10);
-        c = rand(1, a + b - 2); x = a + b - c;
+        if (big) { do { a = R(10, 45); b = R(10, 45); } while (a + b > 90 || a === b); c = R(10, a + b - 10); }
+        else { do { a = rand(2, cfg.max > 10 ? 9 : 6); b = rand(2, cfg.max > 10 ? 9 : 6); } while (a + b > (cfg.max || 10)); c = rand(1, a + b - 2); }
+        x = a + b - c;
         setPanBins(1, [{ x0: -104, x1: -6, y: 14, cap: 1, swap: true, accept: it => !it.fixed }, { x0: 6, x1: 104, y: 14, accept: it => it.fixed }]);
         slotOutline(1, -55, 90);
         spawn([wt(a, { fixed: true }), wt(b, { fixed: true })], pan(0));
         spawn([wt(c, { fixed: true, bin: 1 })], pan(1), { delay: 150 });
-        const opts = [x, a + b, x + 1, x > 1 ? x - 1 : x + 2];
+        const opts = [x, a + b, x + step, x > step ? x - step : x + 2 * step];
         spawn(GS.shuffle(opts.filter((v, i) => opts.indexOf(v) === i)).map(k => wt(k)), S.tray, { delay: 300 });
         say('Sama dengan artinya sama berat. Isi yang kosong!');
       } else {
         o.predictNow = true; S.pred = null;
-        const t = rand(6, 10), d = rand(2, t - 2), f0 = GS.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9].filter(v => v < t && v !== d && v !== t - d))[0];
+        const t = big ? R(40, 90) : rand(6, 10);
+        const d = big ? R(10, t - 10) : rand(2, t - 2);
+        const pool = [];
+        for (let v = step; v < t; v += step) if (v !== d && v !== t - d) pool.push(v);
+        const f0 = GS.shuffle(pool)[0];
         const isTrue = truth[r - 1];
         let g = t - f0;
-        if (!isTrue) g = g > 1 && Math.random() < 0.5 ? g - 1 : g + 1;
+        if (!isTrue) g = g > step && Math.random() < 0.5 ? g - step : g + step;
         sent = { d, e: t - d, f: f0, g, isTrue };
         setPanBins(1, [{ x0: -100, x1: 100, y: 14 }]);
         spawn([wt(sent.d, { fixed: true }), wt(sent.e, { fixed: true })], pan(0));
@@ -1570,7 +1636,7 @@
     };
     o.accept = (it, cc) => !(cc.isPan && cc.side < 0);
     o.fixedTap = it => say(`Ini ${it.w}.`);
-    const slotW = () => { const it = pan(1).bins[0].items[0]; return it && !it.fixed ? it.w : null; };
+    const slotW = () => { const it = pan(1).bins[0] && pan(1).bins[0].items[0]; return it && !it.fixed ? it.w : null; };
     o.strip = () => o.round === 0
       ? [{ t: 'n', v: a, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: 'n', v: b, side: -1 }, { t: 'sign' }, { t: 'blank', v: slotW(), side: 1 }, { t: 'op', v: '+', side: 1 }, { t: 'n', v: c, side: 1 }]
       : sent && [{ t: 'n', v: sent.d, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: 'n', v: sent.e, side: -1 }, { t: 'sign' }, { t: 'n', v: sent.f, side: 1 }, { t: 'op', v: '+', side: 1 }, { t: 'n', v: sent.g, side: 1 }];
@@ -1585,8 +1651,8 @@
         const ok = S.pred === r.dir;
         if (ok) bonus();
         mood(ok ? 'happy' : 'surprise');
-        const L = sent.d + sent.e, R = sent.f + sent.g;
-        say((ok ? 'Benar! ' : 'Lihat! ') + (L === R ? `${sent.d} + ${sent.e} sama dengan ${sent.f} + ${sent.g}.` : `${sent.d} + ${sent.e} ${outcomeWord(L, R)} ${sent.f} + ${sent.g}.`));
+        const L = sent.d + sent.e, Rr = sent.f + sent.g;
+        say((ok ? 'Benar! ' : 'Lihat! ') + (L === Rr ? `${sent.d} + ${sent.e} sama dengan ${sent.f} + ${sent.g}.` : `${sent.d} + ${sent.e} ${outcomeWord(L, Rr)} ${sent.f} + ${sent.g}.`));
         o.pause = 2600;
         await nextRound();
       }
@@ -1600,21 +1666,29 @@
     return o;
   }
 
-  /* ============================== LEVEL 8: Pengurangan ============================== */
-  function L8() {
-    const o = { rounds: 2, fade: true };
+  /* ============================== LEVEL: Pengurangan (ambil dari kiri) ============================== */
+  function L8(cfg) {
+    cfg = Object.assign({ n: [11, 15], m: [6, 9], big: false, rounds: 2 }, cfg || {});
+    const o = { rounds: cfg.rounds, fade: !cfg.big };
     let n, m;
     o.setup = () => {
-      n = rand(11, 15); m = rand(6, 9);
-      setPanBins(0, [{ x0: -100, x1: 100, y: 14, cap: 15 }]);
+      if (cfg.big) {
+        const a = rand(4, 9), b = rand(2, 9), c = rand(1, a - 1), d = rand(0, b - 1);
+        n = 10 * a + b; m = 10 * c + d;
+        setPanBins(0, [{ x0: -100, x1: 100, y: 14, sort: true, pack: 0.85, stack: 0.5 }]);
+        spawn(stockOf([10, 1], [a, b], { h: 42 }), pan(0), { stagger: 30 });
+      } else {
+        n = rand(cfg.n[0], cfg.n[1]); m = rand(cfg.m[0], Math.min(cfg.m[1], n - 2));
+        setPanBins(0, [{ x0: -100, x1: 100, y: 14, cap: 20 }]);
+        spawn(Array.from({ length: n }, () => ramb({ h: rambH(n) })), pan(0), { stagger: 30 });
+      }
       setPanBins(1, [{ x0: -60, x1: 60, y: 14 }]);
-      spawn(Array.from({ length: n }, () => ramb()), pan(0));
       spawn([wt(m, { fixed: true, h: 64 })], pan(1), { delay: 250 });
-      say('Ambil rambutan dari kiri sampai seimbang.');
+      say(cfg.big ? 'Ambil anak timbangan dari kiri sampai seimbang.' : 'Ambil rambutan dari kiri sampai seimbang.');
     };
     o.accept = (it, c) => !(c.isPan && c.side > 0);
     o.fixedTap = () => say(`Ini anak timbangan ${m}.`);
-    const taken = () => n - pan(0).count();
+    const taken = () => n - pan(0).sum();
     o.strip = () => [{ t: 'n', v: n, side: -1 }, { t: 'op', v: '−', side: -1 }, { t: 'blank', v: taken() > 0 ? taken() : null, side: -1 }, { t: 'sign' }, { t: 'n', v: m, side: 1 }];
     o.result = async r => {
       if (r.balanced) { say(`${n} kurang ${n - m} sama dengan ${m}!`); mood('happy'); o.pause = 1800; await nextRound(); }
@@ -1622,43 +1696,290 @@
     };
     o.winText = () => 'Hebat! Kamu bisa mengurangi.';
     o.solve = async () => {
-      const need = n - m - taken();
-      if (need > 0) pan(0).items().slice(-need).forEach(it => moveItem(it, S.tray));
-      else if (need < 0) S.tray.items().slice(0, -need).forEach(it => moveItem(it, pan(0)));
+      S.tray.items().slice().forEach(it => moveItem(it, pan(0)));
+      let need = n - m;
+      const ds = [...new Set(pan(0).items().map(it => it.w))].sort((p, q) => q - p);
+      for (const d of ds) while (need >= d) { const it = pan(0).items().find(x => x.w === d); if (!it) break; moveItem(it, S.tray); need -= d; }
       await waitLocked(); await release();
     };
     return o;
   }
 
-  /* ============================== LEVEL 9: Setengah ============================== */
-  function L9() {
-    const o = { rounds: 1, fade: true };
+  /* ============================== LEVEL: Setengah ============================== */
+  function L9(cfg) {
+    cfg = Object.assign({ n: [5, 8], big: false }, cfg || {});
+    const o = { rounds: 1, fade: !cfg.big };
     let n;
     o.setup = () => {
-      n = rand(5, 8);
-      [0, 1].forEach(i => { setPanBins(i, [{ x0: -78, x1: 78, y: -2, stack: 0.55 }]); S.pans[i].back.innerHTML = ''; S.pans[i].front.innerHTML = ''; sackDecor(i); });
-      spawn(Array.from({ length: 2 * n }, () => marb()), S.tray);
-      say(`Bagi ${2 * n} kelereng ke dua kantong, sama banyak.`);
+      n = rand(cfg.n[0], cfg.n[1]);
+      [0, 1].forEach(i => { setPanBins(i, [{ x0: -78, x1: 78, y: -2, stack: 0.55, sort: cfg.big, pack: cfg.big ? 0.85 : 0.95 }]); clearPanDecor(i); sackDecor(i); });
+      if (cfg.big) spawn(stockOf([10, 1], [2 * Math.floor(n / 10), 2 * (n % 10)], { h: 40 }), S.tray, { stagger: 25 });
+      else spawn(Array.from({ length: 2 * n }, () => marb()), S.tray);
+      say(cfg.big ? `Bagi ${2 * n} ke dua kantong, sama berat.` : `Bagi ${2 * n} kelereng ke dua kantong, sama banyak.`);
     };
-    o.strip = () => [{ t: 'n', v: 2 * n }, { t: 'sign', v: '=' }, { t: 'blank', v: pan(0).count() || null, side: -1 }, { t: 'op', v: '+' }, { t: 'blank', v: pan(1).count() || null, side: 1 }];
+    o.strip = () => [{ t: 'n', v: 2 * n }, { t: 'sign', v: '=' }, { t: 'blank', v: pan(0).sum() || null, side: -1 }, { t: 'op', v: '+' }, { t: 'blank', v: pan(1).sum() || null, side: 1 }];
     o.canRelease = () => pan(0).count() + pan(1).count() > 0;
-    o.cantMsg = 'Masukkan kelereng ke kantong dulu.';
+    o.cantMsg = 'Masukkan ke kantong dulu.';
     o.result = async r => {
       if (r.balanced && S.tray.count() === 0) {
         say(`Setengah dari ${2 * n} adalah ${n}!`);
         o.strip = () => [{ t: 'txt', v: `Setengah dari ${2 * n} adalah` }, { t: 'n', v: n }];
-        S.strip && (S.strip.prev = []);
+        if (S.strip) S.strip.prev = [];
         renderStripNow();
         finish(`Setengah dari ${2 * n} adalah ${n}!`);
-      } else if (r.balanced) say('Seimbang! Tapi masih ada kelereng di nampan.');
+      } else if (r.balanced) say('Seimbang! Tapi masih ada yang di nampan.');
       else unbalanced(r);
     };
     o.solve = async () => {
-      S.tray.items().forEach(it => moveItem(it, pan(0).count() < n ? pan(0) : pan(1)));
-      while (pan(0).count() > n) moveItem(pan(0).items()[0], pan(1));
-      while (pan(1).count() > n) moveItem(pan(1).items()[0], pan(0));
+      [0, 1].forEach(i => pan(i).items().slice().forEach(it => moveItem(it, S.tray)));
+      if (cfg.big) { [0, 1].forEach(i => { for (let k = 0; k < Math.floor(n / 10); k++) moveItem(S.tray.items().find(x => x.w === 10), pan(i)); for (let k = 0; k < n % 10; k++) moveItem(S.tray.items().find(x => x.w === 1), pan(i)); }); }
+      else S.tray.items().slice().forEach((it, i) => moveItem(it, pan(i % 2)));
       await waitLocked(); await release();
     };
+    return o;
+  }
+
+  /* ============================== LEVEL: Susun bilangan (puluhan, ratusan, ribuan, gram) ============================== */
+  /** cfg.gen(r) -> { target:{kind:'karung'|'weight', v, label}, given?, givenLabel?, denoms, stock, say, ok }
+   *  cfg.buildSide: -1 (left) or 1 (right); cfg.strip(cur, built, bySum); cfg.unit (' g'). */
+  function Compose(cfg) {
+    const o = { rounds: cfg.rounds || 1 };
+    let cur;
+    const bp = () => (cfg.buildSide < 0 ? 0 : 1), tp = () => 1 - bp();
+    o.setup = r => {
+      cur = cfg.gen(r);
+      const bs = bp();
+      const bins = [];
+      if (cur.given != null) bins.push({ x0: -106, x1: -40, y: 14, accept: it => it.kind === 'karung' });
+      bins.push({ x0: cur.given != null ? -32 : -102, x1: 102, y: 14, sort: true, pack: 0.82, stack: 0.46, accept: it => it.kind === 'weight' && !it.fixed });
+      setPanBins(bs, bins);
+      setPanBins(tp(), [{ x0: -80, x1: 80, y: 14 }]);
+      clearPanDecor(bs); clearPanDecor(tp());
+      slotOutline(bs, cur.given != null ? 34 : 0, cur.given != null ? 128 : 186);
+      const tg = cur.target;
+      spawn([tg.kind === 'karung' ? karung(tg.v, { labelN: tg.label || tg.v, labelDots: false, h: 100 }) : wt(tg.v, { fixed: true, h: 70, label: tg.label })], pan(tp()));
+      if (cur.given != null) spawn([karung(cur.given, { labelN: cur.givenLabel || cur.given, labelDots: false, bin: 0, h: 92 })], pan(bs), { delay: 120 });
+      spawn(stockOf(cur.denoms, cur.stock, { h: cfg.h || 42, unit: cfg.unit }), S.tray, { delay: 260, stagger: 18 });
+      say(cur.say);
+    };
+    const built = () => pan(bp()).items().filter(it => it.kind === 'weight' && !it.fixed);
+    const total = () => built().reduce((a, it) => a + it.w, 0);
+    const bySum = d => built().filter(it => it.w === d).reduce((a, it) => a + it.w, 0);
+    o.strip = () => cfg.strip(cur, total(), bySum);
+    o.accept = (it, c) => !(c.isPan && c.side === (bp() ? -1 : 1));
+    o.fixedTap = it => say(it.kind === 'karung' ? 'Karung ini tertutup. Lihat angkanya.' : 'Ini beban yang harus disamakan.');
+    o.canRelease = () => built().length > 0;
+    o.cantMsg = 'Taruh anak timbangan dulu, ya.';
+    o.result = async r => {
+      if (r.balanced) { o.final = cfg.final ? cfg.final(cur) : null; renderStripNow(); say(cur.ok); mood('happy'); o.pause = 2000; await nextRound(); }
+      else unbalanced(r, buildMsg(r, cfg.buildSide));
+    };
+    o.strip0 = o.strip;
+    o.strip = () => o.final || o.strip0();
+    o.winText = () => cfg.win || 'Hebat! Bilangannya tersusun.';
+    o.solve = async () => {
+      built().slice().forEach(it => moveItem(it, S.tray));
+      const bs = bp(), bin = pan(bs).bins[pan(bs).bins.length - 1];
+      greedyFill(pan(bs), cur.target.v - (cur.given || 0), bin);
+      await waitLocked(); await release();
+    };
+    const setup0 = o.setup;
+    o.setup = r => { o.final = null; setup0(r); };
+    return o;
+  }
+  const digitsOf = (n, denoms) => denoms.map(d => Math.floor(n / d) % 10);
+  /** chips for "a + b + c" from per-denomination sums, blanks when empty */
+  function placeTokens(denoms, bySum, side, unit) {
+    const out = [];
+    denoms.forEach((d, i) => { if (i) out.push({ t: 'op', v: '+', side }); const v = bySum(d); out.push({ t: v ? 'n' : 'blank', v: v ? fmt(v) + (unit || '') : null, side }); });
+    return out;
+  }
+
+  /* ============================== LEVEL: Kantong sama isi (penjumlahan berulang, perkalian) ============================== */
+  /** cfg.gen(r) -> {g, k}; cfg.mode 'pick' | 'build'; cfg.strip 'add' | 'mul' | 'mul2' */
+  function Bags(cfg) {
+    const o = { rounds: cfg.rounds || 1 };
+    let cur;
+    const prod = () => cur.g * cur.k;
+    o.setup = r => {
+      cur = cfg.gen(r); o.final = null;
+      setPanBins(0, [{ x0: -104, x1: 104, y: 14, pack: 0.9, stack: 0.62 }]);
+      if (cfg.mode === 'pick') setPanBins(1, [{ x0: -60, x1: 60, y: 14, cap: 1, swap: true, accept: it => it.kind === 'weight' }]);
+      else setPanBins(1, [{ x0: -102, x1: 102, y: 14, sort: true, pack: 0.82, stack: 0.46, accept: it => it.kind === 'weight' }]);
+      clearPanDecor(0); clearPanDecor(1);
+      spawn(Array.from({ length: cur.k }, () => kantong(cur.g, { h: cur.k > 3 ? 52 : 60 })), pan(0), { stagger: 90 });
+      const p = prod();
+      if (cfg.mode === 'pick') {
+        const opts = [p, p - cur.g, p + cur.g, p + 1].filter(v => v > 0);
+        spawn(GS.shuffle(opts.filter((v, i) => opts.indexOf(v) === i)).map(v => wt(v)), S.tray, { delay: 320 });
+      } else spawn(stockOf([10, 1], [9, 9], { h: 42 }), S.tray, { delay: 320, stagger: 18 });
+      say(r === 0 ? `Ada ${cur.k} kantong, isinya masing-masing ${cur.g}. Seimbangkan!` : `Sekarang ${cur.k} kantong isi ${cur.g}.`);
+    };
+    const val = () => pan(1).sum();
+    o.strip = () => {
+      if (o.final) return o.final;
+      const right = [{ t: 'blank', v: pan(1).count() ? val() : null, side: 1 }];
+      let left;
+      if (cfg.strip === 'add') { left = []; for (let i = 0; i < cur.k; i++) { if (i) left.push({ t: 'op', v: '+', side: -1 }); left.push({ t: 'n', v: cur.g, side: -1 }); } }
+      else if (cfg.strip === 'mul') left = [{ t: 'n', v: cur.k, side: -1 }, { t: 'op', v: '×', side: -1 }, { t: 'n', v: cur.g, side: -1 }];
+      else left = [{ t: 'n', v: cur.g, side: -1 }, { t: 'op', v: '×', side: -1 }, { t: 'n', v: cur.k, side: -1 }];
+      return left.concat([{ t: 'sign' }], right);
+    };
+    o.accept = (it, c) => !(c.isPan && c.side < 0);
+    o.fixedTap = () => say(`Kantong ini isinya ${cur.g}.`);
+    o.canRelease = () => pan(1).count() > 0;
+    o.cantMsg = 'Taruh anak timbangan di kanan dulu.';
+    o.result = async r => {
+      if (r.balanced) {
+        o.final = [{ t: 'n', v: cur.k }, { t: 'op', v: '×' }, { t: 'n', v: cur.g }, { t: 'sign', v: '=' }, { t: 'n', v: prod() }];
+        if (cfg.strip === 'mul2') o.final = [{ t: 'n', v: cur.g }, { t: 'op', v: '×' }, { t: 'n', v: cur.k }, { t: 'sign', v: '=' }, { t: 'n', v: prod() }];
+        renderStripNow();
+        say(`${cur.k} kantong isi ${cur.g} sama dengan ${prod()}!`); mood('happy'); o.pause = 2000; await nextRound();
+      } else unbalanced(r, cfg.mode === 'pick' ? (r.dir === 'R' ? 'Kanan turun. Coba yang lebih ringan.' : 'Kanan naik. Coba yang lebih berat.') : buildMsg(r, 1));
+    };
+    o.winText = () => cfg.win || 'Hebat! Kelompok sama banyak.';
+    o.solve = async () => {
+      if (cfg.mode === 'pick') { const it = S.items.find(x => x.kind === 'weight' && x.w === prod()); if (it.c !== pan(1)) moveItem(it, pan(1)); }
+      else { pan(1).items().slice().forEach(it => moveItem(it, S.tray)); greedyFill(pan(1), prod()); }
+      await waitLocked(); await release();
+    };
+    return o;
+  }
+
+  /* ============================== LEVEL: Kantong kembar (pembagian, faktor, pecahan, kotak misteri) ============================== */
+  /** One "template" basket is filled by the child; Bu Ani fills the other k-1 baskets exactly the same.
+   *  cfg.gen(r) -> { k, target:{kind,v,label}, extra?, items:'ramb'|'weights', stock, say, ok }
+   *  cfg.tside: side of the baskets (-1 / 1); cfg.strip(cur, s); cfg.final(cur, s); cfg.decor 'basket'|'box' */
+  function Template(cfg) {
+    const o = { rounds: cfg.rounds || 1 };
+    let cur, tp, op;
+    const tpl = () => pan(tp).bins[0].items;
+    const s = () => tpl().reduce((a, it) => a + it.w, 0);
+    o.setup = r => {
+      cur = cfg.gen(r); o.final = null;
+      tp = cfg.tside < 0 ? 0 : 1; op = 1 - tp;
+      const k = cur.k, hasX = cur.extra != null;
+      const x0 = -104, x1 = hasX ? 48 : 104, bw = (x1 - x0) / k;
+      const bins = [];
+      for (let i = 0; i < k; i++) bins.push({ x0: x0 + i * bw + 3, x1: x0 + (i + 1) * bw - 3, y: -4, stack: 0.5, pack: 0.86, accept: i === 0 ? (it => !it.fixed) : (it => !!it.copy) });
+      if (hasX) bins.push({ x0: 56, x1: 106, y: 14, accept: it => it.fixed && !it.copy });
+      setPanBins(tp, bins); setPanBins(op, [{ x0: -80, x1: 80, y: 14 }]);
+      clearPanDecor(0); clearPanDecor(1);
+      basketDecor(tp, bins.slice(0, k).map(b => (b.x0 + b.x1) / 2), bw - 2, cfg.decor);
+      const tg = cur.target;
+      spawn([tg.kind === 'karung' ? karung(tg.v, { labelN: tg.label || tg.v, labelDots: false }) : wt(tg.v, { fixed: true, h: 68, label: tg.label })], pan(op));
+      if (hasX) spawn([wt(cur.extra, { fixed: true, bin: k, h: 54 })], pan(tp), { delay: 120 });
+      if (cur.items === 'ramb') spawn(Array.from({ length: cur.stock }, () => ramb({ h: 30 })), S.tray, { delay: 260, stagger: 30 });
+      else spawn(cur.stock.map(v => wt(v, { h: k > 3 ? 34 : 40 })), S.tray, { delay: 260 });
+      say(cur.say);
+    };
+    function sync() {
+      const bins = pan(tp).bins, src = tpl();
+      for (let i = 1; i < cur.k; i++) {
+        bins[i].items.slice().forEach(cp => { removeFromContainer(cp); cp.g.remove(); const j = S.items.indexOf(cp); if (j >= 0) S.items.splice(j, 1); });
+        src.forEach((sv, j) => {
+          const def = Object.assign({}, sv.def, { fixed: true, copy: true, home: null });
+          delete def.bin;
+          const it = makeItem(def);
+          addToBin(it, pan(tp), bins[i]);
+          it.x = (bins[i].x0 + bins[i].x1) / 2; it.y = bins[i].y - 30; setPos(it); setScale(it);
+          it.g.style.opacity = '0';
+          later(80 + i * 70 + j * 20, () => { it.g.style.opacity = '1'; squash(it, 'medium'); if (j === 0) GS.sfx.pop(); });
+        });
+      }
+      layout(pan(tp), true);
+    }
+    o.placed = (it, c) => { if (c === pan(tp)) sync(); };
+    o.removed = (it, c) => { if (c === pan(tp)) sync(); };
+    o.changed = () => {
+      const bs = S.pans[tp].baskets; if (!bs) return;
+      bs.forEach((b, i) => basketLabel(b, cfg.decor === 'box' && !s() ? '?' : s(), i === 0));
+    };
+    o.strip = () => o.final || cfg.strip(cur, tpl().length ? s() : null);
+    o.accept = (it, c) => !(c.isPan && c.side === (op ? 1 : -1));
+    o.fixedTap = it => say(it.copy ? 'Bu Ani mengisi sama persis dengan yang pertama.' : 'Ini harus disamakan.');
+    o.canRelease = () => tpl().length > 0;
+    o.cantMsg = 'Isi keranjang pertama dulu, ya.';
+    o.result = async r => {
+      if (r.balanced) { o.final = cfg.final(cur, s()); renderStripNow(); say(cur.ok(s())); mood('happy'); o.pause = 2200; await nextRound(); }
+      else unbalanced(r, buildMsg(r, cfg.tside));
+    };
+    o.winText = () => cfg.win || 'Hebat!';
+    o.solve = async () => {
+      tpl().slice().forEach(it => moveItem(it, S.tray));
+      const need = cur.answer;
+      if (cur.items === 'ramb') S.tray.items().slice(0, need).forEach(it => moveItem(it, pan(tp), pan(tp).bins[0]));
+      else greedyFill(pan(tp), need, pan(tp).bins[0]);
+      await waitLocked(); await release();
+    };
+    return o;
+  }
+
+  /* ============================== LEVEL: Pertidaksamaan (pilih semua beban) ============================== */
+  function Ineq() {
+    const o = { rounds: 1, near: false };
+    let Lv, rv, t, cands = [], tested = false;
+    o.setup = () => {
+      Lv = rand(11, 16); rv = rand(3, 6); t = Lv - rv;
+      setPanBins(0, [{ x0: -60, x1: 60, y: 14 }]);
+      setPanBins(1, [{ x0: -104, x1: -20, y: 14, accept: it => it.kind === 'karung' }, { x0: -8, x1: 104, y: 14, cap: 1, accept: it => it.kind === 'weight' }]);
+      clearPanDecor(1); slotOutline(1, 48, 104);
+      spawn([wt(Lv, { fixed: true, h: 66 })], pan(0));
+      spawn([karung(rv, { bin: 0, labelDots: false })], pan(1), { delay: 120 });
+      const vals = []; for (let v = t - 3; v <= t + 2; v++) if (v >= 1) vals.push(v);
+      cands = spawn(GS.shuffle(vals).map(v => wt(v, { fixed: true, cand: true, h: 54, decor: it => { it.mark = el('g', null, it.inner); } })), S.tray, { delay: 260 });
+      say('Ketuk semua beban yang membuat kiri tetap lebih berat.');
+    };
+    function drawMark(it) {
+      const g = it.mark; g.innerHTML = '';
+      if (it.sel) {
+        const m = el('g', { transform: `translate(0 ${-it.h - 22})` }, g);
+        el('circle', { r: 15, fill: C.blue, stroke: OL, 'stroke-width': 3 }, m);
+        el('path', { d: 'M-6 0l4 4.5 8 -9', stroke: '#fff', 'stroke-width': 3.4, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, m);
+      }
+      if (it.truth != null) {
+        const m = el('g', { transform: 'translate(0 14)' }, g);
+        el('path', { d: rr(-22, -9, 44, 18, 9), fill: it.truth ? C.tealTint : C.amberTint, stroke: it.truth ? C.teal : C.amber, 'stroke-width': 2.6 }, m);
+        txt(m, 0, 0.5, it.truth ? 'kiri' : 'tidak', { size: 13, cls: 'tp-body' });
+      }
+    }
+    o.fixedTap = it => {
+      if (!it.cand) { say(it.kind === 'karung' ? `Karung ini isinya ${rv}.` : `Kiri beratnya ${Lv}.`); return; }
+      it.sel = !it.sel; drawMark(it); GS.sfx.pop(); dockRender();
+    };
+    o.strip = () => [{ t: 'n', v: Lv, side: -1 }, { t: 'sign', v: '>' }, { t: 'n', v: rv, side: 1 }, { t: 'op', v: '+', side: 1 }, { t: 'blank', v: (pan(1).bins[1] && pan(1).bins[1].items[0]) ? pan(1).bins[1].items[0].w : null, side: 1 }];
+    o.canRelease = () => cands.some(it => it.sel);
+    o.cantMsg = 'Ketuk beban yang kamu pilih dulu.';
+    o.customRelease = async () => {
+      const g = S.gen;
+      S.busy = true; dockRender();
+      if (!tested) {
+        say('Kita coba satu per satu.');
+        for (const it of cands.slice()) {
+          moveItem(it, pan(1), pan(1).bins[1]);
+          await wait(330); if (g !== S.gen) return;
+          await pegPop(); if (g !== S.gen) return;
+          S.locked = false;
+          const r = evaluate(); S.last = r; renderStripNow();
+          await simRun(Object.assign({}, r.params, { k: 170, c: 13 })); if (g !== S.gen) return;
+          it.truth = r.dir === 'L'; drawMark(it);
+          if (it.truth) GS.sfx.coin(); else GS.sfx.tick();
+          await wait(250); if (g !== S.gen) return;
+          moveItem(it, S.tray);
+          await waitLocked(true); if (g !== S.gen) return;
+        }
+        tested = true;
+      }
+      const wrong = cands.filter(it => !!it.sel !== it.truth);
+      if (!wrong.length) { mood('happy'); say(`Semua benar! Kiri lebih berat kalau bebannya kurang dari ${t}.`); finish('Hebat! Kamu menemukan semua beban.'); return; }
+      S.tries++; GS.sfx.oops(); mood('oops');
+      wrong.forEach(wobbleItem);
+      say('Lihat tanda di bawah beban. Pilih lagi, ya.');
+      S.busy = false; dockRender();
+    };
+    o.result = async () => {};
+    o.winText = () => 'Hebat! Kamu menemukan semua beban.';
+    o.solve = async () => { cands.forEach(it => { it.sel = it.w < t; drawMark(it); }); await waitLocked(); await release(); };
     return o;
   }
 
@@ -1769,15 +2090,263 @@
     return o;
   }
 
+
+  /* ============================== TK: Lebih banyak (ketuk piring) ============================== */
+  function TKMore() {
+    const o = { rounds: 3, near: false, pause: 2200 };
+    let a, b, choice = null;
+    function marker(i) {
+      S.pans.forEach(p => { if (p.mark) { p.mark.remove(); p.mark = null; } });
+      if (i == null) return;
+      const p = S.pans[i], col = i ? C.orange : C.blue;
+      p.mark = el('g', { transform: 'translate(0 -150)' }, p.front);
+      el('path', { d: 'M-16 -30H16V0H32L0 34L-32 0H-16Z', fill: col, stroke: OL, 'stroke-width': 4, 'stroke-linejoin': 'round' }, p.mark);
+      el('ellipse', { cx: 0, cy: 150, rx: 124, ry: 30, fill: 'none', stroke: col, 'stroke-width': 6, 'stroke-dasharray': '12 8' }, p.mark);
+      if (!GS.reducedMotion) GS.tween(380, e => p.mark.setAttribute('transform', `translate(0 ${n1(-150 - 30 * (1 - e))})`), 'outBounce');
+    }
+    o.setup = r => {
+      do { a = rand(1, 6); b = rand(1, 6); } while (a === b || (r === 0 && Math.abs(a - b) < 2));
+      setPanBins(0, [{ x0: -100, x1: 100, y: 14 }]); setPanBins(1, [{ x0: -100, x1: 100, y: 14 }]);
+      spawn(Array.from({ length: a }, () => ramb({ fixed: true, h: 46 })), pan(0));
+      spawn(Array.from({ length: b }, () => ramb({ fixed: true, h: 46 })), pan(1), { delay: 200 });
+      choice = null; S.pred = null; marker(null);
+      S.pans.forEach(p => p.tapHit.setAttribute('display', 'inline'));
+      say(r === 0 ? 'Mana yang lebih banyak? Ketuk piringnya!' : 'Mana yang lebih banyak? Ketuk!');
+    };
+    o.panTap = i => {
+      if (S.busy || !S.locked || S.over) return;
+      choice = i; S.pred = i ? 'R' : 'L';
+      marker(i); GS.sfx.pop();
+      say('Tekan Lepas!');
+      dockRender();
+    };
+    o.fixedTap = it => o.panTap(it.c === pan(0) ? 0 : 1);
+    o.canRelease = () => choice != null;
+    o.cantMsg = 'Ketuk piring yang lebih banyak dulu.';
+    o.tag = i => TIER === 'tk' && S.last ? (i ? b : a) : null;
+    o.result = async r => {
+      const ok = S.pred === r.dir;
+      if (ok) bonus();
+      mood(ok ? 'happy' : 'surprise');
+      updateTags();
+      say(ok ? 'Benar! Lebih banyak, lebih berat.' : 'Lihat! Piring yang turun isinya lebih banyak.');
+      await nextRound();
+      marker(null);
+    };
+    o.winText = () => 'Yang lebih banyak, lebih berat!';
+    o.solve = async () => { o.panTap(a > b ? 0 : 1); await release(); };
+    return o;
+  }
+
+  /* ============================== TK: Jungkat-jungkit kakak dan adik ============================== */
+  function TKSee() {
+    const o = { rounds: 2, predictNow: true, near: false, pause: 2400 };
+    const kIdx = rand(0, 1) ? 0 : 7, aIdx = rand(0, 1) ? 3 : 4;
+    let kSide = Math.random() < 0.5 ? -1 : 1;
+    o.setup = r => {
+      if (r > 0) kSide = -kSide;
+      spawn([person(kIdx, 2, 134, { fixed: true })], notch(kSide, 2));
+      spawn([person(aIdx, 1, 100, { fixed: true })], notch(-kSide, 2), { delay: 150 });
+      S.pred = null; o.predictNow = true;
+      say(r === 0 ? 'Kakak dan adik. Sisi mana yang turun?' : 'Sekarang tukar tempat. Mana yang turun?');
+    };
+    o.fixedTap = it => say(it.w === 2 ? 'Ini kakak.' : 'Ini adik.');
+    o.result = async r => {
+      const ok = S.pred === r.dir;
+      if (ok) bonus();
+      mood(ok ? 'happy' : 'surprise');
+      say(ok ? 'Benar! Kakak lebih berat.' : 'Lihat! Sisi kakak turun. Kakak lebih berat.');
+      await nextRound();
+    };
+    o.winText = () => 'Yang lebih berat, turun!';
+    o.solve = async () => { pickPrediction(evaluate().dir); await release(); };
+    return o;
+  }
+
+  /* ============================== LEVEL: Pengungkit banyak beban (jarak 1 sampai 4) ============================== */
+  /** cfg.gen(r) -> { fixed:[{w,side,d}], movers:[{w, side?, d?}], sol:[{side,d}], say } */
+  function Lever(cfg) {
+    const o = { rounds: cfg.rounds || 1 };
+    let cur, movers = [];
+    o.setup = r => {
+      cur = cfg.gen(r);
+      cur.fixed.forEach((f, i) => spawn([wt(f.w, { fixed: true, h: 58 })], notch(f.side, f.d), { delay: i * 100 }));
+      movers = cur.movers.map((m, i) => spawn([wt(m.w, { h: 58, home: S.homes[i] })], m.side ? notch(m.side, m.d) : S.homes[i], { delay: 300 + i * 100 })[0]);
+      say(cur.say);
+    };
+    const sideTokens = side => {
+      const objs = S.notches.filter(c => c.side === side && c.count()).sort((p, q) => p.d - q.d);
+      if (!objs.length) return [{ t: 'blank', v: null, side }];
+      const out = [];
+      objs.forEach((c, i) => { if (i) out.push({ t: 'op', v: '+', side }); out.push({ t: 'n', v: `${c.sum()}×${c.d}`, side }); });
+      return out;
+    };
+    o.strip = () => sideTokens(-1).concat([{ t: 'sign' }], sideTokens(1));
+    o.fixedTap = it => say(`Beban ${it.w}. Tidak bisa dipindah.`);
+    o.canRelease = () => movers.every(m => m.c && m.c.isNotch);
+    o.cantMsg = 'Taruh semua beban di jungkat-jungkit dulu.';
+    o.result = async r => {
+      if (r.balanced) { say('Seimbang! Tenaga putarnya sama.'); mood('happy'); o.pause = 2000; await nextRound(); }
+      else unbalanced(r, seesawResultMsg(r));
+    };
+    o.winText = () => cfg.win || 'Hebat! Pengungkitnya seimbang.';
+    o.solve = async () => {
+      movers.forEach(m => { if (m.c && m.c.isNotch) moveItem(m, m.home); });
+      movers.forEach((m, i) => moveItem(m, notch(cur.sol[i].side, cur.sol[i].d)));
+      await waitLocked(); await release();
+    };
+    return o;
+  }
+  function leverMulti() {
+    for (;;) {
+      const a = rand(1, 4), b = rand(1, 4), da = rand(1, 4), db = rand(1, 4);
+      if (da === db) continue;
+      const M = a * da + b * db, opts = [];
+      for (let w1 = 1; w1 <= 5; w1++) for (let d1 = 1; d1 <= 4; d1++) for (let w2 = 1; w2 <= 5; w2++) for (let d2 = d1 + 1; d2 <= 4; d2++) if (w1 * d1 + w2 * d2 === M) opts.push([w1, d1, w2, d2]);
+      if (!opts.length) continue;
+      const [w1, d1, w2, d2] = GS.shuffle(opts)[0];
+      return { fixed: [{ w: w1, side: -1, d: d1 }, { w: w2, side: -1, d: d2 }], movers: [{ w: a }, { w: b }], sol: [{ side: 1, d: da }, { side: 1, d: db }], say: 'Taruh dua beban di kanan supaya seimbang.' };
+    }
+  }
+  function leverSlide() {
+    for (;;) {
+      const w1 = rand(1, 4), d1 = rand(1, 4), w2 = rand(1, 4), d2 = rand(1, 4);
+      if (d1 === d2) continue;
+      const M = w1 * d1 + w2 * d2, w3 = rand(1, 3), d3 = rand(1, 4), w = rand(1, 4);
+      const rem = M - w3 * d3;
+      if (rem <= 0 || rem % w) continue;
+      const dm = rem / w;
+      if (dm < 1 || dm > 4 || dm === d3) continue;
+      const free = [1, 2, 3, 4].filter(d => d !== d3 && d !== dm);
+      if (!free.length) continue;
+      return { fixed: [{ w: w1, side: -1, d: d1 }, { w: w2, side: -1, d: d2 }, { w: w3, side: 1, d: d3 }], movers: [{ w, side: 1, d: GS.shuffle(free)[0] }], sol: [{ side: 1, d: dm }], say: 'Geser satu beban supaya seimbang.' };
+    }
+  }
+
+  /* ============================== campuran / tantangan ============================== */
+  /** A level made of several one-round puzzles of different types (all on the dacing). */
+  function Mix(list, win) {
+    const own = { __mix: true, rounds: list.length, round: 0, cur: null, winText: () => win };
+    function load(i) {
+      const sub = list[i]();
+      const defs = { predictNow: false, revealed: false, near: true, fade: false };
+      for (const k in defs) if (!(k in sub)) sub[k] = defs[k];
+      sub.rounds = 1; sub.round = 0;
+      own.cur = sub;
+    }
+    own.setup = r => {
+      if (r > 0) {
+        [0, 1].forEach(i => { clearPanDecor(i); setPanBins(i, [{ x0: -100, x1: 100, y: 14 }]); renderTag(S.pans[i].tag, null); });
+        if (S.strip) S.strip.prev = [];
+        load(r);
+      }
+      own.cur.setup(0);
+    };
+    load(0);
+    return new Proxy(own, {
+      get: (t, k) => (k in t ? t[k] : t.cur ? t.cur[k] : undefined),
+      set: (t, k, v) => { if (k in t) t[k] = v; else t.cur[k] = v; return true; },
+      has: (t, k) => k in t || !!(t.cur && k in t.cur)
+    });
+  }
+  const pick3 = arr => GS.shuffle(arr).slice(0, 3);
+
+  /* ============================== level sets per grade tier (docs/KURIKULUM.md) ============================== */
+  function tierLevels(t) {
+    const DAC = 'dacing', SEE = 'seesaw';
+    // k2 building blocks
+    const k2Compose = () => Compose({ rounds: 2, buildSide: 1, gen: () => { const n = rand(21, 99); const [tn, on] = digitsOf(n, [10, 1]); return { target: { kind: 'karung', v: n }, denoms: [10, 1], stock: [9, 9], say: 'Pakai anak timbangan 10 dan 1. Buat seimbang!', ok: `${n} sama dengan ${tn * 10} tambah ${on}!` }; },
+      strip: (cur, tot, by) => [{ t: 'n', v: cur.target.v, side: -1 }, { t: 'sign' }].concat(placeTokens([10, 1], by, 1)), win: 'Hebat! Puluhan dan satuan.' });
+    const k2Missing = () => Compose({ rounds: 2, buildSide: -1, gen: () => { const n = rand(5, 9) * 10, m = rand(12, n - 12); return { target: { kind: 'weight', v: n }, given: m, denoms: [10, 1], stock: [9, 9], say: `Karung isinya ${m}. Tambah sampai ${n}.`, ok: `${m} tambah ${n - m} sama dengan ${n}!` }; },
+      strip: (cur, tot) => [{ t: 'n', v: cur.given, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: tot ? 'n' : 'blank', v: tot || null, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.target.v, side: 1 }], win: 'Hebat! Bilangan hilangnya ketemu.' });
+    const k2Bags = () => Bags({ rounds: 3, mode: 'pick', strip: 'add', gen: r => { const g = [2, 5, 10][r % 3]; return { g, k: rand(2, g === 10 ? 4 : 5) }; }, win: 'Hebat! Penjumlahan berulang.' });
+    const k2Sub = () => L8({ big: true });
+    // k3 building blocks
+    const k3Bags = () => Bags({ rounds: 2, mode: 'build', strip: 'mul', gen: () => ({ g: rand(3, 9), k: rand(3, 5) }), win: 'Hebat! Perkalian kelompok sama.' });
+    const k3Div = () => Template({ rounds: 2, tside: 1, gen: r => { const k = r ? 4 : 3, sv = rand(2, r ? 4 : 6), n = k * sv; return { k, target: { kind: 'karung', v: n }, items: 'ramb', stock: 8, answer: sv, say: `Bagi ${n} rambutan ke ${k} keranjang sama berat. Isi keranjang biru.`, ok: x => `${n} dibagi ${k} sama dengan ${x}!` }; },
+      strip: (cur, sv) => [{ t: 'n', v: cur.target.v, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.k, side: 1 }, { t: 'op', v: '×', side: 1 }, { t: sv ? 'n' : 'blank', v: sv, side: 1 }],
+      final: (cur, sv) => [{ t: 'n', v: cur.target.v }, { t: 'op', v: '÷' }, { t: 'n', v: cur.k }, { t: 'sign', v: '=' }, { t: 'n', v: sv }], win: 'Hebat! Pembagian sama rata.' });
+    const k3Factor = () => Template({ rounds: 2, tside: -1, gen: () => { const k = rand(3, 4), sv = rand(2, 6), n = k * sv; return { k, target: { kind: 'weight', v: n }, items: 'w', stock: [5, 2, 2, 1, 1], answer: sv, say: `${k} keranjang sama berat. Berapa isi satu keranjang?`, ok: x => `${k} kali ${x} sama dengan ${n}!` }; },
+      strip: (cur, sv) => [{ t: 'n', v: cur.k, side: -1 }, { t: 'op', v: '×', side: -1 }, { t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.target.v, side: 1 }],
+      final: (cur, sv) => [{ t: 'n', v: cur.k }, { t: 'op', v: '×' }, { t: 'n', v: sv }, { t: 'sign', v: '=' }, { t: 'n', v: cur.target.v }], win: 'Hebat! Faktor hilangnya ketemu.' });
+    const k3Frac = () => Template({ rounds: 2, tside: 1, gen: r => { const k = r ? 4 : 2, N = rand(2, 6) * 4; return { k, target: { kind: 'karung', v: N, label: N + ' kg' }, items: 'w', stock: [10, 5, 2, 2, 1, 1], answer: N / k, say: r ? `Bagi ${N} kilogram jadi empat sama berat.` : `Bagi ${N} kilogram jadi dua sama berat.`, ok: x => `${r ? 'Seperempat' : 'Setengah'} dari ${N} kilogram adalah ${x} kilogram!` }; },
+      strip: (cur, sv) => { const out = [{ t: 'n', v: cur.target.label, side: -1 }, { t: 'sign' }]; for (let i = 0; i < cur.k; i++) { if (i) out.push({ t: 'op', v: '+', side: 1 }); out.push({ t: sv ? 'n' : 'blank', v: sv, side: 1 }); } return out; },
+      final: (cur, sv) => [{ t: 'txt', v: (cur.k === 2 ? '½' : '¼') + ' dari' }, { t: 'n', v: cur.target.label }, { t: 'sign', v: '=' }, { t: 'n', v: sv + ' kg' }], win: 'Hebat! Setengah dan seperempat.' });
+    const k3Hundreds = () => Compose({ rounds: 2, buildSide: 1, h: 38, gen: () => { const n = rand(101, 999); const [h, tn, on] = digitsOf(n, [100, 10, 1]); return { target: { kind: 'karung', v: n }, denoms: [100, 10, 1], stock: [9, 9, 9], say: 'Pakai anak timbangan 100, 10, dan 1.', ok: `${n} sama dengan ${h * 100} tambah ${tn * 10} tambah ${on}!` }; },
+      strip: (cur, tot, by) => [{ t: 'n', v: cur.target.v, side: -1 }, { t: 'sign' }].concat(placeTokens([100, 10, 1], by, 1)), win: 'Hebat! Ratusan, puluhan, satuan.' });
+    // k4 building blocks
+    const k4Mystery = () => Template({ rounds: 2, tside: -1, decor: 'box', gen: () => { const sv = rand(2, 9), c = rand(1, 9), n = 2 * sv + c; return { k: 2, extra: c, target: { kind: 'weight', v: n }, items: 'w', stock: [5, 2, 2, 1, 1], answer: sv, say: 'Dua kotak misteri sama berat. Isi kotak pertama.', ok: x => `Kotak misteri beratnya ${x}!` }; },
+      strip: (cur, sv) => [{ t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: 'n', v: cur.extra, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.target.v, side: 1 }],
+      final: (cur, sv) => [{ t: 'txt', v: 'kotak' }, { t: 'sign', v: '=' }, { t: 'n', v: sv }], win: 'Hebat! Kotak misterinya terpecahkan.' });
+    const k4Kg = () => Compose({ rounds: 2, buildSide: 1, unit: ' g', h: 42, gen: r => { const p = r ? rand(1, 6) * 100 : null; return { target: { kind: 'weight', v: 1000, label: '1 kg' }, given: p, givenLabel: p ? p + ' g' : null, denoms: [500, 200, 100], stock: [1, 3, 3], say: r ? `Karung ${p} gram. Tambah sampai 1 kilogram.` : '1 kilogram. Seimbangkan dengan gram.', ok: '1 kilogram sama dengan seribu gram!' }; },
+      strip: (cur, tot) => { const right = cur.given ? [{ t: 'n', v: cur.given + ' g', side: 1 }, { t: 'op', v: '+', side: 1 }] : []; return [{ t: 'n', v: '1 kg', side: -1 }, { t: 'sign' }].concat(right, [{ t: tot ? 'n' : 'blank', v: tot ? fmt(tot) + ' g' : null, side: 1 }]); },
+      final: () => [{ t: 'n', v: '1 kg' }, { t: 'sign', v: '=' }, { t: 'n', v: '1.000 g' }], win: '1 kg sama dengan 1.000 g!' });
+    const k4Bags = () => Bags({ rounds: 2, mode: 'build', strip: 'mul2', gen: () => { for (;;) { const g = rand(11, 24), k = rand(2, 4); if (g * k <= 96) return { g, k }; } }, win: 'Hebat! Perkalian dua angka.' });
+    const k4Thousands = () => Compose({ rounds: 2, buildSide: 1, h: 34, gen: () => { const ds = [rand(1, 5), rand(0, 5), rand(0, 5), rand(0, 5)]; const n = ds[0] * 1000 + ds[1] * 100 + ds[2] * 10 + ds[3]; return { target: { kind: 'karung', v: n }, denoms: [1000, 100, 10, 1], stock: [5, 5, 5, 5], say: 'Pakai anak timbangan 1.000, 100, 10, dan 1.', ok: `${fmt(n)}. Tepat!` }; },
+      strip: (cur, tot, by) => [{ t: 'n', v: fmt(cur.target.v), side: -1 }, { t: 'sign' }].concat(placeTokens([1000, 100, 10, 1], by, 1)), win: 'Hebat! Ribuan tersusun.' });
+
+    if (t === 'tk') return [
+      { title: 'Berat atau ringan?', mode: DAC, make: () => L1({ pairs: [['kapas', 0.05, 'batu', 1.2], ['bantal', 0.3, 'baut', 0.15]] }) },
+      { title: 'Berat atau ringan?', mode: DAC, make: () => L1({ pairs: [['balon', 0.01, 'gembok', 0.4], ['kapas', 0.05, 'gembok', 0.4]] }) },
+      { title: 'Sama banyak', mode: DAC, make: () => L2({ a: [2, 3], b: [1, 1], tray: 3, cap: 5, h: 48 }) },
+      { title: 'Sama banyak', mode: DAC, make: () => L2({ a: [4, 5], b: [1, 2], tray: 4, cap: 5, h: 48 }) },
+      { title: 'Lebih banyak', mode: DAC, make: TKMore },
+      { title: 'Jungkat-jungkit', mode: SEE, make: TKSee }
+    ];
+    if (t === 'k2') return [
+      { title: 'Puluhan dan satuan', mode: DAC, make: k2Compose },
+      { title: 'Bilangan hilang', mode: DAC, make: k2Missing },
+      { title: 'Pengurangan', mode: DAC, make: k2Sub },
+      { title: 'Setengah', mode: DAC, make: () => L9({ big: true, n: [6, 20] }) },
+      { title: 'Penjumlahan berulang', mode: DAC, make: k2Bags },
+      { title: 'Sama dengan', mode: DAC, make: () => L7({ big: true }) },
+      { title: 'Jungkat-jungkit', mode: SEE, make: L10 },
+      { title: 'Campuran', mode: DAC, make: () => Mix(pick3([k2Compose, k2Missing, k2Sub, k2Bags]), 'Hebat! Campuran selesai.') }
+    ];
+    if (t === 'k3') return [
+      { title: 'Perkalian', mode: DAC, make: k3Bags },
+      { title: 'Pembagian', mode: DAC, make: k3Div },
+      { title: 'Faktor hilang', mode: DAC, make: k3Factor },
+      { title: 'Pecahan berat', mode: DAC, make: k3Frac },
+      { title: 'Kakak dan adik', mode: SEE, make: L11 },
+      { title: 'Tenaga putar', mode: SEE, make: L12 },
+      { title: 'Ratusan', mode: DAC, make: k3Hundreds },
+      { title: 'Campuran', mode: DAC, make: () => Mix(pick3([k3Bags, k3Div, k3Factor, k3Hundreds]), 'Hebat! Campuran selesai.') }
+    ];
+    if (t === 'k4') return [
+      { title: 'Kotak misteri', mode: DAC, make: k4Mystery },
+      { title: 'Kilogram dan gram', mode: DAC, make: k4Kg },
+      { title: 'Pertidaksamaan', mode: DAC, make: Ineq },
+      { title: 'Banyak beban', mode: SEE, notches: 4, make: () => Lever({ rounds: 2, gen: leverMulti }) },
+      { title: 'Pengungkit', mode: SEE, notches: 4, make: () => Lever({ rounds: 2, gen: leverSlide }) },
+      { title: 'Perkalian dua angka', mode: DAC, make: k4Bags },
+      { title: 'Ribuan', mode: DAC, make: k4Thousands },
+      { title: 'Tantangan', mode: DAC, make: () => Mix(pick3([k4Mystery, k4Kg, k4Bags, k4Thousands]), 'Hebat! Tantangan selesai.') }
+    ];
+    // k1 (default)
+    return [
+      { title: 'Mana lebih berat?', mode: DAC, make: () => L1() },
+      { title: 'Sama banyak', mode: DAC, make: () => L2() },
+      { title: 'Tanda < = >', mode: DAC, make: () => L3({ lo: 5, hi: 20 }) },
+      { title: 'Pasangan 10', mode: DAC, make: () => L4({ ns: [10] }) },
+      { title: 'Penjumlahan', mode: DAC, make: () => L5({ a: [3, 9], b: [3, 9] }) },
+      { title: 'Bilangan hilang', mode: DAC, make: () => L6({ n: [11, 20], m: [5, 10], stock: [5, 5, 2, 2, 1, 1] }) },
+      { title: 'Pengurangan', mode: DAC, make: () => L8({ n: [12, 20], m: [5, 11] }) },
+      { title: 'Sama dengan', mode: DAC, make: () => L7({ max: 18 }) }
+    ];
+  }
+
   /* ============================== debug hook ============================== */
-  function waitLocked() {
+  function waitLocked(ignoreBusy) {
     return new Promise(res => {
       const t0 = performance.now();
-      (function poll() { if ((S.locked && !S.busy && !S.relocking) || performance.now() - t0 > 6000) res(); else setTimeout(poll, 40); })();
+      (function poll() { if ((S.locked && (ignoreBusy || !S.busy) && !S.relocking) || performance.now() - t0 > 6000) res(); else setTimeout(poll, 40); })();
     });
   }
   window.__game = {
     go: i => run.go(i),
+    count: () => LEVELS.length,
+    tier: () => TIER,
     async solve() { await waitLocked(); if (lv && !S.over) await lv.solve(); },
     get state() { return { level: run.current, round: lv && lv.round, busy: S.busy, locked: S.locked, over: S.over, tries: S.tries, angle: sim.th }; }
   };
