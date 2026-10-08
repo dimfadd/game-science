@@ -33,6 +33,13 @@
   }
   .brand p { margin: 6px 0 0; font-weight: 700; font-size: clamp(15px, 1.8vw, 20px); max-width: 32ch; }
   .head-tools { pointer-events: auto; display: flex; gap: 10px; align-items: center; }
+  @media (max-height: 520px) and (min-width: 641px) {
+    /* Short landscape phones: the subtitle would sit on top of the landmarks. */
+    .brand p { display: none; }
+    .brand h1 { font-size: 40px; }
+    .head-tools .gs-btn, .total, .tier-btn { height: 50px; }
+    .head-tools .gs-btn { width: 50px; min-width: 50px; }
+  }
   @media (max-width: 640px) {
     /* Narrow phones: title on its own line, tools wrap underneath so nothing is clipped. */
     .map-head { flex-direction: column; align-items: stretch; gap: 10px; }
@@ -52,8 +59,10 @@
 
   .map-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .map-scroll::-webkit-scrollbar { display: none; }
-  #map { display: block; width: 100%; min-width: 980px; height: auto; max-height: calc(100vh - 20px); }
+  /* The map fills its box; the viewBox is widened in script so there are never empty strips. */
+  #map { display: block; width: 100%; min-width: 980px; height: auto; aspect-ratio: 16 / 9; }
   @media (max-width: 760px) { #map { width: 980px; } }
+  @media (min-aspect-ratio: 16/9) and (min-width: 761px) { #map { aspect-ratio: auto; height: 100vh; height: 100svh; } }
 
   .node { cursor: pointer; outline: none; }
   .node .lm { transition: transform 200ms var(--ease-pop); transform-box: fill-box; transform-origin: 50% 100%; }
@@ -118,6 +127,24 @@
   .principles div { border-top: 4px solid var(--line); padding-top: 12px; }
   .principles h4 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
   .principles p { margin: 0; font-size: 16px; line-height: 1.5; }
+  .tier-btn {
+    display: inline-flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px;
+    background: var(--sun); color: var(--ink); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
+    font-family: var(--font-display); font-weight: 800; font-size: 20px; white-space: nowrap; cursor: pointer;
+  }
+  .tier-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+  .tier-btn svg { width: 20px; height: 20px; }
+  .levelup {
+    display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin: 0 0 24px;
+    padding: 16px 18px; background: #E3F4F1; border: 3px solid var(--line); border-radius: 24px;
+  }
+  .levelup[hidden] { display: none; }
+  .levelup svg.cil { width: 84px; height: 84px; }
+  .levelup h3 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 800; font-size: 22px; line-height: 1.15; }
+  .levelup p { margin: 0 0 10px; font-size: 16px; line-height: 1.45; }
+  .levelup .row2 { display: flex; gap: 10px; flex-wrap: wrap; }
+  .levelup .ghost { background: var(--card); color: var(--ink); }
+  .guide .tier-note { display: inline-block; margin: 0 0 14px; padding: 4px 12px; border-radius: 999px; background: #FFF1C9; border: 2px solid var(--line); font-weight: 700; font-size: 15px; }
   .profile { display: flex; align-items: center; }
   .profile:empty { display: none; }
   .install-cta {
@@ -146,6 +173,7 @@
       <div class="head-tools">
         <div class="total" aria-label="Total bintang"><span id="totalStar"></span><span id="totalN">0</span></div>
         <button type="button" class="gs-btn" id="sound" data-gs-sound aria-label="Matikan suara"></button>
+        <button type="button" class="tier-btn" id="tierBtn" aria-label="Ganti kelas"><span id="tierLabel">Kelas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div id="profile" class="profile"></div>
       </div>
     </div>
@@ -156,7 +184,13 @@
   </section>
 
   <section class="guide" id="orang-tua">
+    <div class="levelup" id="levelUp" hidden>
+      <div id="levelUpCil"></div>
+      <div><h3 id="levelUpTitle"></h3><p id="levelUpText"></p>
+        <div class="row2"><button type="button" class="play" id="levelUpGo"></button><button type="button" class="play ghost" id="levelUpStay">Main lagi di kelas ini</button></div></div>
+    </div>
     <h2>Untuk orang tua dan guru</h2>
+    <span class="tier-note" id="tierNote"></span>
     <p>Setiap permainan mengajarkan satu konsep matematika atau fisika lewat mekaniknya sendiri. Anak tidak menjawab kuis. Anak menimbang, melompat, memotong, dan menembak, lalu dunia game menunjukkan hasilnya. Angka dan simbol muncul pelan-pelan di samping benda nyata, supaya saat bertemu notasi di sekolah, anak sudah punya gambarannya.</p>
     <div class="games" id="games"></div>
     <div class="principles">
@@ -180,25 +214,36 @@
 <script src="shared/art.js"></script>
 <script src="shared/config.js"></script>
 <script src="shared/auth.js"></script>
+<script src="shared/curriculum.js"></script>
+<script src="shared/profile.js"></script>
 <script src="shared/voice.js"></script>
 <script src="shared/pwa.js"></script>
 <script>
 (function () {
   'use strict';
-  const GAMES = [
-    { id: 'timbangan', name: 'Timbangan Pasar', lm: 'pasar', x: 330, y: 720, levels: 12, kind: 'mix', kindLabel: 'Matematika + Fisika', icon: 'rambutan',
-      say: 'Timbangan Pasar. Ayo menimbang!', desc: 'Sama dengan, lebih dari, kurang dari. Penjumlahan dan pengurangan sebagai keseimbangan. Berat tidak sama dengan ukuran, dan jarak dari titik tumpu ikut menentukan.' },
-    { id: 'angkot', name: 'Angkot Penuh!', lm: 'terminal', x: 640, y: 560, levels: 10, kind: 'mat', kindLabel: 'Matematika', icon: 'person0',
-      say: 'Angkot Penuh! Angkot berangkat kalau isinya sepuluh.', desc: 'Pasangan bilangan 10, number bond, lalu puluhan dan satuan. Angkot hanya berangkat kalau tepat 10 penumpang.' },
-    { id: 'katak', name: 'Lompat Katak', lm: 'sawah', x: 960, y: 720, levels: 10, kind: 'mat', kindLabel: 'Matematika', icon: 'katak',
-      say: 'Lompat Katak. Bantu katak menemui temannya!', desc: 'Garis bilangan, maju dan mundur, lompat 2, 5, dan 10. Perkalian sebagai lompatan berulang.' },
-    { id: 'ketapel', name: 'Ketapel Mangga', lm: 'kebun', x: 1270, y: 560, levels: 10, kind: 'fis', kindLabel: 'Fisika', icon: 'mangga',
-      say: 'Ketapel Mangga. Tarik, bidik, lepas!', desc: 'Tarikan lebih kuat membuat batu lebih cepat dan lebih jauh. Gravitasi membuat lintasan melengkung. Patok bernomor melatih garis bilangan.' },
-    { id: 'perahu', name: 'Rakit Terapung', lm: 'sungai', x: 1060, y: 330, levels: 10, kind: 'mix', kindLabel: 'Fisika + Matematika', icon: 'kayu',
-      say: 'Rakit Terapung. Mana yang terapung, mana yang tenggelam?', desc: 'Terapung atau tenggelam ditentukan bahan, bukan berat. Muatan rakit melatih penjumlahan dan kapasitas.' },
-    { id: 'martabak', name: 'Bagi Martabak', lm: 'warung', x: 470, y: 330, levels: 10, kind: 'mat', kindLabel: 'Matematika', icon: 'klepon',
-      say: 'Bagi Martabak. Bagi yang adil, ya!', desc: 'Bagian yang sama besar. Setengah, sepertiga, seperempat, dan membandingkan pecahan.' }
+  // Positions and art are the hub's; names, descriptions and level counts come from shared/curriculum.js.
+  const KUR = window.MS && MS.kur;
+  const TIER = KUR ? KUR.tier() : 'k1';
+  const TINFO = KUR ? KUR.info(TIER) : { label: 'Kelas 1', fase: '', levels: 8 };
+  const KIND = { mat: 'Matematika', fis: 'Fisika', mix: 'Matematika + Fisika' };
+  const PLACES = [
+    { id: 'timbangan', lm: 'pasar', x: 330, y: 720, icon: 'rambutan', say: 'Timbangan Pasar. Ayo menimbang!' },
+    { id: 'angkot', lm: 'terminal', x: 640, y: 560, icon: 'person0', say: 'Angkot Penuh! Ayo isi angkotnya.' },
+    { id: 'katak', lm: 'sawah', x: 960, y: 720, icon: 'katak', say: 'Lompat Katak. Bantu katak menemui temannya!' },
+    { id: 'ketapel', lm: 'kebun', x: 1270, y: 560, icon: 'mangga', say: 'Ketapel Mangga. Tarik, bidik, lepas!' },
+    { id: 'perahu', lm: 'sungai', x: 1060, y: 330, icon: 'kayu', say: 'Rakit Terapung. Mana yang terapung, mana yang tenggelam?' },
+    { id: 'martabak', lm: 'warung', x: 470, y: 330, icon: 'klepon', say: 'Bagi Martabak. Bagi yang adil, ya!' }
   ];
+  const GAMES = PLACES.map(p => {
+    const k = KUR && KUR.GAMES[p.id];
+    return Object.assign({}, p, {
+      name: k ? k.name : p.id,
+      kind: k ? k.kind : 'mat',
+      kindLabel: KIND[k ? k.kind : 'mat'],
+      desc: k ? k.desc[TIER] : '',
+      levels: TINFO.levels
+    });
+  });
 
   const map = document.getElementById('map');
   const art = GS.art || {};
@@ -209,13 +254,18 @@
   bg.innerHTML =
     '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ED8EC"/><stop offset="1" stop-color="#E6F5F0"/></linearGradient>' +
     '<pattern id="kawung" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="7" cy="7" r="3" fill="#3B2A20" opacity="0.06"/><circle cx="21" cy="21" r="3" fill="#3B2A20" opacity="0.06"/></pattern></defs>' +
-    '<rect width="1600" height="900" fill="url(#sky)"/>' +
+    '<rect x="-1600" width="4800" height="900" fill="url(#sky)"/>' +
     '<circle cx="1470" cy="120" r="56" fill="#FFE08A"/><circle cx="1470" cy="120" r="40" fill="#FFC83D"/>' +
     cloud(0, 120, 1) + cloud(0, 200, 0.7, 'c2') + cloud(0, 90, 0.85, 'c3') +
     '<path d="M0 300 C180 220 330 260 480 230 C640 200 760 250 900 225 C1060 195 1200 240 1360 215 C1480 200 1560 230 1600 240 V900 H0Z" fill="#A9D3A0"/>' +
     '<path d="M0 380 C200 330 420 380 640 350 C900 315 1150 370 1600 330 V900 H0Z" fill="#8FCB7E"/>' +
     '<path d="M0 470 C300 430 600 470 900 445 C1200 420 1420 450 1600 440 V900 H0Z" fill="#7CC26B"/>' +
-    '<rect y="440" width="1600" height="460" fill="url(#kawung)"/>' +
+    // wings: continue the hills and river past both edges for wide screens
+    '<rect x="-1600" y="300" width="1601" height="600" fill="#A9D3A0"/><rect x="1599" y="240" width="1601" height="660" fill="#A9D3A0"/>' +
+    '<rect x="-1600" y="380" width="1601" height="520" fill="#8FCB7E"/><rect x="1599" y="330" width="1601" height="570" fill="#8FCB7E"/>' +
+    '<rect x="-1600" y="470" width="1601" height="430" fill="#7CC26B"/><rect x="1599" y="440" width="1601" height="460" fill="#7CC26B"/>' +
+    '<rect x="-1600" y="440" width="4800" height="460" fill="url(#kawung)"/>' +
+    '<rect x="1598" y="250" width="1602" height="40" fill="#3FA7C4"/>' +
     // river along the top right
     '<path d="M1600 250 C1450 280 1320 300 1200 380 C1120 430 980 420 860 400 L860 430 C990 455 1140 465 1225 410 C1340 335 1470 315 1600 290Z" fill="#3FA7C4"/>' +
     '<path d="M1590 262 C1480 285 1380 300 1290 350" fill="none" stroke="#9FE0F0" stroke-width="5" stroke-linecap="round" opacity="0.8"/>' +
@@ -275,7 +325,43 @@
   }
 
   // --- header widgets ---
-  if (window.MS && MS.auth && MS.auth.mountProfileChip) MS.auth.mountProfileChip(document.getElementById('profile'));
+  const openProfile = () => { GS.sfx.click(); if (MS.profileEditor) MS.profileEditor.open({ onSave: () => location.reload() }); };
+  if (window.MS && MS.auth && MS.auth.mountProfileChip) MS.auth.mountProfileChip(document.getElementById('profile'), { onEdit: openProfile });
+  document.getElementById('tierLabel').textContent = TINFO.label;
+  document.getElementById('tierBtn').addEventListener('click', openProfile);
+  document.getElementById('tierNote').textContent = 'Sedang ditampilkan: ' + TINFO.label + (TINFO.fase ? ' (' + TINFO.fase + ')' : '');
+
+  // --- map always fills its box: widen the viewBox to the box's aspect ratio ---
+  function fitMap() {
+    const w = map.clientWidth, h = map.clientHeight;
+    if (!w || !h) return;
+    const vbW = Math.max(1600, 900 * w / h);
+    map.setAttribute('viewBox', (-(vbW - 1600) / 2).toFixed(1) + ' 0 ' + vbW.toFixed(1) + ' 900');
+  }
+  fitMap();
+  window.addEventListener('resize', fitMap);
+
+  // --- every level of this kelas has a star: offer the next kelas ---
+  (function levelUp() {
+    if (!KUR) return;
+    const nextT = KUR.next(TIER);
+    const allDone = GAMES.every(g => GS.store.stars(g.id).filter(Boolean).length >= g.levels);
+    if (!allDone) return;
+    const box = document.getElementById('levelUp');
+    box.hidden = false;
+    if (has('mascot')) document.getElementById('levelUpCil').innerHTML = art.mascot({ mood: 'cheer', size: 84 }).replace('<svg', '<svg class="cil"');
+    document.getElementById('levelUpTitle').textContent = 'Hebat! Semua game ' + TINFO.label + ' sudah selesai.';
+    const go = document.getElementById('levelUpGo'), stay = document.getElementById('levelUpStay');
+    if (nextT) {
+      document.getElementById('levelUpText').textContent = 'Siap belajar materi ' + nextT.label + '? Bintang di ' + TINFO.label + ' tetap tersimpan.';
+      go.textContent = 'Naik ke ' + nextT.label;
+      go.addEventListener('click', () => { GS.sfx.coin(); MS.auth.updateProfile({ kelas: nextT.kelas }); location.reload(); });
+    } else {
+      document.getElementById('levelUpText').textContent = 'Kamu sudah sampai jenjang tertinggi. Coba kumpulkan 3 bintang di setiap level!';
+      go.hidden = true;
+    }
+    stay.addEventListener('click', () => { box.hidden = true; });
+  })();
   document.getElementById('totalStar').innerHTML = GS.ICON.star;
   document.getElementById('totalN').textContent = total;
   document.getElementById('sound').addEventListener('click', () => { GS.sfx.click(); GS.setMuted(!GS.muted); });
@@ -323,8 +409,11 @@
   // --- reset progress with an in-page confirmation (no confirm() dialogs) ---
   const box = document.getElementById('resetBox');
   document.getElementById('reset').addEventListener('click', function ask() {
-    box.innerHTML = '<span>Yakin hapus semua bintang?</span><button type="button" class="reset" id="yes">Ya, hapus</button><button type="button" class="reset" id="no">Batal</button>';
-    document.getElementById('yes').onclick = () => { GAMES.forEach(g => GS.store.set('stars.' + g.id, [])); location.reload(); };
+    box.innerHTML = '<span>Yakin hapus semua bintang di semua kelas?</span><button type="button" class="reset" id="yes">Ya, hapus</button><button type="button" class="reset" id="no">Batal</button>';
+    document.getElementById('yes').onclick = () => {
+      (KUR ? KUR.TIERS : [{ id: TIER }]).forEach(t => GAMES.forEach(g => GS.store.set('stars.' + g.id + '@' + t.id, [])));
+      location.reload();
+    };
     document.getElementById('no').onclick = () => location.reload();
   });
 })();

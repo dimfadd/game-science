@@ -22,11 +22,14 @@
   GS.store = {
     get(k, def) { const d = readAll(); return k in d ? d[k] : def; },
     set(k, v) { const d = readAll(); d[k] = v; writeAll(d); },
-    stars(gameId) { return GS.store.get('stars.' + gameId, []); },
+    /** Progress is kept per grade tier: stars.<game>@<tier> (tier from GS.tier(), see shared/curriculum.js).
+     *  Pass 'game@tier' to read another tier explicitly. */
+    key(gameId) { return 'stars.' + (gameId.indexOf('@') < 0 && GS.tier ? gameId + '@' + GS.tier() : gameId); },
+    stars(gameId) { return GS.store.get(GS.store.key(gameId), []); },
     setStars(gameId, level, n) {
       const s = GS.store.stars(gameId).slice();
       s[level] = Math.max(s[level] || 0, n);
-      GS.store.set('stars.' + gameId, s);
+      GS.store.set(GS.store.key(gameId), s);
     },
     totalStars(gameId) { return GS.store.stars(gameId).reduce((a, b) => a + (b || 0), 0); },
     /** First level index that has not been completed yet. */
@@ -505,7 +508,10 @@
     if (document.body.classList.contains('gs-game')) startGate(o.title);
     return {
       el: bar,
-      setLevel(i) { title.querySelector('.gs-title-level').textContent = 'Level ' + (i + 1) + (o.levelCount ? ' / ' + o.levelCount : ''); },
+      setLevel(i) {
+        const t = GS.tierInfo ? GS.tierInfo() : null;
+        title.querySelector('.gs-title-level').textContent = (t ? t.label + ' · ' : '') + 'Level ' + (i + 1) + (o.levelCount ? ' / ' + o.levelCount : '');
+      },
       bubble: GS._bubble,
       mood(m) { if (GS.art && GS.art.mascot) face.innerHTML = GS.art.mascot({ mood: m, size: 64 }); }
     };

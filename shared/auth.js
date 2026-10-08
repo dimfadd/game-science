@@ -83,6 +83,13 @@
     return next;
   }
   function clearProfile() { del(K.profile); }
+  /** Change name / kelas / avatar of the device profile and the signed-in session together. */
+  function updateProfile(p) {
+    var next = saveProfile(p);
+    var s = current();
+    if (s) { s.name = next.name; s.kelas = next.kelas; s.avatar = next.avatar; set(K.session, s); }
+    return next;
+  }
   function startSession(acc, provider) {
     var p = profile() || { name: acc.name || 'Teman', kelas: '', avatar: AVATARS[0].id };
     var s = { accountId: acc.id, email: acc.email || '', provider: provider, name: p.name, kelas: p.kelas, avatar: p.avatar, createdAt: new Date().toISOString() };
@@ -224,6 +231,7 @@
   /* ---------------- profile chip ---------------- */
   var CSS = [
     '.ms-chip{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-body,Andika,system-ui,sans-serif)}',
+    'button.ms-chip-id{cursor:pointer;font:inherit}button.ms-chip-id:active{transform:translateY(3px);box-shadow:0 1px 0 #3B2A20}',
     '.ms-chip-id{display:inline-flex;align-items:center;gap:8px;height:56px;max-width:220px;padding:0 16px 0 4px;background:#fff;border:3px solid #3B2A20;border-radius:999px;box-shadow:0 4px 0 #3B2A20;color:#2B1D14}',
     '.ms-chip-av{flex:none;width:44px;height:44px;border-radius:50%;background:#E6F5F0;border:2px solid #3B2A20;display:grid;place-items:center;overflow:hidden}',
     '.ms-chip-av svg{width:44px;height:44px;display:block}',
@@ -238,7 +246,8 @@
     var st = document.createElement('style'); st.id = 'ms-auth-css'; st.textContent = CSS;
     (document.head || document.documentElement).appendChild(st);
   }
-  function mountProfileChip(container) {
+  function mountProfileChip(container, opts) {
+    opts = opts || {};
     if (!container) return null;
     try {
       injectCss();
@@ -247,10 +256,12 @@
       if (!s) {
         wrap.innerHTML = '<a class="ms-chip-out" href="' + esc(welcomeUrl(true)) + '">Masuk</a>';
       } else {
-        wrap.innerHTML = '<span class="ms-chip-id" title="' + esc(s.email || '') + '"><span class="ms-chip-av">' + avatarSvg(s.avatar, 44) + '</span>' +
-          '<span class="ms-chip-name">' + esc(s.name) + '</span></span>' +
+        var tag = opts.onEdit ? 'button' : 'span';
+        wrap.innerHTML = '<' + tag + (opts.onEdit ? ' type="button" aria-label="Ubah profil ' + esc(s.name) + '"' : '') + ' class="ms-chip-id" title="' + esc(s.email || '') + '"><span class="ms-chip-av">' + avatarSvg(s.avatar, 44) + '</span>' +
+          '<span class="ms-chip-name">' + esc(s.name) + '</span></' + tag + '>' +
           '<button type="button" class="ms-chip-out" aria-label="Keluar dari akun ' + esc(s.name) + '">Keluar</button>';
-        var btn = wrap.querySelector('button'), t = 0;
+        if (opts.onEdit) wrap.querySelector('.ms-chip-id').addEventListener('click', opts.onEdit);
+        var btn = wrap.querySelector('.ms-chip-out'), t = 0;
         // Two taps so a child does not log out by accident (no dialogs).
         btn.addEventListener('click', function () {
           if (btn.classList.contains('ask')) { clearTimeout(t); logout(); return; }
@@ -271,6 +282,9 @@
     logout: logout,
     avatarSvg: avatarSvg,
     mountProfileChip: mountProfileChip,
+    updateProfile: updateProfile,
+    KELAS: KELAS,
+    AVATARS: AVATARS,
     // used by welcome.html and tests
     _: {
       AVATARS: AVATARS, KELAS: KELAS, DEV_EMAIL: DEV.email,

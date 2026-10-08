@@ -200,7 +200,10 @@ button { font: inherit; color: inherit; }
 .gs-level-stars i { width: 20px; height: 20px; color: #E2D6C2; display: block; }
 .gs-level-stars i.on { color: var(--sun-dark); }
 .gs-level-stars svg { width: 100%; height: 100%; }
-.gs-picker-close { position: absolute; top: -18px; right: -14px; width: 60px; height: 60px; }
+/* Close sits inside the card: the card scrolls (overflow: auto), so anything outside it gets clipped. */
+.gs-picker-close { position: absolute; top: 12px; right: 12px; width: 56px; height: 56px; }
+.gs-picker .gs-card { padding-top: 20px; }
+.gs-picker-title { padding-inline: 64px; }
 
 /* ---------- effects ---------- */
 .gs-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; }

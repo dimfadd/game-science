@@ -1,19 +1,25 @@
-/* Plays every level of every game through window.__game.solve() and checks that
- * each one reaches the win overlay without errors. Usage: node tests/levels.js [gameId] */
+/* Plays every level of every game and grade tier through window.__game.solve() and
+ * checks that each one reaches the win overlay without errors.
+ * Usage: node tests/levels.js [gameId] [tier]   (tier: tk k1 k2 k3 k4) */
 const { serve, launch, VIEWPORTS, watch } = require('./lib');
-const COUNTS = { timbangan: 12, angkot: 10, katak: 10, ketapel: 10, perahu: 10, martabak: 10 };
+const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak'];
+const TIERS = { tk: 6, k1: 8, k2: 8, k3: 8, k4: 8 }; // keep in sync with shared/curriculum.js
 const only = process.argv[2];
+const onlyTier = process.argv[3];
 
 (async () => {
   const { server, base } = await serve();
   const browser = await launch();
   let failed = 0;
-  for (const [game, count] of Object.entries(COUNTS)) {
+  for (const game of GAMES) for (const [tier, count] of Object.entries(TIERS)) {
     if (only && only !== game) continue;
+    if (onlyTier && onlyTier !== tier) continue;
     const ctx = await browser.newContext(VIEWPORTS.desktop);
     const page = await ctx.newPage();
     const errors = watch(page, base);
-    await page.goto(base + 'games/' + game + '/index.html?autotest');
+    await page.goto(base + 'games/' + game + '/index.html?autotest&tier=' + tier);
+    const real = await page.evaluate(() => window.__game && window.__game.count ? window.__game.count() : null);
+    if (real !== null && real !== count) errors.push('level count ' + real + ' != ' + count);
     await page.waitForFunction(() => window.__game && window.__game.go, null, { timeout: 10000 });
     await page.evaluate(() => window.__game.speed && window.__game.speed(4));
     const line = [];
@@ -35,7 +41,7 @@ const only = process.argv[2];
       if (!won) failed++;
     }
     failed += errors.length;
-    console.log((line.some(l => l.includes('NO-WIN')) || errors.length ? 'FAIL ' : 'ok   ') + game.padEnd(10) + line.join(' ') + (errors.length ? '\n     ' + errors.join('\n     ') : ''));
+    console.log((line.some(l => l.includes('NO-WIN')) || errors.length ? 'FAIL ' : 'ok   ') + (game + '@' + tier).padEnd(14) + line.join(' ') + (errors.length ? '\n     ' + errors.join('\n     ') : ''));
     await ctx.close();
   }
   await browser.close();
