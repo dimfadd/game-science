@@ -37,11 +37,14 @@
   @keyframes mk-diff { 50% { stroke-opacity: 0.35; } }
   .mk-snapdot { animation: mk-snap 600ms ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes mk-snap { 50% { transform: scale(1.35); } }
+  .gs-action.mk-nudge { animation: mk-nudge 900ms ease-in-out infinite; }
+  @keyframes mk-nudge { 50% { transform: scale(1.1); box-shadow: 0 6px 0 var(--line), 0 0 0 8px rgba(242, 169, 0, 0.55); } }
   .gs-stage .mk-name { font-family: var(--font-body); font-weight: 700; }
   .gs-action[hidden] { display: none; }
   @media (prefers-reduced-motion: reduce) {
     .mk-steam path { animation: none; opacity: 0.35; }
-    .mk-breathe, .mk-card-swing, .mk-diff, .mk-snapdot { animation: none; }
+    .mk-breathe, .mk-card-swing, .mk-diff, .mk-snapdot, .gs-action.mk-nudge { animation: none; }
+    .gs-action.mk-nudge { box-shadow: 0 6px 0 var(--line), 0 0 0 8px rgba(242, 169, 0, 0.55); }
   }
 </style>
 </head>

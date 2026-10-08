@@ -621,13 +621,13 @@
     const pegFront = el('g', null, rig);
     S.peg = buildPeg(pegBack, pegFront, { x: PX + 56, y: PY - 27, r: 0 }, { x: PX + 98, y: PY + 70, r: 6 }, { x: PX + 52, y: PY + 46 }, 70);
     // home spots on the grass (right side)
-    S.homes = [1112, 1210].map((x, i) => {
-      const g = el('g', { transform: `translate(${x} ${GROUND + 34})` }, S.layers.tray);
+    S.homes = [1158, 1240].map((x, i) => {
+      const g = el('g', { transform: `translate(${x} ${GROUND - 2})` }, S.layers.tray);
       el('ellipse', { cx: 0, cy: 0, rx: 44, ry: 11, fill: '#D4A062', opacity: 0.6 }, g);
       const content = el('g', null, g);
       const hl = el('ellipse', { cx: 0, cy: -60, rx: 54, ry: 80, fill: 'none', stroke: C.ink, 'stroke-width': 4, 'stroke-dasharray': '10 9', opacity: 0.5, display: 'none' }, g);
       const c = makeContainer('home' + i, content, [{ x0: -40, x1: 40, y: 2, cap: 1 }], { isHome: true, hl });
-      c.zone = q => { const dx = q.x - x, dy = q.y - (GROUND - 20); return Math.abs(dx) < 50 && Math.abs(dy) < 100 ? 200 + Math.abs(dx) : Infinity; };
+      c.zone = q => { const dx = q.x - x, dy = q.y - (GROUND - 50); return Math.abs(dx) < 50 && Math.abs(dy) < 100 ? 200 + Math.abs(dx) : Infinity; };
       return c;
     });
   }
@@ -1090,7 +1090,7 @@
   function renderStripNow() {
     if (!lv || !lv.strip) { if (S.strip) S.strip.g.innerHTML = ''; return; }
     if (!S.strip) {
-      const y = S.mode === 'dacing' ? 548 : 70;
+      const y = S.mode === 'dacing' ? 548 : 170;
       S.strip = { g: el('g', { transform: `translate(640 ${y})` }, S.layers.ui), prev: [] };
     }
     const tokens = lv.strip();
@@ -1152,13 +1152,13 @@
   function renderGrid() {
     if (S.mode !== 'seesaw' || !S.grid) return;
     const g = S.grid; g.innerHTML = '';
-    const { PX, STEP, N } = SS, y0 = 600;
+    const { PX, STEP, N } = SS, y0 = 568;
     const bal = S.last && S.last.balanced;
     [-1, 1].forEach(side => {
       const objs = S.notches.filter(c => c.side === side && c.count()).map(c => ({ w: c.sum(), d: c.d })).sort((a, b) => a.d - b.d);
       const rows = objs.reduce((a, o) => a + o.w, 0);
       const rowH = Math.min(28, 112 / Math.max(rows, 1)), dr = Math.max(7, Math.min(10, rowH * 0.38));
-      const x0 = side < 0 ? PX - N * STEP - 30 : PX + 6, x1 = side < 0 ? PX - 6 : PX + N * STEP + 30;
+      const x0 = side < 0 ? PX - N * STEP - 100 : PX + 88, x1 = side < 0 ? PX - 88 : PX + N * STEP + 100;
       const h = 28 + Math.max(1, rows) * rowH;
       el('path', { d: rr(x0, y0 - 18, x1 - x0, h, 16), fill: C.cream, stroke: OL, 'stroke-width': 3, opacity: 0.94 }, g);
       let r = 0;
@@ -1174,11 +1174,11 @@
             else el('rect', { x: x - dr, y: yy - dr, width: 2 * dr, height: 2 * dr, rx: 4, fill: C.orange, stroke: OL, 'stroke-width': 2 }, g);
           }
         }
-        txt(g, PX + side * (STEP / 2 - 4), top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: 46, fill: C.ink });
+        txt(g, PX + side * (o.d * STEP + 52), top + (o.w - 1) * rowH / 2, `${o.w}×${o.d}`, { size: 40, fill: C.ink });
         r += o.w;
       });
       const tot = objs.reduce((a, o) => a + o.w * o.d, 0);
-      const tx = PX + side * (N * STEP + 82), ty = y0 + 24;
+      const tx = PX + side * 44, ty = y0 + 26;
       el('circle', { cx: tx, cy: ty, r: 40, fill: bal ? C.tealTint : side < 0 ? C.blueTint : C.orangeTint, stroke: bal ? C.teal : side < 0 ? C.blue : C.orange, 'stroke-width': 4 }, g);
       txt(g, tx, ty + 1, String(tot), { size: 46 });
     });

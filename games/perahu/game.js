@@ -19,7 +19,7 @@
   const MAT = {
     gabus: { rho: 0.05, label: 'gabus', size: 95 },
     bulu: { rho: 0.1, label: 'bulu', size: 85, air: 5 },
-    botol: { rho: 0.3, label: 'botol tertutup', size: 95 },
+    botol: { rho: 0.3, label: 'botol', size: 95 },
     daun: { rho: 0.5, label: 'daun', size: 80, air: 2.5 },
     kayu: { rho: 0.6, label: 'kayu', size: 150 },
     apel: { rho: 0.8, label: 'apel', size: 72 },
@@ -382,10 +382,10 @@
     t.g = el('g', { class: 'pr-thing' + (opt.drag ? ' pr-drag pr-focus' : ''), tabindex: opt.drag ? 0 : null, role: opt.drag ? 'button' : null, 'aria-label': opt.aria || null }, parent);
     t.bb = measure(markup, 'item:' + name);
     t.shadow = el('ellipse', { cx: 0, cy: 0, rx: f1(t.bb.w * k * 0.42), ry: 7, fill: OUT, 'fill-opacity': 0.18 }, t.g);
-    const hw = Math.max(BIG ? 58 : 44, t.bb.w * k / 2 + (BIG ? 24 : 14)), hh = Math.max(BIG ? 110 : 84, t.bb.h * k + (BIG ? 34 : 22));
+    const hw = Math.max(BIG ? 62 : 55, t.bb.w * k / 2 + (BIG ? 24 : 14)), hh = Math.max(BIG ? 124 : 112, t.bb.h * k + (BIG ? 34 : 24));
     t.ring = el('rect', { class: 'pr-ring', x: f1(-hw), y: f1(-hh + 6), width: f1(hw * 2), height: f1(hh), rx: 16, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-dasharray': '10 7' }, t.g);
     t.fx = el('g', null, t.g);
-    t.inner = el('g', null, t.fx);
+    t.inner = el('g', { 'data-qc': 'decor' }, t.fx);
     GS.markup(t.inner, markup);
     t.hit = el('rect', { x: f1(-hw), y: f1(-hh + 6), width: f1(hw * 2), height: f1(hh + 6), fill: '#fff', 'fill-opacity': 0 }, t.g);
     return t;
@@ -546,11 +546,11 @@
   function pierScene() {
     const L = {};
     L.river = el('g', null, world);
-    drawRiver(L.river, 640);
-    el('rect', { x: 0, y: 624, width: 1280, height: 26, fill: OUT, 'fill-opacity': 0.22 }, L.river);
-    drawPosts(L.river, [60, 330, 600, 870, 1140], 624);
-    drawWaterFront(L.river, 0, 1280, 652, 800, 0.5);
-    drawPier(L.river, 0, 1280, 362, 600);
+    drawRiver(L.river, 640, -600, 1880);
+    el('rect', { x: -600, y: 624, width: 2480, height: 26, fill: OUT, 'fill-opacity': 0.22 }, L.river);
+    drawPosts(L.river, [-480, -210, 60, 330, 600, 870, 1140, 1410, 1680], 624);
+    drawWaterFront(L.river, -600, 1880, 652, 800, 0.5);
+    drawPier(L.river, -600, 1880, 362, 600);
     return L;
   }
 
@@ -610,8 +610,8 @@
     el('path', { d: 'M' + (cx - rx) + ' ' + rimY + ' A' + rx + ' ' + ry + ' 0 0 0 ' + (cx + rx) + ' ' + rimY, fill: 'none', stroke: OUT, 'stroke-width': 14, 'stroke-linecap': 'round' }, bk.front);
     el('path', { d: 'M' + (cx - rx) + ' ' + rimY + ' A' + rx + ' ' + ry + ' 0 0 0 ' + (cx + rx) + ' ' + rimY, fill: 'none', stroke: C.h, 'stroke-width': 8, 'stroke-linecap': 'round' }, bk.front);
     // label plate with icon
-    el('rect', { x: cx - 96, y: by - 66, width: 192, height: 48, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, bk.front);
-    const ix = cx - 68, iy = by - 42;
+    el('rect', { x: cx - 112, y: by - 70, width: 224, height: 54, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, bk.front);
+    const ix = cx - 82, iy = by - 43;
     el('circle', { cx: ix, cy: iy, r: 18, fill: C.b, stroke: OUT, 'stroke-width': 2.5 }, bk.front);
     if (kind === 'float') {
       el('rect', { x: ix - 6, y: iy - 13, width: 12, height: 11, rx: 2.5, fill: '#FFC83D', stroke: OUT, 'stroke-width': 2 }, bk.front);
@@ -620,7 +620,7 @@
       el('path', { d: 'M' + (ix - 13) + ' ' + (iy - 8) + ' q3.25 -4 6.5 0 t6.5 0 t6.5 0 t6.5 0', fill: 'none', stroke: '#fff', 'stroke-width': 2.5, 'stroke-linecap': 'round' }, bk.front);
       el('path', { d: 'M' + ix + ' ' + (iy - 3) + ' V' + (iy + 11) + ' M' + (ix - 6) + ' ' + (iy + 5) + ' L' + ix + ' ' + (iy + 11) + ' L' + (ix + 6) + ' ' + (iy + 5), fill: 'none', stroke: '#fff', 'stroke-width': 3.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, bk.front);
     }
-    txt(bk.front, cx + 16, by - 32, C.label, { class: 't-display', 'font-size': 27 });
+    txt(bk.front, cx + 22, by - 30, C.label, { class: 't-display', 'font-size': 34 });
     return bk;
   }
   function basketSlot(bk, j) {
@@ -629,16 +629,17 @@
   }
   function nameTag(parent, label, dy) {
     const g = el('g', dy ? { transform: 'translate(0 ' + dy + ')' } : null, parent);
-    const w = Math.max(56, label.length * 11 + 22);
-    el('rect', { x: -w / 2, y: 10, width: w, height: 28, rx: 10, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, g);
-    txt(g, 0, 31, label, { class: 't-body', 'font-size': 19, 'font-weight': 700 });
+    const fs = /\d/.test(label) ? 38 : 34;
+    const w = Math.max(70, label.length * fs * 0.52 + 30);
+    el('rect', { x: -w / 2, y: 8, width: w, height: 46, rx: 14, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, g);
+    txt(g, 0, 42, label, { class: 't-body', 'font-size': fs, 'font-weight': 700 });
     return g;
   }
 
   function waterTag(parent, tk, text) {
-    const box = el('rect', { y: tk.top + 20, height: 32, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, parent);
-    const t = txt(parent, tk.cx, tk.top + 43, text, { class: 't-body', 'font-size': 19, 'font-weight': 700 });
-    t.set = v => { t.textContent = v; const w = v.length * 10 + 30; box.setAttribute('x', tk.cx - w / 2); box.setAttribute('width', w); };
+    const box = el('rect', { y: tk.top + 16, height: 44, rx: 14, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, parent);
+    const t = txt(parent, tk.cx, tk.top + 49, text, { class: 't-body', 'font-size': 34, 'font-weight': 700 });
+    t.set = v => { t.textContent = v; const w = v.length * 17 + 30; box.setAttribute('x', tk.cx - w / 2); box.setAttribute('width', w); };
     t.set(text);
     return t;
   }
@@ -662,14 +663,14 @@
       t.floats = t.rho < rhoW;
       t.label = labelOf(name);
       t.air = m.air || 0;
-      t.home = { x: 0, y: 392 };
-      t.tag = nameTag(t.g, t.label);
+      t.home = { x: 0, y: 366 };
+      t.tag = nameTag(t.g, t.label, n >= 5 && j % 2 ? 40 : 0);
       t.where = null;
       place(t, t.home.x, t.home.y);
       return t;
     });
     S.items = items;
-    layoutRow(items.map(t => t.bb.w * t.base), 40, 630).forEach((x, j) => { items[j].home.x = x; place(items[j], x, 392); });
+    layoutRow(items.map(t => t.bb.w * t.base), 50, 620).forEach((x, j) => { items[j].home.x = x; place(items[j], x, 366); });
     const tankX = layoutRow(items.map(t => t.bb.w * t.base), TK.ix0 + 14, TK.ix1 - 14);
 
     function relayout(bk) {
@@ -797,7 +798,7 @@
       // n identical crates of w kg: the most that fits is floor(K / w) crates (multiplication).
       const w = rndOf(L.crates), n = GS.rand(L.n[0], L.n[1]);
       const K = n * w + GS.rand(1, w - 1);
-      return pack(K, Array(n + 2).fill(w), Array(n + 2).fill('peti'));
+      return pack(K, Array(n + 1).fill(w), Array(n + 1).fill('peti'));
     }
     if (L.kinds) {
       for (let tr = 0; tr < 400; tr++) {
@@ -857,31 +858,31 @@
     el('rect', { x: mx - 4, y: -176, width: 9, height: 140, rx: 4, fill: '#7E4A27', stroke: OUT, 'stroke-width': 2.5 }, g);
     el('circle', { cx: mx, cy: -180, r: 7, fill: '#FFC83D', stroke: OUT, 'stroke-width': 2.5 }, g);
     const fl = el('g', { class: 'pr-flag' }, g);
-    el('path', { d: 'M' + (mx + 5) + ' -170 h104 l-16 25 l16 25 h-104 Z', fill: '#FFC83D', stroke: OUT, 'stroke-width': 3, 'stroke-linejoin': 'round' }, fl);
-    el('path', { d: 'M' + (mx + 10) + ' -164 h86', stroke: '#FFE08A', 'stroke-width': 4, 'stroke-linecap': 'round' }, fl);
-    el('path', { d: 'M' + (mx + 10) + ' -126 h80', stroke: '#E09A00', 'stroke-width': 3, 'stroke-linecap': 'round' }, fl);
+    el('path', { d: 'M' + (mx + 5) + ' -176 h130 l-18 31 l18 31 h-130 Z', fill: '#FFC83D', stroke: OUT, 'stroke-width': 3, 'stroke-linejoin': 'round' }, fl);
+    el('path', { d: 'M' + (mx + 10) + ' -170 h108', stroke: '#FFE08A', 'stroke-width': 4, 'stroke-linecap': 'round' }, fl);
+    el('path', { d: 'M' + (mx + 10) + ' -120 h100', stroke: '#E09A00', 'stroke-width': 3, 'stroke-linecap': 'round' }, fl);
     if (opt.fruit) {
-      txt(fl, mx + 28, -133, String(K), { 'font-size': 30 });
-      for (let d = 0; d < K; d++) el('circle', { cx: mx + 52 + (d % 3) * 13, cy: -152 + Math.floor(d / 3) * 14, r: 5, fill: '#2F80C9', stroke: OUT, 'stroke-width': 1.5 }, fl);
+      txt(fl, mx + 34, -130, String(K), { 'font-size': 42 });
+      for (let d = 0; d < K; d++) el('circle', { cx: mx + 68 + (d % 3) * 17, cy: -154 + Math.floor(d / 3) * 18, r: 7, fill: '#2F80C9', stroke: OUT, 'stroke-width': 1.5 }, fl);
     } else {
-      const t = txt(fl, mx + 50, -135, '', { 'font-size': 30 });
-      t.innerHTML = K + '<tspan font-size="19" dx="3">kg</tspan>';
+      const t = txt(fl, mx + 62, -130, '', { 'font-size': 42 });
+      t.innerHTML = K + '<tspan font-size="24" dx="3">kg</tspan>';
     }
     return g;
   }
   function kgTag(parent, kg, dots, y) {
     const g = el('g', { transform: 'translate(0 ' + f1(y) + ')' }, parent);
-    const h = dots ? 46 : 34;
-    el('path', { d: 'M0 -26 V-17', stroke: OUT, 'stroke-width': 2 }, g);
-    el('rect', { x: -32, y: -17, width: 64, height: h, rx: 10, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, g);
-    el('circle', { cx: 0, cy: -11, r: 2.4, fill: OUT }, g);
-    const t = txt(g, 0, 11, '', { 'font-size': 23 });
-    t.innerHTML = kg + '<tspan font-size="14" dx="2">kg</tspan>';
+    const h = dots ? 70 : 52;
+    el('path', { d: 'M0 -34 V-25', stroke: OUT, 'stroke-width': 2 }, g);
+    el('rect', { x: -48, y: -25, width: 96, height: h, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, g);
+    el('circle', { cx: 0, cy: -19, r: 2.6, fill: OUT }, g);
+    const t = txt(g, 0, 17, '', { 'font-size': 44 });
+    t.innerHTML = kg + '<tspan font-size="22" dx="2">kg</tspan>';
     if (dots) {
       const per = Math.min(kg, 4), rows = Math.ceil(kg / 4);
       for (let d = 0; d < kg; d++) {
         const r = Math.floor(d / 4), c = d % 4, cnt = r < rows - 1 ? 4 : kg - r * 4;
-        el('circle', { cx: (c - (cnt - 1) / 2) * 9, cy: 19 + r * 7 - (rows - 1) * 3, r: 3, fill: '#2F80C9' }, g);
+        el('circle', { cx: (c - (cnt - 1) / 2) * 15, cy: 31 + r * 9 - (rows - 1) * 4, r: 4, fill: '#2F80C9' }, g);
       }
       void per;
     }
@@ -908,34 +909,34 @@
     const WS = RV.ws, F = RV.F;
     // scene
     const river = el('g', null, world);
-    drawRiver(river, WS);
+    drawRiver(river, WS, -600, 1880);
     // far bank: the kampung seberang jetty
-    drawPosts(river, [1170, 1260], 590);
+    drawPosts(river, [1170, 1260, 1450, 1640, 1830], 590);
     const raftL = el('g', null, world);
     const riverItems = el('g', null, world);
     const frontW = el('g', null, world);
-    drawWaterFront(frontW, 0, 1280, WS, 800, 0.5);
+    drawWaterFront(frontW, -600, 1880, WS, 800, 0.5);
     S.fxTop = el('g', null, world);
     const land = el('g', null, world);
-    drawPosts(land, [40, 210, 380], 596);
-    el('rect', { x: 0, y: 596, width: 432, height: 24, fill: OUT, 'fill-opacity': 0.22 }, land);
-    drawPosts(land, [40, 210, 380], 596);
-    drawWaterFront(land, 0, 434, WS, 800, 0.5);
-    drawPier(land, -10, 432, 470, 574);
-    el('rect', { x: 1150, y: 590, width: 140, height: 30, fill: OUT, 'fill-opacity': 0.2 }, land);
-    drawPier(land, 1150, 1290, 540, 568);
+    drawPosts(land, [-470, -300, -130, 40, 210, 380], 596);
+    el('rect', { x: -600, y: 596, width: 1032, height: 24, fill: OUT, 'fill-opacity': 0.22 }, land);
+    drawPosts(land, [-470, -300, -130, 40, 210, 380], 596);
+    drawWaterFront(land, -600, 434, WS, 800, 0.5);
+    drawPier(land, -600, 432, 470, 574);
+    el('rect', { x: 1150, y: 590, width: 730, height: 30, fill: OUT, 'fill-opacity': 0.2 }, land);
+    drawPier(land, 1150, 1880, 540, 568);
     const friend = el('g', { transform: 'translate(1222 560) scale(0.82)' }, land);
     GS.markup(friend, artPerson(2));
     const jettyL = el('g', null, world);
     S.dragLayer = el('g', null, world);
 
     // board with the running number sentence
-    const board = el('g', null, world);
-    el('rect', { x: 26, y: 22, width: 590, height: 92, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, board);
-    el('rect', { x: 38, y: 33, width: 566, height: 70, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, board);
-    if (!fruit) txt(board, 104, 77, 'Muatan', { class: 't-body', 'font-size': 24, 'font-weight': 700 });
-    else { const ic = el('g', { transform: 'translate(96 96) scale(0.55)' }, board); GS.markup(ic, artItem('kelapa')); }
-    const sent = txt(board, 390, 82, '', { 'font-size': 38 });
+    const board = el('g', { transform: 'translate(378 150)' }, world);
+    el('rect', { x: 26, y: 16, width: 640, height: 136, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, board);
+    el('rect', { x: 38, y: 28, width: 616, height: 112, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, board);
+    if (!fruit) txt(board, 112, 96, 'Muatan', { class: 't-body', 'font-size': 34, 'font-weight': 700 });
+    else { const ic = el('g', { transform: 'translate(110 122) scale(0.75)', 'data-qc': 'decor' }, board); GS.markup(ic, artItem('kelapa')); }
+    const sent = txt(board, 420, 98, '', { 'font-size': 42 });
     const boardDots = el('g', null, board);
 
     // raft
@@ -956,8 +957,8 @@
 
     // cargo
     const pool = GS.shuffle(['karung', 'keranjang', 'kantong', 'semangka', 'karung', 'keranjang', 'kantong', 'semangka']);
-    const homes = many ? [[50, 566], [125, 566], [200, 566], [275, 566], [350, 566], [30, 506], [105, 506], [180, 506], [255, 506], [330, 506]]
-      : [[92, 566], [205, 566], [318, 566], [148, 506], [262, 506], [40, 506]];
+    const homes = many ? [[50, 572], [125, 572], [200, 572], [275, 572], [350, 572], [30, 488], [105, 488], [180, 488], [255, 488], [330, 488]]
+      : [[92, 572], [205, 572], [318, 572], [148, 488], [262, 488], [40, 488]];
     const order = GS.shuffle(P.ws.map((kg, j) => j));
     const cargo = P.ws.map((kg, j) => {
       let name = P.names ? P.names[j] : pool[j];
@@ -969,7 +970,7 @@
       void h;
       t.home = { x: h[0], y: h[1] };
       t.slot = null;
-      if (!fruit) { t.tagG = kgTag(t.g, kg, dots, -t.bb.h * t.base * 0.42); if (many) t.tagG.setAttribute('transform', t.tagG.getAttribute('transform') + ' scale(0.8)'); }
+      if (!fruit) { t.tagG = kgTag(t.g, kg, dots, -t.bb.h * t.base * 0.42); if (many) t.tagG.setAttribute('transform', t.tagG.getAttribute('transform') + ' scale(0.9)'); }
       place(t, t.home.x, t.home.y);
       return t;
     });
@@ -990,8 +991,8 @@
         // TK: the count is always shown with dots, nothing to read
         sent.textContent = String(on.length);
         boardDots.innerHTML = '';
-        for (let d = 0; d < on.length; d++) el('circle', { cx: 300 + d * 30, cy: 70, r: 11, fill: '#2F80C9', stroke: OUT, 'stroke-width': 2 }, boardDots);
-        sent.setAttribute('x', 250);
+        for (let d = 0; d < on.length; d++) el('circle', { cx: 300 + d * 40, cy: 84, r: 15, fill: '#2F80C9', stroke: OUT, 'stroke-width': 2 }, boardDots);
+        sent.setAttribute('x', 230); sent.setAttribute('font-size', 52);
         return;
       }
       if (!on.length) s = '0 kg';
@@ -1005,8 +1006,18 @@
         s = terms.join(' + ') + ' = ' + (hideSum && !reveal ? '?' : sum) + ' kg';
       }
       sent.textContent = s;
-      sent.setAttribute('font-size', 38);
-      try { const L = sent.getComputedTextLength(); if (L > 440) sent.setAttribute('font-size', f1(38 * 440 / L)); } catch (e) { /* hidden */ }
+      sent.setAttribute('font-size', 42); sent.setAttribute('y', 98);
+      // too long for one line: break before "=" (never shrink below 36 u)
+      try {
+        if (sent.getComputedTextLength() > 450) {
+          const k = s.lastIndexOf(' = ');
+          sent.textContent = '';
+          [s.slice(0, k), s.slice(k + 1)].forEach((line, j) => { const ts = el('tspan', { x: 420, dy: j ? 46 : 0 }, sent); ts.textContent = line; });
+          sent.setAttribute('y', 76);
+          const L = sent.getComputedTextLength() / 2;
+          if (L > 450) sent.setAttribute('font-size', f1(Math.max(36, 42 * 450 / L)));
+        }
+      } catch (e) { /* hidden */ }
     }
     function draftTarget() {
       const l = load();
@@ -1252,7 +1263,7 @@
     return { x: (k - (cap - 1) / 2) * 19, y: -sh.D + 3 - row * 13 };
   }
   function drawJar(parent, x, y, target) {
-    const g = el('g', { class: 'pr-tap pr-focus', tabindex: 0, role: 'button', 'aria-label': 'Toples kelereng', transform: 'translate(' + x + ' ' + y + ')' }, parent);
+    const g = el('g', { class: 'pr-tap pr-focus', 'data-hit': 'jar', tabindex: 0, role: 'button', 'aria-label': 'Toples kelereng', transform: 'translate(' + x + ' ' + y + ')' }, parent);
     el('ellipse', { cx: 0, cy: 2, rx: 48, ry: 9, fill: OUT, 'fill-opacity': 0.18 }, g);
     el('rect', { class: 'pr-ring', x: -62, y: -150, width: 124, height: 168, rx: 18, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-dasharray': '10 7' }, g);
     el('rect', { x: -44, y: -104, width: 88, height: 104, rx: 20, fill: '#E3F4F6', 'fill-opacity': 0.7 }, g);
@@ -1262,9 +1273,7 @@
     el('path', { d: 'M-30 -86 v50', stroke: '#fff', 'stroke-width': 7, 'stroke-linecap': 'round', opacity: 0.6 }, g);
     el('rect', { x: -34, y: -118, width: 68, height: 18, rx: 7, fill: '#2F80C9', stroke: OUT, 'stroke-width': 3.5 }, g);
     el('path', { d: 'M-26 -112 h44', stroke: '#6FAEE3', 'stroke-width': 4, 'stroke-linecap': 'round' }, g);
-    const w = target ? 176 : 100;
-    el('rect', { x: -w / 2, y: 8, width: w, height: 28, rx: 10, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, g);
-    txt(g, 0, 29, target ? 'bawa ' + target + ' kelereng' : 'kelereng', { class: 't-body', 'font-size': target ? 17 : 18, 'font-weight': 700 });
+    void target;
     el('rect', { x: -62, y: -150, width: 124, height: 190, fill: '#fff', 'fill-opacity': 0 }, g);
     return g;
   }
@@ -1304,17 +1313,17 @@
     S.dragLayer = el('g', null, world);
 
     // comparison chart: one row per shape, bars made of marbles
-    const rows = mode === 'design' ? 3 : shapes.length, rowH = rows > 3 ? 46 : 56;
+    const rows = mode === 'design' ? 3 : shapes.length, rowH = rows > 3 ? 52 : 60;
     const chart = el('g', null, world);
-    const ch = { x: 24, y: 18, w: 600, h: 84 + rows * rowH };
+    const ch = { x: 24, y: 66, w: 600, h: 84 + rows * rowH };
     el('rect', { x: ch.x, y: ch.y, width: ch.w, height: ch.h, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, chart);
     el('rect', { x: ch.x + 11, y: ch.y + 11, width: ch.w - 22, height: ch.h - 22, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, chart);
-    txt(chart, ch.x + ch.w / 2, ch.y + 48, mode === 'design' ? 'Rancang mangkuk' : 'Muat berapa kelereng?', { class: 't-display', 'font-size': 28 });
+    txt(chart, ch.x + ch.w / 2, ch.y + 50, mode === 'design' || mode === 'target' ? 'Bawa ' + S.target + ' kelereng!' : 'Muat berapa kelereng?', { class: 't-display', 'font-size': 38 });
     let info = null;
     if (mode === 'design') {
-      info = [0, 1, 2].map(r => txt(chart, ch.x + ch.w / 2, ch.y + 98 + r * 50, '', { class: 't-body', 'font-size': 25, 'font-weight': 700 }));
-      info[1].textContent = 'Kelereng ' + MMs + ' g. Air: 1 ml = 1 g.';
-      info[2].textContent = 'Bawa ' + S.target + ' kelereng, plastisin sehemat mungkin.';
+      info = [0, 1, 2].map(r => txt(chart, ch.x + ch.w / 2, ch.y + 104 + r * 52, '', { class: 't-body', 'font-size': 38, 'font-weight': 700 }));
+      info[1].textContent = 'Kelereng ' + MMs + ' g. Air 1 ml = 1 g.';
+      info[2].textContent = 'Plastisin sehemat mungkin!';
     }
     if (mode !== 'design') shapes.forEach((sh, r) => {
       const y = ch.y + 66 + r * rowH + rowH / 2;
@@ -1323,14 +1332,14 @@
       drawShape(ic, Object.assign({}, sh));
       el('path', { d: 'M' + (ch.x + 118) + ' ' + (y + 15) + ' H' + (ch.x + ch.w - 70), stroke: '#E5BE86', 'stroke-width': 2, 'stroke-dasharray': '4 6' }, chart);
       sh.bar = el('g', null, chart);
-      sh.num = txt(chart, ch.x + ch.w - 42, y + 12, '?', { 'font-size': 30, fill: '#A79C8F' });
+      sh.num = txt(chart, ch.x + ch.w - 42, y + 16, '?', { 'font-size': 42, fill: '#A79C8F' });
     });
 
     // shapes waiting on the jetty
     let xCursor = 40;
     const gap = (Math.min(560, 500) - shapes.reduce((a, s) => a + s.W, 0)) / (shapes.length - 1 || 1);
     shapes.forEach((sh, j) => {
-      sh.g = el('g', { class: 'pr-tap pr-focus', tabindex: 0, role: 'button', 'aria-label': sh.label }, jetty);
+      sh.g = el('g', { class: 'pr-tap pr-focus', 'data-hit': 'shape', tabindex: 0, role: 'button', 'aria-label': sh.label }, jetty);
       sh.home = { x: xCursor + sh.W / 2, y: 428 };
       xCursor += sh.W + gap;
       sh.sel = el('ellipse', { cx: 0, cy: 2, rx: sh.W / 2 + 16, ry: 14, fill: '#1F6FD1', 'fill-opacity': 0.25, stroke: '#1F6FD1', 'stroke-width': 4, display: 'none' }, sh.g);
@@ -1338,8 +1347,8 @@
       sh.ringEl = el('rect', { class: 'pr-ring', x: -sh.W / 2 - 14, y: -sh.D - 40, width: sh.W + 28, height: sh.D + 84, rx: 14, fill: 'none', stroke: '#1F6FD1', 'stroke-width': 4, 'stroke-dasharray': '10 7' }, sh.g);
       sh.art = drawShape(sh.g, sh);
       sh.hitR = null;
-      sh.tag = nameTag(sh.g, sh.label, shapes.length > 3 && j % 2 ? 32 : 0);
-      el('rect', { x: -Math.max(40, sh.W / 2 + 10), y: -sh.D - 40, width: Math.max(80, sh.W + 20), height: sh.D + 84, fill: '#fff', 'fill-opacity': 0 }, sh.g);
+      sh.tag = nameTag(sh.g, sh.label, shapes.length > 3 && j % 2 ? 46 : 0);
+      el('rect', { x: -Math.max(56, sh.W / 2 + 10), y: -sh.D - 40, width: Math.max(112, sh.W + 20), height: sh.D + 96, fill: '#fff', 'fill-opacity': 0 }, sh.g);
       sh.x = sh.home.x; sh.y = sh.home.y;
       sh.g.setAttribute('transform', 'translate(' + sh.x + ' ' + sh.y + ')');
       const pick = () => choose(sh);
@@ -1347,14 +1356,22 @@
       sh.g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
     });
     const posShape = (sh, x, y) => { sh.x = x; sh.y = y; sh.g.setAttribute('transform', 'translate(' + f1(x) + ' ' + f1(y) + ')'); };
-    const jar = drawJar(jetty, 608, 570, mode === 'target' || mode === 'design' ? S.target : 0);
+    const jar = drawJar(jetty, 618, 578, mode === 'target' || mode === 'design' ? S.target : 0);
     // number sign on the jetty: the child's guess (count) or the bowl size (design)
     let sign = null, guess = 0;
     if (mode === 'count' || mode === 'design') {
-      sign = el('g', { transform: 'translate(400 520)' }, jetty);
-      el('rect', { x: -86, y: -44, width: 172, height: 88, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, sign);
-      txt(sign, 0, -16, mode === 'count' ? 'tebakanku' : 'ukuran', { class: 't-body', 'font-size': 20, 'font-weight': 700 });
-      sign.num = txt(sign, 0, 32, mode === 'count' ? '?' : '1', { 'font-size': 44 });
+      sign = el('g', { transform: 'translate(372 534)' }, jetty);
+      el('rect', { x: -86, y: -54, width: 172, height: 108, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, sign);
+      txt(sign, 0, -18, mode === 'count' ? 'tebakanku' : 'ukuran', { class: 't-body', 'font-size': 34, 'font-weight': 700 });
+      sign.num = txt(sign, 0, 40, mode === 'count' ? '?' : '1', { 'font-size': 52 });
+      [-1, 1].forEach(d => {
+        const b = el('g', { class: 'pr-tap pr-focus', 'data-hit': d < 0 ? 'kurang' : 'tambah', tabindex: 0, role: 'button', 'aria-label': d < 0 ? 'Kurangi' : 'Tambah', transform: 'translate(' + (372 + d * 148) + ' 534)' }, jetty);
+        el('circle', { r: 56, fill: '#F28C28', stroke: OUT, 'stroke-width': 4 }, b);
+        el('path', { d: d < 0 ? 'M-20 0 H20' : 'M-20 0 H20 M0 -20 V20', stroke: '#2B1D14', 'stroke-width': 9, 'stroke-linecap': 'round' }, b);
+        const go = () => S.step && S.step(d);
+        b.addEventListener('click', go);
+        b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
     }
     function setDesign(sz) {
       const sh = shapes[0];
@@ -1363,7 +1380,7 @@
       sh.sel.setAttribute('rx', sh.W / 2 + 16); sh.shadow.setAttribute('rx', f1(sh.W * 0.42));
       sh.tag.querySelector('text').textContent = sh.label;
       sign.num.textContent = sh.s;
-      info[0].textContent = 'Ukuran ' + sh.s + ': ruang ' + sh.V + ' ml, plastisin ' + sh.M + ' g';
+      info[0].textContent = 'Ruang ' + sh.V + ' ml, plastisin ' + sh.M + ' g';
     }
 
     let choice = null;
@@ -1382,8 +1399,6 @@
         if (mode === 'count') { guess = clamp(guess + d, 0, 20); sign.num.textContent = guess; btn.disabled = false; }
         else setDesign(shapes[0].s + d);
       };
-      button('−', 'alt', () => step(-1)).setAttribute('aria-label', 'Kurangi');
-      button('+', 'alt', () => step(1)).setAttribute('aria-label', 'Tambah');
       S.step = step;
     }
     const btn = button('Coba!', '', () => coba());
@@ -1405,11 +1420,11 @@
         const d = jar.__d; jar.__d = null; if (!d) return;
         const tap = Math.hypot(p.x - d.sx, p.y - d.sy) < 12;
         const inTank = p.x > TK.x0 - 30 && p.x < TK.x1 + 30 && p.y < TK.base;
-        if (tap || inTank) addMarble(d.m, { x: tap ? 608 : p.x, y: tap ? 440 : p.y - 40 });
+        if (tap || inTank) addMarble(d.m, { x: tap ? 618 : p.x, y: tap ? 448 : p.y - 40 });
         else { GS.sfx.pop(); d.m.remove(); }
       }
     });
-    jar.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && loadSt) { e.preventDefault(); addMarble(null, { x: 608, y: 440 }); } });
+    jar.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && loadSt) { e.preventDefault(); addMarble(null, { x: 618, y: 448 }); } });
 
     async function addMarble(mEl, from) {
       const st = loadSt;
@@ -1606,7 +1621,7 @@
       const my = gen;
       (function feed() {
         if (my !== gen) return;
-        if (loadSt && !loadSt.busy) addMarble(null, { x: 608, y: 440 });
+        if (loadSt && !loadSt.busy) addMarble(null, { x: 618, y: 448 });
         setTimeout(feed, 60);
       })();
     };
@@ -1635,22 +1650,22 @@
     const total = ws.reduce((a, b) => a + b, 0);
     const WS = RV.ws, F = RV.F, HW = 165;
     const river = el('g', null, world);
-    drawRiver(river, WS);
-    drawPosts(river, [1170, 1260], 590);
+    drawRiver(river, WS, -600, 1880);
+    drawPosts(river, [1170, 1260, 1450, 1640, 1830], 590);
     const raftL = el('g', null, world);
-    drawWaterFront(el('g', null, world), 0, 1280, WS, 800, 0.5);
+    drawWaterFront(el('g', null, world), -600, 1880, WS, 800, 0.5);
     S.fxTop = el('g', null, world);
     const land = el('g', null, world);
-    el('rect', { x: 0, y: 596, width: 432, height: 24, fill: OUT, 'fill-opacity': 0.22 }, land);
-    drawPosts(land, [40, 210, 380], 596);
-    drawWaterFront(land, 0, 434, WS, 800, 0.5);
-    drawPier(land, -10, 432, 470, 574);
-    drawPier(land, 1150, 1290, 540, 568);
+    el('rect', { x: -600, y: 596, width: 1032, height: 24, fill: OUT, 'fill-opacity': 0.22 }, land);
+    drawPosts(land, [-470, -300, -130, 40, 210, 380], 596);
+    drawWaterFront(land, -600, 434, WS, 800, 0.5);
+    drawPier(land, -600, 432, 470, 574);
+    drawPier(land, 1150, 1880, 540, 568);
     const jettyL = el('g', null, world);
     S.dragLayer = el('g', null, world);
-    const board = el('g', null, world);
-    el('rect', { x: 26, y: 22, width: 590, height: 110, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, board);
-    el('rect', { x: 38, y: 33, width: 566, height: 88, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, board);
+    const board = el('g', { transform: 'translate(378 150)' }, world);
+    el('rect', { x: 26, y: 16, width: 640, height: 136, rx: 18, fill: '#A8673A', stroke: OUT, 'stroke-width': 4 }, board);
+    el('rect', { x: 38, y: 28, width: 616, height: 112, rx: 12, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 2.5 }, board);
     const rafts = [520 + 105, 980].map((x, r) => {
       const R = { x, g: el('g', null, raftL), r };
       R.bob = el('g', { class: 'pr-bob' }, R.g);
@@ -1659,11 +1674,11 @@
       R.slots = [[-105, -8], [0, -8], [105, -8], [-52, -28], [52, -28], [130, -28]].map(q => ({ x: q[0], y: q[1], t: null }));
       R.spr = Spring({ y: WS - F, target: WS - F, w: 4.2, z: 0.45, apply: sp => R.g.setAttribute('transform', 'translate(' + f1(R.x) + ' ' + f1(sp.y) + ')') });
       sim.springs.push(R.spr); R.spr.apply(R.spr);
-      R.line = txt(board, 320, 70 + r * 38, '', { 'font-size': 30 });
+      R.line = txt(board, 346, 76 + r * 48, '', { 'font-size': 42 });
       return R;
     });
     const pool = GS.shuffle(['karung', 'keranjang', 'kantong', 'semangka', 'karung', 'keranjang']);
-    const homes = [[92, 566], [205, 566], [318, 566], [148, 506], [262, 506], [376, 506]];
+    const homes = [[92, 572], [205, 572], [318, 572], [148, 488], [262, 488], [376, 488]];
     const cargo = ws.map((kg, j) => {
       const name = pool[j], C = CARGO[name];
       const t = makeThing(jettyL, name, artItem(name), fitScale(name, 86), { drag: true, aria: C.label + ' ' + kg + ' kilo' });
@@ -1756,14 +1771,13 @@
   const RHO_SALT = 1.1, RHO_EGG = 1.03;
   function choiceChips(parent, cx, y, onPick) {
     const chips = ['float', 'sink'].map((k, j) => {
-      const g = el('g', { class: 'pr-tap pr-focus', tabindex: 0, role: 'button', 'aria-label': k === 'float' ? 'Terapung' : 'Tenggelam', transform: 'translate(' + (cx + (j ? 70 : -70)) + ' ' + y + ')' }, parent);
+      const g = el('g', { class: 'pr-tap pr-focus', tabindex: 0, role: 'button', 'aria-label': k === 'float' ? 'Terapung' : 'Tenggelam', transform: 'translate(' + (cx + (j ? 66 : -66)) + ' ' + y + ')', 'data-hit': 'chip-' + k }, parent);
       const col = k === 'float' ? '#2F80C9' : '#F28C28';
-      g.bg = el('rect', { x: -68, y: -28, width: 136, height: 56, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, g);
-      el('rect', { x: -68, y: -28, width: 136, height: 56, rx: 16, fill: k === 'float' ? 'url(#pr-dots)' : 'url(#pr-stripes)', opacity: 0 }, g).classList.add('pat');
-      el('circle', { cx: -46, cy: 0, r: 16, fill: col, stroke: OUT, 'stroke-width': 2.5 }, g);
-      if (k === 'float') el('path', { d: 'M-58 3 q3 -4 6 0 t6 0 t6 0 t6 0 M-52 -10 h12 v9 h-12z', fill: 'none', stroke: '#fff', 'stroke-width': 2.5, 'stroke-linejoin': 'round' }, g);
-      else el('path', { d: 'M-46 -9 V9 M-52 3 L-46 9 L-40 3', fill: 'none', stroke: '#fff', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
-      txt(g, 14, 7, k === 'float' ? 'terapung' : 'tenggelam', { class: 't-body', 'font-size': 16, 'font-weight': 700 });
+      g.bg = el('rect', { x: -58, y: -56, width: 116, height: 112, rx: 16, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, g);
+      el('rect', { x: -58, y: -56, width: 116, height: 112, rx: 16, fill: k === 'float' ? 'url(#pr-dots)' : 'url(#pr-stripes)', opacity: 0 }, g).classList.add('pat');
+      el('circle', { cx: 0, cy: 0, r: 34, fill: col, stroke: OUT, 'stroke-width': 2.5 }, g);
+      if (k === 'float') el('path', { d: 'M-24 8 q6 -8 12 0 t12 0 t12 0 t12 0 M-10 -16 h20 v16 h-20z', fill: 'none', stroke: '#fff', 'stroke-width': 2.5, 'stroke-linejoin': 'round' }, g);
+      else el('path', { d: 'M-24 -16 q6 -6 12 0 t12 0 t12 0 t12 0 M0 -8 V20 M-11 9 L0 20 L11 9', fill: 'none', stroke: '#fff', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
       g.k = k; g.col = col;
       const pick = () => onPick(k);
       g.addEventListener('click', pick);
@@ -1797,7 +1811,7 @@
       return t;
     });
     const pred = [null, null];
-    const cc = tanks.map((tk, j) => choiceChips(world, tk.cx, 76, k => { if (S.locked) return; pred[j] = k; cc[j].set(k); GS.sfx.pop(); btn.disabled = pred.some(x => !x); }));
+    const cc = tanks.map((tk, j) => choiceChips(world, tk.cx, 62, k => { if (S.locked) return; pred[j] = k; cc[j].set(k); GS.sfx.pop(); btn.disabled = pred.some(x => !x); }));
     const btn = button('Cemplung!', '', () => cemplung());
     btn.disabled = true;
     let spoons = 0, fresh = null;
@@ -1877,18 +1891,18 @@
       t.tag = nameTag(t.g, t.label);
       return t;
     });
-    layoutRow(items.map(t => t.bb.w * t.base), 40, 630).forEach((x, j) => { items[j].home = { x, y: 380 }; place(items[j], x, 380); });
+    layoutRow(items.map(t => t.bb.w * t.base), 40, 630).forEach((x, j) => { items[j].home = { x, y: 366 }; place(items[j], x, 366); });
     const slots = [110, 250, 390, 530].map((x, k) => {
-      const g = el('g', { transform: 'translate(' + x + ' 572)' }, rack);
-      el('rect', { x: -62, y: -26, width: 124, height: 50, rx: 14, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, g);
+      const g = el('g', { transform: 'translate(' + x + ' 540)' }, rack);
+      el('rect', { x: -64, y: -30, width: 128, height: 60, rx: 14, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, g);
       el('rect', { x: -14, y: -18, width: 28, height: 34, rx: 4, fill: '#fff', stroke: OUT, 'stroke-width': 2.5 }, g);
       const h = 32 * (k + 1) / 5;
       el('rect', { x: -12.5, y: 15 - h, width: 25, height: h, fill: '#3FA7C4' }, g);
-      txt(g, -38, 8, String(k + 1), { 'font-size': 24 });
-      return { x, y: 548, t: null, g };
+      txt(g, -36, 14, String(k + 1), { 'font-size': 40 });
+      return { x, y: 512, t: null, g };
     });
-    txt(rack, 110, 622, 'sedikit terendam', { class: 't-body', 'font-size': 17, 'font-weight': 700 });
-    txt(rack, 530, 622, 'banyak terendam', { class: 't-body', 'font-size': 17, 'font-weight': 700 });
+    txt(rack, 46, 596, 'sedikit terendam', { class: 't-body', 'font-size': 34, 'font-weight': 700, 'text-anchor': 'start' });
+    txt(rack, 600, 596, 'banyak terendam', { class: 't-body', 'font-size': 34, 'font-weight': 700, 'text-anchor': 'end' });
     function put(t, q) {
       if (t.slot) t.slot.t = null;
       if (q && q.t && q.t !== t) { const o = q.t; o.slot = null; if (t.slot0) { put(o, t.slot0); } else { o.tag.removeAttribute('display'); flyTo(o, o.home.x, o.home.y, o.base, 200); } }
@@ -1930,7 +1944,7 @@
         const gx = xs[j] + t.bb.w * t.base / 2 + 8, gy = TK.ws + 150;
         const gg = el('g', { transform: 'translate(' + f1(Math.min(gx, TK.ix1 - 24)) + ' ' + gy + ')' }, S.fxTop);
         for (let c = 0; c < 10; c++) el('rect', { x: -9, y: -c * 9 - 9, width: 18, height: 8, rx: 2, fill: c < tenth ? '#2F80C9' : '#FFF8EC', stroke: OUT, 'stroke-width': 1.5 }, gg);
-        txt(gg, 0, 26, tenth + '/10', { 'font-size': 20 });
+        txt(gg, 0, 34, tenth + '/10', { 'font-size': 36 });
         const ok = sorted[j] === t;
         if (!ok) wrong++;
         if (ok) sparkle(S.fxTop, xs[j], b.y - b.H - 20);

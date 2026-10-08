@@ -113,32 +113,54 @@
     klepon: { shape: 'ball', r: 30, label: 'klepon' }
   };
   function foodPoly(def) {
-    if (def.shape === 'circle') return Geo.circle(def.r, 64);
+    if (def.shape === 'circle') return Geo.circle(def.r, 72);   // 5-degree steps, like sectorPoly
     if (def.shape === 'rect') return Geo.rect(def.w, def.h);
     if (def.shape === 'ball') return Geo.circle(def.r, 24);
     return Geo.roundRect(def.w, def.h, def.rr, 8);
   }
-  /** Line snapping, applied in the food's own frame, never to the math of the answer.
-   *  Circle: a motor-skill aid for 6-year-olds. When the drawn stroke already passes within
-   *  12 units of the centre, it is moved (angle kept) to pass exactly through the centre.
-   *  Rectangles: only the two exact midlines snap, when the stroke stays within 10 units. */
-  function snapLine(def, a, b) {
+  /* Snapping is a motor-skill aid only (phone scale is ~0.45, a 6-year-old's swipe is rough).
+   * The child still decides how many cuts and where; areas are always measured truthfully.
+   * Round food cuts like a real martabak: a swipe passing near the centre becomes a diameter,
+   * a swipe that starts (or ends) near the centre becomes a radius; angles snap to 15 degrees
+   * (the rim ticks are every 30). Rectangles: near-horizontal/vertical swipes are straightened
+   * and snap to the nearest equal division of the side; other swipes near the centre pass
+   * exactly through it. */
+  const YOUNG = TIER === 'tk' || TIER === 'k1';
+  const SNAP = { centre: YOUNG ? 80 : 60, line: YOUNG ? 40 : 30, deg: 15 };
+  const LINE_DIVS = YOUNG ? [2, 4] : [2, 3, 4, 6, 8];
+  const GUIDE_OPACITY = { tk: 1, k1: 1, k2: 1, k3: 0.35, k4: 0 }[TIER];
+  function lineFractions() {
+    const out = [];
+    LINE_DIVS.forEach(m => { for (let k = 1; k < m; k++) if (!out.some(f => Math.abs(f - k / m) < 1e-9)) out.push(k / m); });
+    return out;
+  }
+  function snapRect(def, a, b) {
     const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
-    if (def.shape === 'circle') {
-      const nx = -dy / L, ny = dx / L, d = a.x * nx + a.y * ny;
-      if (Math.abs(d) <= 12) return { a: { x: a.x - nx * d, y: a.y - ny * d }, b: { x: b.x - nx * d, y: b.y - ny * d }, snapped: Math.abs(d) > 1e-9 };
-      return { a, b, snapped: false };
-    }
-    const hw = def.w / 2, hh = def.h / 2;
-    if (Math.abs(dy) > 1e-6) {
-      const xt = a.x + dx * (-hh - a.y) / dy, xb = a.x + dx * (hh - a.y) / dy;
-      if (Math.abs(xt) <= 10 && Math.abs(xb) <= 10) return { a: { x: 0, y: a.y }, b: { x: 0, y: b.y }, snapped: true };
-    }
-    if (Math.abs(dx) > 1e-6) {
-      const yl = a.y + dy * (-hw - a.x) / dx, yr = a.y + dy * (hw - a.x) / dx;
-      if (Math.abs(yl) <= 10 && Math.abs(yr) <= 10) return { a: { x: a.x, y: 0 }, b: { x: b.x, y: 0 }, snapped: true };
-    }
-    return { a, b, snapped: false };
+    const hw = def.w / 2, hh = def.h / 2, lim = Math.sin(12 * Math.PI / 180);
+    const nearest = (v, half) => {
+      let best = null;
+      for (const f of lineFractions()) { const c = -half + 2 * half * f; if (Math.abs(c - v) <= SNAP.line && (best === null || Math.abs(c - v) < Math.abs(best - v))) best = c; }
+      return best === null ? v : best;
+    };
+    if (Math.abs(dy / L) < lim) { const y = nearest(a.y + dy * (0 - a.x) / (dx || 1e-9), hh); return { a: { x: a.x, y }, b: { x: b.x, y } }; }
+    if (Math.abs(dx / L) < lim) { const x = nearest(a.x + dx * (0 - a.y) / (dy || 1e-9), hw); return { a: { x, y: a.y }, b: { x, y: b.y } }; }
+    const nx = -dy / L, ny = dx / L, d = a.x * nx + a.y * ny;
+    if (Math.abs(d) <= SNAP.line) return { a: { x: a.x - nx * d, y: a.y - ny * d }, b: { x: b.x - nx * d, y: b.y - ny * d } };
+    return { a, b };
+  }
+  /** Sector of a round food (degrees, a1 > a0, span <= 360) as a polygon; radial edges are cut edges.
+   *  Arcs use 5-degree steps, so sectors of equal angle have exactly equal area. */
+  function sectorPoly(r, a0, a1) {
+    const n = Math.max(1, Math.round((a1 - a0) / 5));
+    const pts = [{ x: 0, y: 0, cut: true }];
+    for (let k = 0; k <= n; k++) { const t = (a0 + (a1 - a0) * k / n) * Math.PI / 180; pts.push({ x: r * Math.cos(t), y: r * Math.sin(t), cut: k === n }); }
+    return pts;
+  }
+  function raySplit(sec, th) {
+    if (!sec) return [{ a0: th, a1: th + 360 }];          // first radius: a slit, still one piece
+    const t = sec.a0 + ((((th - sec.a0) % 360) + 360) % 360);
+    if (t <= sec.a0 + 0.5 || t >= sec.a1 - 0.5) return null;
+    return [{ a0: sec.a0, a1: t }, { a0: t, a1: sec.a1 }];
   }
 
   /* ================= art helpers (Kampung Chunky) ================= */
@@ -246,9 +268,9 @@
       '<text x="0" y="' + (fs * 0.83).toFixed(1) + '" text-anchor="middle" font-size="' + fs + '" fill="' + color + '" class="gs-num">' + d + '</text>';
   }
   function tagMarkup(d, n) {
-    return '<rect x="-23" y="-34" width="46" height="70" rx="14" fill="' + OUT + '" opacity=".2" transform="translate(2 4)"/>' +
-      '<rect x="-23" y="-34" width="46" height="70" rx="14" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
-      '<g transform="translate(0 -1)">' + fracMarkup(n || 1, d, 28, '#2B1D14') + '</g>';
+    return '<rect x="-31" y="-47" width="62" height="96" rx="16" fill="' + OUT + '" opacity=".2" transform="translate(2 4)"/>' +
+      '<rect x="-31" y="-47" width="62" height="96" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>' +
+      '<g transform="translate(0 -2)">' + fracMarkup(n || 1, d, 40, '#2B1D14') + '</g>';
   }
   function faceMarkup(kind) {
     // A round friend-face emoji used inside the reaction bubble.
@@ -312,17 +334,17 @@
   const world = GS.el('g', { class: 'world' }, svg);
 
   function drawCounter(g) {
-    let s = '<rect x="-420" y="300" width="2120" height="620" fill="#C68A55"/>' +
-      '<rect x="-420" y="306" width="2120" height="30" fill="#D9A270" opacity=".7"/>';
-    [470, 640].forEach(y => { s += '<path d="M-420 ' + y + 'H1700" stroke="#8E5530" stroke-width="3" opacity=".45"/><path d="M-420 ' + (y + 3) + 'H1700" stroke="#E3B07D" stroke-width="2" opacity=".5"/>'; });
+    let s = '<rect x="-600" y="300" width="2480" height="620" fill="#C68A55"/>' +
+      '<rect x="-600" y="306" width="2480" height="30" fill="#D9A270" opacity=".7"/>';
+    [470, 640].forEach(y => { s += '<path d="M-600 ' + y + 'H1880" stroke="#8E5530" stroke-width="3" opacity=".45"/><path d="M-600 ' + (y + 3) + 'H1880" stroke="#E3B07D" stroke-width="2" opacity=".5"/>'; });
     const R = rng(7);
     for (let k = 0; k < 16; k++) {
       const x = R() * 1280, y = 340 + R() * 440, w = 60 + R() * 120;
       s += '<path d="M' + x.toFixed(0) + ' ' + y.toFixed(0) + 'q' + (w / 2).toFixed(0) + ' -8 ' + w.toFixed(0) + ' 0" fill="none" stroke="#A8673A" stroke-width="2.5" stroke-linecap="round" opacity=".35"/>';
     }
-    s += '<rect x="-420" y="290" width="2120" height="16" fill="#7E4A27"/>' +
-      '<path d="M-420 290H1700" stroke="' + OUT + '" stroke-width="3"/>' +
-      '<path d="M-420 296H1700" stroke="#A8673A" stroke-width="3" opacity=".8"/>';
+    s += '<rect x="-600" y="290" width="2480" height="16" fill="#7E4A27"/>' +
+      '<path d="M-600 290H1880" stroke="' + OUT + '" stroke-width="3"/>' +
+      '<path d="M-600 296H1880" stroke="#A8673A" stroke-width="3" opacity=".8"/>';
     GS.markup(g, s);
   }
 
@@ -368,8 +390,9 @@
 
   /* Reusable level builders (parameterised); the tier tables below pick from them. */
   const LV = {
-    cutEqual: (food, n, knives, say, win, extra) => Object.assign({ kind: 'cut', food, people: pickPeople(n), knives, say, win }, extra || {}),
-    cutOrders: (food, orders, knives, say, win, extra) => Object.assign({ kind: 'cut', food, knives, labels: true, tagAfter: true, say, win: win || 'Pesanan pas semua. Hebat!' }, withOrders(orders, extra && extra.names), extra || {}),
+    // knives: what a careful child needs + 2 spare, so a wobbly cut never strands anyone
+    cutEqual: (food, n, knives, say, win, extra) => Object.assign({ kind: 'cut', food, people: pickPeople(n), knives: knives + 2, say, win }, extra || {}),
+    cutOrders: (food, orders, knives, say, win, extra) => Object.assign({ kind: 'cut', food, knives: knives + 2, labels: true, tagAfter: true, say, win: win || 'Pesanan pas semua. Hebat!' }, withOrders(orders, extra && extra.names), extra || {}),
     pick: () => {
       const p = pickPeople(2);
       return { kind: 'pick', people: p, orders: [F(1, 4), F(1, 4)], plateScale: 0.9, tagAfter: true, say: p[0].name + ' dan ' + p[1].name + ' minta seperempat. Pilih yang pas!', win: 'Bentuknya beda, sama-sama seperempat!' };
@@ -398,7 +421,7 @@
       () => LV.cutEqual('lapis', 2, 2, 'Kue lapis untuk dua teman. Potong ya!', diagWin, TK),
       () => LV.match(),
       () => LV.set(4, null, 'Ada empat klepon. Bagi sama banyak untuk dua teman!', 'Dua dan dua. Sama banyak!', { tol: 0.12, ballR: 36 }),
-      () => LV.cutEqual(Math.random() < 0.5 ? 'martabak' : 'roti', 2, 1, 'Pisaunya cuma satu. Potong yang pas, ya!', 'Hebat! Sekali potong, adil!', TK)
+      () => LV.cutEqual(Math.random() < 0.5 ? 'martabak' : 'roti', 2, 1, 'Tantangan! Gesek pisaunya, bagi yang adil.', 'Hebat! Adil untuk berdua!', TK)
     ],
     k1: [
       () => LV.cutEqual('martabak', 2, 2, 'Potong martabak jadi dua. Sama besar ya!', 'Dua bagian sama besar. Setengah!'),
@@ -518,7 +541,7 @@
     const sw = GS.el('g', { class: 'mk-card-swing' }, f.card);
     const hungryCard = L.kind === 'hungry';
     if (f.order || hungryCard) {
-      const h = 132, w = 118, y0 = 22;
+      const h = 150, w = Math.max(130, f.name.length * 16 + 30), y0 = 12;
       GS.markup(sw, '<path d="M-26 0L0 ' + y0 + 'L26 0" fill="none" stroke="#7E4A27" stroke-width="3"/>' +
         '<rect x="' + (-w / 2 + 4) + '" y="' + (y0 + 6) + '" width="' + w + '" height="' + h + '" rx="16" fill="' + OUT + '" opacity=".18"/>' +
         '<rect x="' + (-w / 2) + '" y="' + y0 + '" width="' + w + '" height="' + h + '" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>' +
@@ -527,24 +550,24 @@
         const [a, op, b] = f.order.expr;
         GS.markup(sw, '<rect x="' + (-w / 2 - 20) + '" y="' + y0 + '" width="' + (w + 40) + '" height="' + h + '" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>' +
           '<circle cx="0" cy="' + (y0 + 10) + '" r="5" fill="#E2453C" stroke="' + OUT + '" stroke-width="2"/>' +
-          '<g transform="translate(-40 ' + (y0 + 60) + ')">' + fracMarkup(a[0], a[1], 36, '#2B1D14') + '</g>' +
-          '<text x="0" y="' + (y0 + 72) + '" text-anchor="middle" font-size="38" fill="#2B1D14" class="gs-num">' + (op === '+' ? '+' : '−') + '</text>' +
-          '<g transform="translate(40 ' + (y0 + 60) + ')">' + fracMarkup(b[0], b[1], 36, '#2B1D14') + '</g>');
-      } else if (f.order) GS.markup(sw, '<g transform="translate(0 ' + (y0 + 62) + ')">' + fracMarkup(f.order.n, f.order.d, 46, '#2B1D14') + '</g>');
+          '<g transform="translate(-46 ' + (y0 + 62) + ')">' + fracMarkup(a[0], a[1], 40, '#2B1D14') + '</g>' +
+          '<text x="0" y="' + (y0 + 72) + '" text-anchor="middle" font-size="42" fill="#2B1D14" class="gs-num">' + (op === '+' ? '+' : '−') + '</text>' +
+          '<g transform="translate(46 ' + (y0 + 62) + ')">' + fracMarkup(b[0], b[1], 40, '#2B1D14') + '</g>');
+      } else if (f.order) GS.markup(sw, '<g transform="translate(0 ' + (y0 + 64) + ')">' + fracMarkup(f.order.n, f.order.d, 48, '#2B1D14') + '</g>');
       else {
         const hungry = f.k === L.hungry;
-        GS.markup(sw, '<g transform="translate(0 ' + (y0 + 68) + ') scale(1.15)">' + faceMarkup(hungry ? 'hungry' : 'happy') + '</g>' +
-          '<text class="mk-name" x="0" y="' + (y0 + 120) + '" text-anchor="middle" font-size="19" fill="#2B1D14">' + (hungry ? 'lapar!' : 'sedikit saja') + '</text>');
+        GS.markup(sw, '<g transform="translate(0 ' + (y0 + 76) + ') scale(1.15)">' + faceMarkup(hungry ? 'hungry' : 'happy') + '</g>' +
+          '<text class="mk-name" x="0" y="' + (y0 + 138) + '" text-anchor="middle" font-size="30" fill="#2B1D14">' + (hungry ? 'lapar!' : 'sedikit') + '</text>');
       }
-      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + h - 10, 'text-anchor': 'middle', 'font-size': 21, fill: '#2B1D14' }, sw);
+      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + h - 12, 'text-anchor': 'middle', 'font-size': 30, fill: '#2B1D14' }, sw);
       t.textContent = f.name;
-      if (!f.order) t.setAttribute('y', y0 + 30);
+      if (!f.order) t.setAttribute('y', y0 + 36);
     } else {
-      const w = Math.max(96, f.name.length * 13 + 36), y0 = 112;
+      const w = Math.max(110, f.name.length * 17 + 36), y0 = 104;
       GS.markup(sw, '<path d="M0 0V' + y0 + '" stroke="#7E4A27" stroke-width="3"/>' +
-        '<rect x="' + (-w / 2 + 3) + '" y="' + (y0 + 5) + '" width="' + w + '" height="46" rx="14" fill="' + OUT + '" opacity=".18"/>' +
-        '<rect x="' + (-w / 2) + '" y="' + y0 + '" width="' + w + '" height="46" rx="14" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>');
-      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + 31, 'text-anchor': 'middle', 'font-size': 23, fill: '#2B1D14' }, sw);
+        '<rect x="' + (-w / 2 + 3) + '" y="' + (y0 + 5) + '" width="' + w + '" height="54" rx="16" fill="' + OUT + '" opacity=".18"/>' +
+        '<rect x="' + (-w / 2) + '" y="' + y0 + '" width="' + w + '" height="54" rx="16" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3.5"/>');
+      const t = GS.el('text', { class: 'mk-name', x: 0, y: y0 + 38, 'text-anchor': 'middle', 'font-size': 30, fill: '#2B1D14' }, sw);
       t.textContent = f.name;
     }
   }
@@ -617,12 +640,13 @@
   }
 
   /* ================= pieces ================= */
-  function makePiece(food, poly, pos) {
+  let gest = null;
+  function makePiece(food, poly, pos, sector) {
     const c = Geo.centroid(poly);
     const p = {
       id: ++pieceSeq, food, poly, c, bb: Geo.bbox(poly), area: Geo.absArea(poly),
       pos: pos || { x: food.ox + c.x, y: food.oy + c.y }, rot: 0, s: 1, sx: 1, sy: 1, lift: 1,
-      plate: null, locked: false, tagD: 0
+      plate: null, locked: false, tagD: 0, sector: sector || null
     };
     const cp = GS.el('clipPath', { id: 'mkc' + p.id }, defs);
     GS.el('polygon', { points: pts(poly) }, cp);
@@ -636,13 +660,36 @@
     drawCutEdges(p, art);
     GS.el('polygon', { points: pts(poly), fill: 'none', stroke: OUT, 'stroke-width': 3.5, 'stroke-linejoin': 'round', 'pointer-events': 'none' }, g);
     p.hit = GS.el('rect', { fill: '#000', 'fill-opacity': 0 }, g);
-    p.hitSmall = p.bb.w < 64 || p.bb.h < 64;
+    p.hitSmall = p.bb.w < 100 || p.bb.h < 100;
     setHit(p);
     GS.drag(g, {
       svg,
-      onStart: pt => { if (busy || p.locked || L.kind === 'order') return false; startDrag(p, pt); },
-      onMove: pt => moveDrag(p, pt),
-      onEnd: pt => endDrag(p, pt)
+      // On the board a quick flick that starts on the food is a knife swipe (Fruit Ninja style);
+      // a press-and-move is a drag. A fast flick that ends on a plate is a drag too.
+      onStart: pt => {
+        if (busy || p.locked || L.kind === 'order') return false;
+        if (L.kind === 'cut' && !p.plate && knives > 0 && p.food.def.shape !== 'ball') { layers.pieces.appendChild(p.el); gest = { p, t0: performance.now(), a: pt, mode: 'pending' }; return; }
+        gest = { p, mode: 'drag' }; startDrag(p, pt);
+      },
+      onMove: pt => {
+        if (!gest || gest.p !== p) return;
+        if (gest.mode === 'pending') {
+          const d = Math.hypot(pt.x - gest.a.x, pt.y - gest.a.y), dt = performance.now() - gest.t0;
+          if (d > 26 && dt < 120) { gest.mode = 'swipe'; swipeStart(gest.a); swipeMove(pt); }
+          else if ((d > 10 && dt >= 120) || dt > 280) { gest.mode = 'drag'; startDrag(p, gest.a); moveDrag(p, pt); }
+          return;
+        }
+        if (gest.mode === 'swipe') swipeMove(pt); else moveDrag(p, pt);
+      },
+      onEnd: pt => {
+        if (!gest || gest.p !== p) return;
+        const m = gest.mode; gest = null;
+        if (m === 'drag') return endDrag(p, pt);
+        if (m !== 'swipe') return;
+        const pl = plateAt({ x: pt.x, y: pt.y - LIFT });
+        if (pl) { swipeCancel(); putOnPlate(p, pl); GS.sfx.drop(); squash(p); updateButtons(); updateSteam(); return; }
+        swipeEnd(pt);
+      }
     });
     pieces.push(p);
     applyT(p);
@@ -675,7 +722,7 @@
   /** Invisible grab area: >= 72 world units on the board (thin pieces only, so it never
    *  swallows the start of a knife stroke) and >= 84 world units on a plate. */
   function setHit(p) {
-    const bb = p.bb, on = !!p.plate, need = on ? 84 / L.plateScale : 72;
+    const bb = p.bb, on = !!p.plate, need = on ? 104 / L.plateScale : 100;
     const hw = Math.max(bb.w + (on ? 20 : 0), need), hh = Math.max(bb.h + (on ? 20 : 0), need);
     p.hit.setAttribute('x', (bb.cx - hw / 2).toFixed(1)); p.hit.setAttribute('y', (bb.cy - hh / 2).toFixed(1));
     p.hit.setAttribute('width', hw.toFixed(1)); p.hit.setAttribute('height', hh.toFixed(1));
@@ -690,8 +737,9 @@
     const s = p.s * p.lift;
     p.el.setAttribute('transform', 'translate(' + p.pos.x.toFixed(2) + ' ' + p.pos.y.toFixed(2) + ') rotate(' + p.rot.toFixed(2) + ') scale(' + (s * p.sx).toFixed(4) + ' ' + (s * p.sy).toFixed(4) + ') translate(' + (-p.c.x).toFixed(2) + ' ' + (-p.c.y).toFixed(2) + ')');
     if (p.tag) {
+      // tags stay readable (>= 36 u digits); only locked reference pieces may shrink them
       const thin = Math.min(p.bb.w, p.bb.h) * s;
-      const k = (p.plate ? 0.85 : 1) * GS.clamp(thin / 62, 0.62, 1) / Math.max(0.2, s);
+      const k = GS.clamp(thin / 70, p.locked ? 0.6 : 0.92, 1) / Math.max(0.2, s);
       p.tag.setAttribute('transform', 'translate(' + p.c.x.toFixed(2) + ' ' + p.c.y.toFixed(2) + ') rotate(' + (-p.rot).toFixed(2) + ') scale(' + k.toFixed(3) + ')');
     }
   }
@@ -720,7 +768,7 @@
     if (p.tag) { p.tag.remove(); p.tag = null; }
     p.tagD = d ? (n > 1 ? -1 : d) : 0;
     if (!d) return;
-    p.tag = GS.el('g', { 'pointer-events': 'none' }, p.el);
+    p.tag = GS.el('g', { 'pointer-events': 'none', 'data-qc': p.locked ? 'decor' : null }, p.el);
     const inner = GS.el('g', null, p.tag);
     GS.markup(inner, tagMarkup(d, n));
     applyT(p);
@@ -735,7 +783,7 @@
     const from = { pos: { ...p.pos }, s: p.s, plate: p.plate };
     if (p.plate) { const pl = p.plate; pl.pieces = pl.pieces.filter(q => q !== p); p.plate = null; layoutPlate(pl, true); setHit(p); }
     drag = { p, from };
-    layers.pieces.appendChild(p.el);
+    if (layers.pieces.lastChild !== p.el) layers.pieces.appendChild(p.el);   // (moving a captured element would drop the pointer capture)
     p.el.style.cursor = 'grabbing';
     GS.sfx.pick();
     const r0 = p.rot;
@@ -826,15 +874,14 @@
     });
   }
 
-  /* ================= cutting ================= */
-  let cutting = null;
+  /* ================= cutting: swipe like Fruit Ninja ================= */
   function freshPieces() {
     const food = L.foodRef;
     makePiece(food, food.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
     if (L.extraFood) {
       // the "½" of 1½ martabak: one half already cut (k4)
-      const ef = L.extraFood, half = Geo.split(ef.poly.map(q => ({ x: q.x, y: q.y, cut: false })), { x: 0, y: -400 }, { x: 0, y: 400 })[0];
-      makePiece(ef, half);
+      const ef = L.extraFood;
+      makePiece(ef, sectorPoly(ef.def.r, 90, 270), null, { a0: 90, a1: 270 });
     }
   }
   function buildCutLevel() {
@@ -842,107 +889,183 @@
     const def = FOOD[L.food];
     if (def.shape === 'circle') { drawLoyang(c, def.r / 145); }
     else drawTalenan(c, def.w + 100, def.h + 84, def.shape === 'rect' ? { w: def.w + 34, h: def.h + 30 } : null);
-    guideG = GS.el('g', { opacity: 0 }, layers.board);
+    guideG = GS.el('g', { opacity: GUIDE_OPACITY, 'pointer-events': 'none' }, layers.board);
     const food = makeFood(L.food, c.x, c.y);
     L.unit = food.area;
     L.foodRef = food;
     if (L.extraHalf) { const c2 = { x: 870, y: c.y }; drawLoyang(c2, def.r / 145); L.extraFood = makeFood(L.food, c2.x, c2.y); }
+    drawGuides();
     freshPieces();
     if (def.shape === 'circle') drawSteam(c);
     knives = L.knives;
     drawKnifeRack();
-    // the cutting surface: strokes must start outside the food
-    const zone = GS.el('rect', { x: 100, y: 318, width: 1080, height: 482, fill: '#000', 'fill-opacity': 0 }, layers.zone);
+    // the cutting surface: a swipe can start anywhere
+    const zone = GS.el('rect', { x: -600, y: 318, width: 2480, height: 520, fill: '#000', 'fill-opacity': 0 }, layers.zone);
     zone.style.cursor = 'crosshair';
-    cutting = null;
+    swipe = null;
     GS.drag(zone, {
       svg,
       onStart: pt => {
         if (busy) return false;
-        if (knives <= 0) { GS.sfx.oops(); hud.mood('think'); GS.say('Pisaunya habis. Bagikan, atau tekan Ulang.'); wobbleEl(knifeRack); return false; }
-        cutting = { a: pt, b: pt };
-        drawCutPreview();
+        if (knives <= 0) { GS.sfx.oops(); hud.mood('think'); GS.say('Pisaunya habis. Mau potong lagi? Tekan Ulang.'); wobbleEl(knifeRack); nudgeReset(); return false; }
+        swipeStart(pt);
       },
-      onMove: pt => { if (!cutting) return; cutting.b = pt; drawCutPreview(); },
-      onEnd: pt => { if (!cutting) return; cutting.b = pt; const cu = cutting; cutting = null; clearCutPreview(); performCut(cu.a, cu.b); }
+      onMove: pt => swipeMove(pt),
+      onEnd: pt => swipeEnd(pt)
     });
   }
-  let previewG = null;
-  function drawCutPreview() {
-    if (!previewG) previewG = GS.el('g', null, layers.fx);
-    if (!previewG.parentNode) layers.fx.appendChild(previewG);
-    previewG.innerHTML = '';
-    const a = cutting.a, b = cutting.b;
-    const len = Math.hypot(b.x - a.x, b.y - a.y);
-    const info = cutInfo(a, b);
-    const col = info.hits.length ? '#0F8C7A' : OUT;
-    if (len > 4) {
-      GS.el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: '#fff', 'stroke-width': 10, 'stroke-linecap': 'round', opacity: 0.75 }, previewG);
-      GS.el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: col, 'stroke-width': 4.5, 'stroke-dasharray': '14 10', 'stroke-linecap': 'round' }, previewG);
-      info.hits.forEach(h => {
-        if (h.snapped && h.p.food.def.shape === 'circle') {
-          const w = toWorld(h.p, { x: 0, y: 0 });
-          GS.markup(GS.el('g', { transform: 'translate(' + w.x.toFixed(1) + ' ' + w.y.toFixed(1) + ')' }, previewG), '<circle class="mk-snapdot" r="9" fill="#FFC83D" stroke="' + OUT + '" stroke-width="3"/>');
-        }
+  /** Rim ticks (every 30 degrees) and a centre dot for round food; dots at equal divisions on
+   *  rectangle sides. Full in TK to Kelas 2, faint in Kelas 3, none in Kelas 4 (concreteness fading). */
+  function drawGuides() {
+    const food = L.foodRef, def = food.def, c = { x: food.ox, y: food.oy };
+    let s = '';
+    const dot = (x, y, r) => '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + r + '" fill="#FFC83D" stroke="' + OUT + '" stroke-width="3"/>';
+    if (def.shape === 'circle') {
+      for (let k = 0; k < 12; k++) { const t = k * Math.PI / 6; s += dot(c.x + Math.cos(t) * (def.r + 17), c.y + Math.sin(t) * (def.r + 17), k % 3 ? 6 : 9); }
+    } else {
+      const hw = def.w / 2, hh = def.h / 2;
+      lineFractions().filter(f => YOUNG || [1 / 4, 1 / 3, 1 / 2, 2 / 3, 3 / 4].some(g => Math.abs(g - f) < 1e-9)).forEach(f => {
+        const r = Math.abs(f - 0.5) < 1e-9 ? 9 : 6;
+        s += dot(c.x - hw - 22, c.y - hh + def.h * f, r) + dot(c.x + hw + 22, c.y - hh + def.h * f, r) +
+          dot(c.x - hw + def.w * f, c.y - hh - 22, r) + dot(c.x - hw + def.w * f, c.y + hh + 22, r);
       });
     }
-    GS.el('circle', { cx: a.x, cy: a.y, r: 7, fill: col, stroke: '#fff', 'stroke-width': 3 }, previewG);
-    const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
-    const flip = Math.cos(ang * Math.PI / 180) < 0 ? ' scale(1 -1)' : '';
-    GS.markup(GS.el('g', { transform: 'translate(' + b.x.toFixed(1) + ' ' + b.y.toFixed(1) + ') rotate(' + ang.toFixed(1) + ')' + flip }, previewG), knifeMarkup());
-  }
-  function clearCutPreview() { if (previewG) previewG.innerHTML = ''; }
-  /** Which board pieces does segment a->b fully cross, and how would each split. */
-  function cutInfo(A, B) {
-    const hits = [];
-    for (const p of pieces) {
-      if (p.plate || p.locked) continue;
-      const a = toLocal(p, A), b = toLocal(p, B);
-      const ch = Geo.chord(p.poly, a, b);
-      if (!ch || ch[0] <= 0 || ch[1] >= 1) continue;     // must enter and leave the piece
-      const sn = snapLine(p.food.def, a, b);
-      const parts = Geo.split(p.poly, sn.a, sn.b);
-      if (!parts[0] || !parts[1]) continue;
-      if (Math.min(Geo.absArea(parts[0]), Geo.absArea(parts[1])) < 0.01 * p.food.area) continue;
-      hits.push({ p, parts, la: sn.a, lb: sn.b, snapped: sn.snapped });
+    GS.markup(guideG, s);
+    if (def.shape === 'circle') {
+      centreMark = GS.el('g', { opacity: GUIDE_OPACITY, 'pointer-events': 'none' }, layers.fx);
+      GS.markup(centreMark, '<circle cx="' + c.x + '" cy="' + c.y + '" r="9" fill="#FFF8EC" stroke="' + OUT + '" stroke-width="3"/>');
     }
-    return { hits };
   }
-  function performCut(A, B) {
-    if (Math.hypot(B.x - A.x, B.y - A.y) < 20) return false;
-    const { hits } = cutInfo(A, B);
-    if (!hits.length) {
+  let swipe = null, trailG = null, centreMark = null;
+  function swipeStart(a) {
+    swipe = { a, b: a, pts: [{ x: a.x, y: a.y, t: performance.now() }] };
+    if (!trailG || !trailG.parentNode) trailG = GS.el('g', null, layers.fx);
+    trailG.setAttribute('opacity', 1);
+    drawTrail();
+  }
+  function swipeMove(pt) {
+    if (!swipe) return;
+    swipe.b = pt;
+    const now = performance.now();
+    swipe.pts.push({ x: pt.x, y: pt.y, t: now });
+    swipe.pts = swipe.pts.filter((q, i) => i === swipe.pts.length - 1 || now - q.t < 240);
+    drawTrail();
+  }
+  function drawTrail() {
+    trailG.innerHTML = '';
+    const P = swipe.pts, b = swipe.b;
+    if (P.length > 1) {
+      const d = P.map(q => q.x.toFixed(1) + ',' + q.y.toFixed(1)).join(' ');
+      GS.el('polyline', { points: d, fill: 'none', stroke: '#FFE08A', 'stroke-width': 26, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.45 }, trailG);
+      GS.el('polyline', { points: d, fill: 'none', stroke: '#FFFFFF', 'stroke-width': 10, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.95 }, trailG);
+    }
+    const prev = P.length > 1 ? P[Math.max(0, P.length - 3)] : swipe.a;
+    const ang = Math.atan2(b.y - prev.y, b.x - prev.x) * 180 / Math.PI || 0;
+    const flip = Math.cos(ang * Math.PI / 180) < 0 ? ' scale(1 -1)' : '';
+    GS.markup(GS.el('g', { transform: 'translate(' + b.x.toFixed(1) + ' ' + b.y.toFixed(1) + ') rotate(' + ang.toFixed(1) + ')' + flip }, trailG), knifeMarkup());
+  }
+  function swipeCancel() { swipe = null; if (trailG) trailG.innerHTML = ''; }
+  function swipeEnd(pt) {
+    if (!swipe) return;
+    swipe.b = pt;
+    const a = swipe.a;
+    const g = trailG;
+    tw(200, e => g.setAttribute('opacity', (1 - e).toFixed(2))).then(() => { if (!swipe) g.innerHTML = ''; });
+    swipe = null;
+    performSwipe(a, pt);
+  }
+  const hyp = v => Math.hypot(v.x, v.y);
+  function segDist(a, b) {   // distance from the origin to segment a-b
+    const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+    const t = GS.clamp(-(a.x * dx + a.y * dy) / L2, 0, 1);
+    return Math.hypot(a.x + dx * t, a.y + dy * t);
+  }
+  const snapDeg = x => Math.round(x / SNAP.deg) * SNAP.deg;
+  const angOf = v => Math.atan2(v.y, v.x) * 180 / Math.PI;
+  /** Round food: radius (from or to the centre) or diameter (through the centre). */
+  function roundGesture(p, A, B) {
+    const a = toLocal(p, A), b = toLocal(p, B), r = p.food.def.r, Rc = Math.min(SNAP.centre, r * 0.6);
+    const da = hyp(a), db = hyp(b);
+    if (da <= Rc && db >= 0.75 * r) return [snapDeg(angOf(b))];
+    if (db <= Rc && da >= 0.75 * r) return [snapDeg(angOf(a))];
+    if (da > Rc && db > Rc && segDist(a, b) <= Rc && Math.hypot(b.x - a.x, b.y - a.y) >= 0.9 * r) {
+      const th = snapDeg(angOf({ x: b.x - a.x, y: b.y - a.y }));
+      return [th, th + 180];
+    }
+    return null;
+  }
+  /** Straight food: the swipe must pass over the piece; the snapped line splits it. */
+  function lineGesture(p, A, B) {
+    const a = toLocal(p, A), b = toLocal(p, B), len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 70) return null;
+    const ch = Geo.chord(p.poly, a, b);
+    if (!ch || ch[1] <= 0 || ch[0] >= 1 || (Math.min(ch[1], 1) - Math.max(ch[0], 0)) * len < 20) return null;
+    const sn = snapRect(p.food.def, a, b);
+    const parts = Geo.split(p.poly, sn.a, sn.b);
+    if (!parts[0] || !parts[1] || Math.min(Geo.absArea(parts[0]), Geo.absArea(parts[1])) < 0.01 * p.food.area) return null;
+    return { p, parts, la: sn.a, lb: sn.b };
+  }
+  function performSwipe(A, B) {
+    if (Math.hypot(B.x - A.x, B.y - A.y) < 40) return false;
+    const board = pieces.filter(p => !p.plate && !p.locked && p.food.def.shape !== 'ball');
+    const roundJobs = [], lineJobs = [];
+    for (const p of board) {
+      if (p.food.def.shape === 'circle') {
+        const rays = roundGesture(p, A, B);
+        if (!rays) continue;
+        let list = [p.sector];
+        for (const th of rays) list = [].concat(...list.map(sec => raySplit(sec, th) || [sec]));
+        if (list.length === 1 && list[0] === p.sector) continue;
+        roundJobs.push({ p, list, rays });
+      } else { const h = lineGesture(p, A, B); if (h) lineJobs.push(h); }
+    }
+    if (!roundJobs.length && !lineJobs.length) {
       GS.sfx.tick(); hud.mood('think');
-      GS.say('Tarik pisaunya sampai lewat ujung ya.');
+      GS.say(board.some(p => p.food.def.shape === 'circle') ? 'Gesek pisaunya lewat tengah martabak, ya.' : 'Gesek pisaunya melewati kuenya, ya.');
       return false;
     }
     knives--; cutsMade++;
     updateKnives();
     GS.sfx.whoosh();
-    // slash flash along the (possibly snapped) line
-    const h0 = hits[0], fa = toWorld(h0.p, h0.la), fb = toWorld(h0.p, h0.lb);
-    const dx = fb.x - fa.x, dy = fb.y - fa.y, ln = Math.hypot(dx, dy) || 1;
-    const ext = 260, flash = GS.el('line', { x1: fa.x - dx / ln * ext, y1: fa.y - dy / ln * ext, x2: fb.x + dx / ln * ext, y2: fb.y + dy / ln * ext, stroke: '#fff', 'stroke-width': 8, 'stroke-linecap': 'round', opacity: 0.9 }, layers.fx);
-    tw(380, e => { flash.setAttribute('opacity', (0.9 * (1 - e)).toFixed(3)); flash.setAttribute('stroke-width', (8 * (1 - e) + 1).toFixed(2)); }).then(() => flash.remove());
-    for (const h of hits) {
+    const flash = (x1, y1, x2, y2) => {
+      const f = GS.el('line', { x1, y1, x2, y2, stroke: '#fff', 'stroke-width': 9, 'stroke-linecap': 'round', opacity: 0.95 }, layers.fx);
+      tw(380, e => { f.setAttribute('opacity', (0.95 * (1 - e)).toFixed(3)); f.setAttribute('stroke-width', (9 * (1 - e) + 1).toFixed(2)); }).then(() => f.remove());
+    };
+    for (const j of roundJobs) {
+      const p = j.p, r = p.food.def.r, O = toWorld(p, { x: 0, y: 0 });
+      j.rays.forEach(th => { const t = th * Math.PI / 180; flash(O.x, O.y, O.x + Math.cos(t) * (r + 24), O.y + Math.sin(t) * (r + 24)); });
+      removePiece(p);
+      j.list.forEach(sec => {
+        const poly = sectorPoly(r, sec.a0, sec.a1), c2 = Geo.centroid(poly);
+        const np = makePiece(p.food, poly, { x: p.pos.x + (c2.x - p.c.x), y: p.pos.y + (c2.y - p.c.y) }, sec);
+        if (sec.a1 - sec.a0 >= 359.9) return;            // a slit: nothing moves yet
+        const mid = (sec.a0 + sec.a1) / 2 * Math.PI / 180, p0 = { ...np.pos };
+        tw(420, e => { np.pos = { x: p0.x + Math.cos(mid) * GAP * e, y: p0.y + Math.sin(mid) * GAP * e }; applyT(np); }, 'outBack');
+        const cw = toWorld(np, np.c); crumbs(cw.x, cw.y, 5);
+      });
+    }
+    for (const h of lineJobs) {
       const p = h.p;
-      const ddx = h.lb.x - h.la.x, ddy = h.lb.y - h.la.y, L2 = Math.hypot(ddx, ddy) || 1;
-      const n = { x: -ddy / L2, y: ddx / L2 };
+      const fa = toWorld(p, h.la), fb = toWorld(p, h.lb), dx = fb.x - fa.x, dy = fb.y - fa.y, ln = Math.hypot(dx, dy) || 1, ext = 260;
+      flash(fa.x - dx / ln * ext, fa.y - dy / ln * ext, fb.x + dx / ln * ext, fb.y + dy / ln * ext);
+      const n = { x: -(h.lb.y - h.la.y) / ln, y: (h.lb.x - h.la.x) / ln };
       removePiece(p);
       h.parts.forEach(part => {
         const c2 = Geo.centroid(part);
         const np = makePiece(p.food, part, { x: p.pos.x + (c2.x - p.c.x), y: p.pos.y + (c2.y - p.c.y) });
-        const sd = Math.sign((c2.x - h.la.x) * n.x + (c2.y - h.la.y) * n.y) || 1;
-        const p0 = { ...np.pos };
+        const sd = Math.sign((c2.x - h.la.x) * n.x + (c2.y - h.la.y) * n.y) || 1, p0 = { ...np.pos };
         tw(420, e => { np.pos = { x: p0.x + n.x * sd * GAP * e, y: p0.y + n.y * sd * GAP * e }; applyT(np); }, 'outBack');
+        const cw = toWorld(np, np.c); crumbs(cw.x, cw.y, 5);
       });
     }
     later(120, () => GS.sfx.pop());
     refreshTags();
     updateSteam(); updateButtons();
     if (!hintedDrag) { hintedDrag = true; later(700, () => { if (!busy) GS.say('Seret potongan ke piring teman.'); }); }
+    else if (knives === 0) later(700, () => { if (!busy) GS.say('Pisaunya habis. Sekarang bagikan, ya.'); });
     return true;
   }
+  function nudgeReset() { if (btnReset) btnReset.classList.add('mk-nudge'); }
   function drawKnifeRack() {
     knifeRack = GS.el('g', null, GS.el('g', { transform: 'translate(180 470)' }, layers.board));
     updateKnives();
@@ -959,30 +1082,18 @@
       GS.markup(GS.el('g', { transform: 'translate(' + x + ' 24) rotate(-90) scale(.6)', opacity: used ? 0.22 : 1 }, knifeRack), knifeMarkup());
     }
     const b = GS.el('g', { transform: 'translate(' + (w / 2 - 4) + ' 2)' }, knifeRack);
-    GS.markup(b, '<circle r="22" fill="#1F6FD1" stroke="' + OUT + '" stroke-width="3.5"/>');
-    const t = GS.el('text', { y: 9, 'text-anchor': 'middle', 'font-size': 26, fill: '#fff', class: 'gs-num' }, b);
+    GS.markup(b, '<circle r="30" fill="#1F6FD1" stroke="' + OUT + '" stroke-width="3.5"/>');
+    const t = GS.el('text', { y: 14, 'text-anchor': 'middle', 'font-size': 40, fill: '#fff', class: 'gs-num' }, b);
     t.textContent = String(knives);
   }
   function wobbleEl(el) { if (!el) return; const t = GS.fx(el, 'gs-wobble'); later(450, () => t.classList.remove('gs-wobble')); }
 
+  /** After two unfair tries the faded guides (Kelas 3 and 4) come back fully. */
   function showGuides() {
-    if (guidesShown || !guideG || L.kind !== 'cut') return;
+    if (guidesShown || !guideG || L.kind !== 'cut' || GUIDE_OPACITY >= 1) return;
     guidesShown = true;
-    const food = L.foodRef, def = food.def, c = { x: food.ox, y: food.oy };
-    const n = partsNeeded();
-    let s = '';
-    const dot = (x, y) => '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="8" fill="#FFC83D" stroke="' + OUT + '" stroke-width="3"/>';
-    if (def.shape === 'circle') {
-      const steps = n <= 2 ? 2 : 4;
-      for (let k = 0; k < steps; k++) { const t = (k / steps) * Math.PI * 2 - Math.PI / 2; s += dot(c.x + Math.cos(t) * (def.r + 18), c.y + Math.sin(t) * (def.r + 18)); }
-    } else {
-      const hw = def.w / 2, hh = def.h / 2;
-      const g = { 2: [[0.5], [0.5]], 3: [[1 / 3, 2 / 3], []], 4: [[0.5], [0.5]], 6: [[0.5], [1 / 3, 2 / 3]], 8: [[0.5], [0.25, 0.5, 0.75]] }[n] || [[0.5], [0.5]];
-      g[0].forEach(f => { s += dot(c.x - hw - 20, c.y - hh + def.h * f) + dot(c.x + hw + 20, c.y - hh + def.h * f); });
-      g[1].forEach(f => { s += dot(c.x - hw + def.w * f, c.y - hh - 20) + dot(c.x - hw + def.w * f, c.y + hh + 20); });
-    }
-    GS.markup(guideG, s);
-    tw(400, e => guideG.setAttribute('opacity', e.toFixed(2)));
+    tw(400, e => { guideG.setAttribute('opacity', (GUIDE_OPACITY + (1 - GUIDE_OPACITY) * e).toFixed(2)); if (centreMark) centreMark.setAttribute('opacity', (GUIDE_OPACITY + (1 - GUIDE_OPACITY) * e).toFixed(2)); });
+    later(300, () => GS.say('Lihat titik bantu di pinggir. Coba lagi!'));
   }
 
   function targetsOf() {
@@ -1124,7 +1235,7 @@
       '<circle cx="' + (xs[0] - 46) + '" cy="444" r="14" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>' +
       '<circle cx="' + (xs[n - 1] + 52) + '" cy="444" r="6" fill="#F28C28" stroke="' + OUT + '" stroke-width="2.5"/>';
     GS.markup(layers.signs, s);
-    const lbl = (x, t, a) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': a, 'font-size': 22, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
+    const lbl = (x, t, a) => { const e = GS.el('text', { class: 'mk-name', x, y: 452, 'text-anchor': a, 'font-size': 30, fill: '#2B1D14' }, layers.signs); e.textContent = t; };
     lbl(xs[0] - 26, 'besar', 'start'); lbl(xs[n - 1] + 40, 'kecil', 'end');
     const cxs = n > 3 ? [175, 375, 575, 775] : [245, 480, 715];
     const over = n > 3 ? { w: 168, h: 104 } : null, w = over ? over.w : 200, h = over ? over.h : 120;
@@ -1234,6 +1345,7 @@
   }
   function onReset() {
     if (busy) return;
+    btnReset.classList.remove('mk-nudge');
     if (L.kind === 'cut') {
       if (cutsMade > 0) tries++;
       pieces.slice().forEach(removePiece);
@@ -1305,7 +1417,8 @@
   }
   function afterFail() {
     busy = false; updateButtons(); hud.mood('think');
-    if (tries >= 2 && L.kind === 'cut' && !guidesShown) { showGuides(); later(300, () => GS.say('Ada titik bantu di pinggir. Coba lagi!')); }
+    if (L.kind === 'cut' && knives === 0) { nudgeReset(); later(300, () => GS.say('Pisaunya habis. Tekan Ulang untuk potong lagi.')); }
+    else if (tries >= 2 && L.kind === 'cut') showGuides();
   }
   async function judgeHungry(my) {
     const fh = friends[L.hungry], fo = friends[1 - L.hungry];
@@ -1375,7 +1488,7 @@
   async function stackCompare(big, small, my, color) {
     if (!big.length || !small.length) { await pause(1200); return; }
     const C = { x: 640, y: 590 };
-    const dim = GS.el('rect', { x: -420, y: 306, width: 2120, height: 594, fill: '#FFF8EC', opacity: 0 }, layers.dim);
+    const dim = GS.el('rect', { x: -600, y: 306, width: 2480, height: 594, fill: '#FFF8EC', opacity: 0 }, layers.dim);
     tw(250, e => dim.setAttribute('opacity', (0.72 * e).toFixed(2)));
     // big share at its original shape, centred
     const gb = groupBox(big), gbc = { x: gb.cx, y: gb.cy };
@@ -1507,7 +1620,7 @@
     if (!strip || !box) { await pause(600); return; }
     if (!(await pause(500))) return;
     const C = { x: 640, y: 560 };
-    const dim = GS.el('rect', { x: -420, y: 306, width: 2120, height: 594, fill: '#FFF8EC', opacity: 0.72 }, layers.fx);
+    const dim = GS.el('rect', { x: -600, y: 306, width: 2480, height: 594, fill: '#FFF8EC', opacity: 0.72 }, layers.fx);
     const gs = GS.el('g', null, layers.top);
     const bw = box.bb.w * 1.6, bh = box.bb.h * 1.6;
     // the box, big, then the two halves of the strip landing on it
@@ -1545,24 +1658,32 @@
     while (busy) { await GS.wait(100); if (my !== tok) return; }
     const wait = ms => GS.wait(ms);
     const boardPieces = () => pieces.filter(p => !p.plate && !p.locked);
-    const cutThrough = async (p, a, b) => {      // a, b local points of piece p (line through the food frame)
+    const cutThrough = async (p, a, b) => {      // a, b local points of piece p: one swipe along that line
       const A = toWorld(p, a), B = toWorld(p, b);
       const dx = B.x - A.x, dy = B.y - A.y, ln = Math.hypot(dx, dy);
-      const ok = performCut({ x: A.x - dx / ln * 400, y: A.y - dy / ln * 400 }, { x: B.x + dx / ln * 400, y: B.y + dy / ln * 400 });
+      const ok = performSwipe({ x: A.x - dx / ln * 400, y: A.y - dy / ln * 400 }, { x: B.x + dx / ln * 400, y: B.y + dy / ln * 400 });
       await wait(450);
       return ok;
     };
     const give = async (p, f) => { putOnPlate(p, f.plate); updateButtons(); await wait(120); };
     if (L.kind === 'cut') {
       const D = partsNeeded(), def = L.foodRef.def, w = def.w, h = def.h;
-      const v = x => [{ x, y: -10 }, { x, y: 10 }], hz = y => [{ x: -10, y }, { x: 10, y }];
-      const plan = def.shape === 'circle' ? { 2: [v(0)], 4: [v(0), hz(0)] }[D]
-        : { 2: [v(0)], 3: [hz(-h / 6), hz(h / 6)], 4: [v(0), hz(0)], 6: [hz(0), v(-w / 6), v(w / 6)], 8: [v(0), hz(0), v(-w / 4), v(w / 4)] }[D];
-      const splits = (q, ln) => { const pr = Geo.split(q.poly, ln[0], ln[1]); return pr[0] && pr[1] && Math.min(Geo.absArea(pr[0]), Geo.absArea(pr[1])) > 0.01 * L.unit; };
-      for (const ln of plan) {
-        const q = boardPieces().find(x => x.food === L.foodRef && splits(x, ln));
-        if (q) await cutThrough(q, ln[0], ln[1]);
-        if (my !== tok) return;
+      if (def.shape === 'circle') {
+        // diameters for 2, 4, 8 parts; radii (pizza cuts) for 3 and 6
+        const F0 = L.foodRef, C = { x: F0.ox, y: F0.oy }, R = def.r + 60;
+        const diam = { 2: [0], 4: [0, 90], 8: [0, 45, 90, 135] }[D];
+        const swipes = diam ? diam.map(t => [-1, 1].map(s2 => ({ x: C.x + s2 * Math.cos(t * Math.PI / 180) * R, y: C.y + s2 * Math.sin(t * Math.PI / 180) * R })))
+          : Array.from({ length: D }, (_, k) => { const t = (k * 360 / D - 90) * Math.PI / 180; return [{ x: C.x + Math.cos(t) * 5, y: C.y + Math.sin(t) * 5 }, { x: C.x + Math.cos(t) * R, y: C.y + Math.sin(t) * R }]; });
+        for (const [A, B] of swipes) { performSwipe(A, B); await wait(450); if (my !== tok) return; }
+      } else {
+        const v = x => [{ x, y: -10 }, { x, y: 10 }], hz = y => [{ x: -10, y }, { x: 10, y }];
+        const plan = { 2: [v(0)], 3: [hz(-h / 6), hz(h / 6)], 4: [v(0), hz(0)], 6: [hz(0), v(-w / 6), v(w / 6)], 8: [v(0), hz(0), v(-w / 4), v(w / 4)] }[D];
+        const splits = (q, ln) => { const pr = Geo.split(q.poly, ln[0], ln[1]); return pr[0] && pr[1] && Math.min(Geo.absArea(pr[0]), Geo.absArea(pr[1])) > 0.01 * L.unit; };
+        for (const ln of plan) {
+          const q = boardPieces().find(x => x.food === L.foodRef && splits(x, ln));
+          if (q) await cutThrough(q, ln[0], ln[1]);
+          if (my !== tok) return;
+        }
       }
       const pool = boardPieces().filter(p => Math.abs(p.area / L.unit * D - Math.round(p.area / L.unit * D)) < 0.02);
       for (const f of friends) {
@@ -1607,7 +1728,7 @@
     count: () => tierCount(),
     tier: TIER,
     get state() { return { level: run.current, kind: L && L.kind, tries, knives, busy, pieces: pieces.map(p => ({ area: +(p.area / L.unit).toFixed(4), plate: p.plate ? friends.indexOf(p.plate.friend) : -1, tag: p.tagD })) }; },
-    cut: (a, b) => performCut(a, b),
+    cut: (a, b) => performSwipe(a, b),
     give: (pi, fi) => { putOnPlate(pieces[pi], friends[fi].plate); updateButtons(); },
     bagikan: () => onGo(),
     reset: () => onReset(),
