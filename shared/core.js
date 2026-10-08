@@ -288,6 +288,7 @@
   GS.drag = function (target, opts) {
     let active = null;
     target.style.touchAction = 'none';
+    target.setAttribute('data-gs-drag', ''); // lets tests/visual-qc.js measure every drag target
     target.addEventListener('pointerdown', e => {
       if (active !== null) return;
       const p = GS.svgPoint(opts.svg, e.clientX, e.clientY);
@@ -308,6 +309,32 @@
     target.addEventListener('pointerup', end);
     target.addEventListener('pointercancel', end);
   };
+
+  /* ---------------- stage fitting ----------------
+   * Games draw in a fixed 1280 x 800 canvas. On screens wider than 16:10 (every phone in
+   * landscape) the viewBox is widened symmetrically so the stage fills the screen with no
+   * empty strips; the 0..1280 design area stays centered and keeps its scale.
+   * GS.stageView = { x0, x1, scale } gives the visible range in canvas units and the
+   * canvas-to-CSS-pixel scale; a 'gs:stage' event fires on window whenever it changes. */
+  GS.STAGE_W = 1280; GS.STAGE_H = 800;
+  GS.stageView = { x0: 0, x1: 1280, scale: 1 };
+  function fitStage() {
+    document.querySelectorAll('svg.gs-stage').forEach(svg => {
+      const w = svg.clientWidth, h = svg.clientHeight;
+      if (!w || !h) return;
+      const vbW = Math.max(GS.STAGE_W, GS.STAGE_H * w / h);
+      const x0 = -(vbW - GS.STAGE_W) / 2;
+      svg.setAttribute('viewBox', x0.toFixed(1) + ' 0 ' + vbW.toFixed(1) + ' ' + GS.STAGE_H);
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      GS.stageView = { x0, x1: x0 + vbW, scale: Math.min(w / vbW, h / GS.STAGE_H) };
+    });
+    window.dispatchEvent(new CustomEvent('gs:stage', { detail: GS.stageView }));
+  }
+  GS.fitStage = fitStage;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fitStage); else fitStage();
+  window.addEventListener('resize', fitStage);
+  window.addEventListener('orientationchange', () => setTimeout(fitStage, 250));
+  document.addEventListener('fullscreenchange', () => setTimeout(fitStage, 50));
 
   /* ---------------- icons (UI only) ---------------- */
   const ICON = {
@@ -510,7 +537,11 @@
       el: bar,
       setLevel(i) {
         const t = GS.tierInfo ? GS.tierInfo() : null;
-        title.querySelector('.gs-title-level').textContent = (t ? t.label + ' · ' : '') + 'Level ' + (i + 1) + (o.levelCount ? ' / ' + o.levelCount : '');
+        const el = title.querySelector('.gs-title-level');
+        el.innerHTML = '<span class="gs-tl-tier"></span><span class="gs-tl-word">Level </span><span class="gs-tl-n"></span>';
+        el.querySelector('.gs-tl-tier').textContent = t ? t.label + ' · ' : '';
+        el.querySelector('.gs-tl-n').textContent = (i + 1) + (o.levelCount ? ' / ' + o.levelCount : '');
+        el.setAttribute('aria-label', (t ? t.label + ', ' : '') + 'level ' + (i + 1) + (o.levelCount ? ' dari ' + o.levelCount : ''));
       },
       bubble: GS._bubble,
       mood(m) { if (GS.art && GS.art.mascot) face.innerHTML = GS.art.mascot({ mood: m, size: 64 }); }

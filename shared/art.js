@@ -655,8 +655,12 @@
   const SKY_MIX = '#CBEBEF';
   const far = (c, t) => mix(c, SKY_MIX, t == null ? 0.4 : t);
   const pathF = (d, c, op) => `<path d="${d}" ${fl(c, op)}/>`;
+  // Scenery extends this fraction of the width past each edge, so stages widened to
+  // wide phone screens (core.js fitStage) never show the end of the world.
+  const EXT = 0.6;
   function ridge(w, h, y, amp, n, seed, col) {
-    const r = rng(seed), x0 = -w * 0.12, x1 = w * 1.12, pts = [];
+    const r = rng(seed), x0 = -w * EXT, x1 = w * (1 + EXT), pts = [];
+    n = Math.round(n * (1 + 2 * EXT) / 1.24);
     for (let i = 0; i <= n; i++) pts.push([x0 + ((x1 - x0) * i) / n, y - amp * (0.3 + 0.7 * r())]);
     let d = `M${n1(x0)} ${n1(h)}L${n1(pts[0][0])} ${n1(pts[0][1])}`;
     for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], mx = (a[0] + b[0]) / 2; d += `C${n1(mx)} ${n1(a[1])} ${n1(mx)} ${n1(b[1])} ${n1(b[0])} ${n1(b[1])}`; }
@@ -723,13 +727,13 @@
   }
   function tuft(x, y, s, c) { return pathF(`M${n1(x - 8 * s)} ${n1(y)}Q${n1(x - 7 * s)} ${n1(y - 10 * s)} ${n1(x - 10 * s)} ${n1(y - 15 * s)}Q${n1(x - 2 * s)} ${n1(y - 9 * s)} ${n1(x)} ${n1(y - 17 * s)}Q${n1(x + 3 * s)} ${n1(y - 8 * s)} ${n1(x + 10 * s)} ${n1(y - 13 * s)}Q${n1(x + 7 * s)} ${n1(y - 6 * s)} ${n1(x + 8 * s)} ${n1(y)}Z`, c || '#5FAE52'); }
   function groundBand(w, h, y, col, seed, amp) {
-    const r = rng(seed || 5), n = 8, x0 = -w * 0.12, x1 = w * 1.12;
+    const r = rng(seed || 5), n = Math.round(8 * (1 + 2 * EXT) / 1.24), x0 = -w * EXT, x1 = w * (1 + EXT);
     let d = `M${n1(x0)} ${n1(h + 2)}L${n1(x0)} ${n1(y)}`;
     for (let i = 1; i <= n; i++) { const xa = x0 + ((x1 - x0) * (i - 0.5)) / n, xb = x0 + ((x1 - x0) * i) / n; d += `Q${n1(xa)} ${n1(y - (amp || 4) * r())} ${n1(xb)} ${n1(y)}`; }
     return pathF(`${d}L${n1(x1)} ${n1(h + 2)}Z`, col);
   }
   const edges = (w, fn) => fn(w * 0.05) + fn(w * 0.13) + fn(w * 0.87) + fn(w * 0.95);
-  const diag = (w, h, y, op) => texture('diag', -w * 0.12, y, w * 1.24, h - y + 2, OL, op || 0.05, 14);
+  const diag = (w, h, y, op) => texture('diag', -w * EXT, y, w * (1 + 2 * EXT), h - y + 2, OL, op || 0.05, 14);
 
   const SCN = {
     kampung(w, h, G, s) {
@@ -739,7 +743,7 @@
       const M = tree(w * 0.33, G - 6 * s, s * 0.8) + house(w * 0.11, G - 4 * s, s * 1.1, '#EBCB92', '#C8643B') + palm(w * 0.24, G - 2 * s, 128 * s, 14 * s, s) +
         tree(w * 0.68, G - 6 * s, s * 0.7) + house(w * 0.9, G - 4 * s, s, '#E6C389', '#B5502F') + palm(w * 0.77, G - 2 * s, 108 * s, -16 * s, s);
       const N = groundBand(w, h, G - 6 * s, '#7CC26B', 4, 5 * s) + groundBand(w, h, G + 6 * s, '#E5BE86', 7, 3 * s) + diag(w, h, G + 6 * s) +
-        pathF(`M${n1(-w * 0.12)} ${n1(h * 0.93)}H${n1(w * 1.12)}V${n1(h + 2)}H${n1(-w * 0.12)}Z`, '#D9AE73') + edges(w, x => tuft(x, G + 2 * s, s * 0.9));
+        pathF(`M${n1(-w * EXT)} ${n1(h * 0.93)}H${n1(w * (1 + EXT))}V${n1(h + 2)}H${n1(-w * EXT)}Z`, '#D9AE73') + edges(w, x => tuft(x, G + 2 * s, s * 0.9));
       return [F, M, N];
     },
     sawah(w, h, G, s) {
@@ -753,7 +757,7 @@
       });
       M += palm(w * 0.07, G - 20 * s, 120 * s, 10 * s, s * 0.9) + house(w * 0.88, G - 28 * s, s * 0.6, '#E3C27F', '#9C7A4A');
       const N = groundBand(w, h, G - 2 * s, '#6FB35E', 41, 4 * s) + groundBand(w, h, G + 8 * s, '#7CC26B', 42, 3 * s) + diag(w, h, G + 8 * s, 0.04) +
-        pathF(`M${n1(-w * 0.12)} ${n1(h * 0.92)}Q${n1(w * 0.5)} ${n1(h * 0.89)} ${n1(w * 1.12)} ${n1(h * 0.92)}V${n1(h + 2)}H${n1(-w * 0.12)}Z`, '#D4A062') + edges(w, x => tuft(x, G + 6 * s, s, '#4E9E44'));
+        pathF(`M${n1(-w * EXT)} ${n1(h * 0.92)}Q${n1(w * 0.5)} ${n1(h * 0.89)} ${n1(w * (1 + EXT))} ${n1(h * 0.92)}V${n1(h + 2)}H${n1(-w * EXT)}Z`, '#D4A062') + edges(w, x => tuft(x, G + 6 * s, s, '#4E9E44'));
       return [F, M, N];
     },
     pasar(w, h, G, s) {
@@ -772,10 +776,10 @@
       const sea = G - 64 * s;
       const F = sun(w * 0.74, h * 0.18, 22 * s) + cloud(w * 0.18, h * 0.12, s) + cloud(w * 0.5, h * 0.2, s * 0.6) +
         pathF(`M${n1(w * 0.3)} ${n1(sea)}Q${n1(w * 0.38)} ${n1(sea - 26 * s)} ${n1(w * 0.47)} ${n1(sea)}Z`, far('#7FB08A', 0.45)) +
-        pathF(`M${n1(-w * 0.12)} ${n1(sea)}H${n1(w * 1.12)}V${n1(h)}H${n1(-w * 0.12)}Z`, far('#3FA7C4', 0.25)) +
+        pathF(`M${n1(-w * EXT)} ${n1(sea)}H${n1(w * (1 + EXT))}V${n1(h)}H${n1(-w * EXT)}Z`, far('#3FA7C4', 0.25)) +
         ln(`M${n1(w * 0.1)} ${n1(sea + 10 * s)}h${n1(30 * s)}M${n1(w * 0.56)} ${n1(sea + 18 * s)}h${n1(46 * s)}M${n1(w * 0.8)} ${n1(sea + 8 * s)}h${n1(24 * s)}`, 2 * s, '#E6F5F0', 0.7) +
         pathF(`M${n1(w * 0.62)} ${n1(sea - 4 * s)}l${n1(9 * s)} ${n1(-22 * s)}l${n1(2 * s)} ${n1(22 * s)}Z`, far('#FFF8EC', 0.2)) + pathF(`M${n1(w * 0.6)} ${n1(sea - 4 * s)}h${n1(18 * s)}l${n1(-4 * s)} ${n1(4 * s)}h${n1(-11 * s)}Z`, far('#A8673A', 0.3));
-      const foam = `M${n1(-w * 0.12)} ${n1(G - 16 * s)}` + Array.from({ length: 16 }, (_, i) => `q${n1(w * 0.0775)} ${n1((i % 2 ? 6 : -6) * s)} ${n1(w * 0.155)} 0`).join('') + `V${n1(G)}H${n1(-w * 0.12)}Z`;
+      const foam = `M${n1(-w * EXT)} ${n1(G - 16 * s)}` + Array.from({ length: 16 }, (_, i) => `q${n1(w * 0.0775)} ${n1((i % 2 ? 6 : -6) * s)} ${n1(w * 0.155)} 0`).join('') + `V${n1(G)}H${n1(-w * EXT)}Z`;
       const M = pathF(foam, '#EAF7F7', 0.9) + palm(w * 0.06, G + 2 * s, 150 * s, 30 * s, s * 1.1) + palm(w * 0.93, G + 2 * s, 130 * s, -26 * s, s) + palm(w * 0.99, G + 2 * s, 96 * s, -8 * s, s * 0.8, '#6BB65C') +
         pathF(`M${n1(w * 0.78)} ${n1(G - 2 * s)}Q${n1(w * 0.8)} ${n1(G + 8 * s)} ${n1(w * 0.84)} ${n1(G + 8 * s)}H${n1(w * 0.9)}Q${n1(w * 0.93)} ${n1(G + 6 * s)} ${n1(w * 0.94)} ${n1(G - 2 * s)}Z`, '#C8643B') + ln(`M${n1(w * 0.79)} ${n1(G + 1 * s)}H${n1(w * 0.935)}`, 2 * s, '#FFF3E0');
       const N = groundBand(w, h, G - 4 * s, '#F3DDA6', 15, 4 * s) + diag(w, h, G, 0.04) + groundBand(w, h, h * 0.94, '#EBCF92', 16, 2 * s) +
@@ -788,8 +792,8 @@
       let rip = '';
       for (let i = 0; i < 7; i++) rip += `M${n1(w * (0.08 + (i * 0.137) % 0.86))} ${n1(water + (14 + (i % 3) * 18) * s)}h${n1(34 * s)}`;
       const M = groundBand(w, h, water - 10 * s, '#7CC26B', 31, 4 * s) + bamboo(w * 0.07, water - 6 * s, 170 * s, s) + bamboo(w * 0.94, water - 6 * s, 150 * s, s * 0.9) + tree(w * 0.2, water - 6 * s, s * 0.55) + tree(w * 0.8, water - 6 * s, s * 0.6) +
-        pathF(`M${n1(-w * 0.12)} ${n1(water)}H${n1(w * 1.12)}V${n1(h + 2)}H${n1(-w * 0.12)}Z`, '#3FA7C4') + pathF(`M${n1(-w * 0.12)} ${n1(water)}H${n1(w * 1.12)}V${n1(water + 6 * s)}H${n1(-w * 0.12)}Z`, '#6FC0D6') + ln(rip, 2.4 * s, '#9ED8EC', 0.8);
-      const N = pathF(`M${n1(-w * 0.12)} ${n1(h * 0.86)}Q${n1(w * 0.08)} ${n1(h * 0.84)} ${n1(w * 0.18)} ${n1(h + 2)}H${n1(-w * 0.12)}Z`, '#7CC26B') + pathF(`M${n1(w * 1.12)} ${n1(h * 0.87)}Q${n1(w * 0.92)} ${n1(h * 0.85)} ${n1(w * 0.83)} ${n1(h + 2)}H${n1(w * 1.12)}Z`, '#7CC26B') +
+        pathF(`M${n1(-w * EXT)} ${n1(water)}H${n1(w * (1 + EXT))}V${n1(h + 2)}H${n1(-w * EXT)}Z`, '#3FA7C4') + pathF(`M${n1(-w * EXT)} ${n1(water)}H${n1(w * (1 + EXT))}V${n1(water + 6 * s)}H${n1(-w * EXT)}Z`, '#6FC0D6') + ln(rip, 2.4 * s, '#9ED8EC', 0.8);
+      const N = pathF(`M${n1(-w * EXT)} ${n1(h * 0.86)}Q${n1(w * 0.08)} ${n1(h * 0.84)} ${n1(w * 0.18)} ${n1(h + 2)}H${n1(-w * EXT)}Z`, '#7CC26B') + pathF(`M${n1(w * (1 + EXT))} ${n1(h * 0.87)}Q${n1(w * 0.92)} ${n1(h * 0.85)} ${n1(w * 0.83)} ${n1(h + 2)}H${n1(w * (1 + EXT))}Z`, '#7CC26B') +
         tuft(w * 0.03, h * 0.88, s) + tuft(w * 0.97, h * 0.89, s) + E(w * 0.12, h * 0.95, 9 * s, 5 * s)(fl('#9A9DA2'));
       return [F, M, N];
     },
@@ -818,7 +822,7 @@
       const M = shelter + sign + tree(w * 0.78, G - 2 * s, s * 0.75) + tree(w * 0.26, G - 2 * s, s * 0.6);
       let dash = '';
       for (let x = -w * 0.1; x < w * 1.1; x += 60 * s) dash += `M${n1(x)} ${n1(G + 44 * s)}h${n1(30 * s)}`;
-      const N = groundBand(w, h, G - 4 * s, '#D4A062', 62, 1) + pathF(`M${n1(-w * 0.12)} ${n1(G + 6 * s)}H${n1(w * 1.12)}V${n1(h + 2)}H${n1(-w * 0.12)}Z`, '#8E8A86') + pathF(`M${n1(-w * 0.12)} ${n1(G + 6 * s)}H${n1(w * 1.12)}V${n1(G + 10 * s)}H${n1(-w * 0.12)}Z`, '#77736F') + ln(dash, 4 * s, '#F3EEE2');
+      const N = groundBand(w, h, G - 4 * s, '#D4A062', 62, 1) + pathF(`M${n1(-w * EXT)} ${n1(G + 6 * s)}H${n1(w * (1 + EXT))}V${n1(h + 2)}H${n1(-w * EXT)}Z`, '#8E8A86') + pathF(`M${n1(-w * EXT)} ${n1(G + 6 * s)}H${n1(w * (1 + EXT))}V${n1(G + 10 * s)}H${n1(-w * EXT)}Z`, '#77736F') + ln(dash, 4 * s, '#F3EEE2');
       return [F, M, N];
     },
     warung(w, h, G, s) {
@@ -849,7 +853,7 @@
     const G = h * 0.78, s = Math.min(h / 360, w / 640), id = uid('sky');
     const L = (SCN[name] || SCN.kampung)(w, h, G, s);
     return `<g class="gs-scene gs-scene-${SCN[name] ? name : 'kampung'}"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ED8EC"/><stop offset="1" stop-color="#E6F5F0"/></linearGradient></defs>` +
-      `<rect x="${n1(-w * 0.12)}" y="0" width="${n1(w * 1.24)}" height="${n1(h)}" fill="url(#${id})"/><g class="layer-far">${L[0]}</g><g class="layer-mid">${L[1]}</g><g class="layer-near">${L[2]}</g></g>`;
+      `<rect x="${n1(-w * EXT)}" y="0" width="${n1(w * (1 + 2 * EXT))}" height="${n1(h)}" fill="url(#${id})"/><g class="layer-far">${L[0]}</g><g class="layer-mid">${L[1]}</g><g class="layer-near">${L[2]}</g></g>`;
   };
 
   /* ============================ landmarks ============================ */

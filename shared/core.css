@@ -333,3 +333,32 @@ button { font: inherit; color: inherit; }
   .gs-caption.show { transform: none; }
   .gs-caption-text { margin: 6px 0 0; border-radius: 6px 16px 16px 16px; }
 }
+
+
+/* ---------- phone landscape: HUD becomes a left rail ----------
+ * A 64px top bar on a 390px tall phone leaves the 800-unit canvas only 326px (scale 0.41).
+ * As a rail on the left, where wide screens have spare width, the canvas gets the full
+ * height (scale 0.49 on 844x390, about 20% bigger everything). */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root { --rail-w: calc(62px + env(safe-area-inset-left, 0px)); }
+  .gs-game .gs-hud {
+    top: 0; bottom: 0; left: 0; right: auto; width: var(--rail-w); height: auto;
+    flex-direction: column; justify-content: flex-start; align-items: center; gap: 6px;
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 4px calc(env(safe-area-inset-bottom, 0px) + 6px) calc(env(safe-area-inset-left, 0px) + 4px);
+    border-bottom: 0; border-right: 4px solid var(--line);
+    overflow-y: auto; scrollbar-width: none;
+  }
+  .gs-game .gs-hud::-webkit-scrollbar { display: none; }
+  .gs-game .gs-title { flex: none; order: 2; }
+  .gs-game .gs-title-name { display: none; }
+  .gs-game .gs-title-level { font-size: 15px; line-height: 1.1; text-align: center; white-space: nowrap; }
+  .gs-game .gs-tl-tier, .gs-game .gs-tl-word { display: none; }
+  .gs-game .gs-hud-right { order: 3; flex-direction: column; gap: 6px; }
+  .gs-game .gs-hud .gs-btn { width: 48px; height: 48px; min-width: 48px; border-radius: 15px; box-shadow: 0 3px 0 var(--line); }
+  .gs-game .gs-levels { display: inline-grid !important; }
+  .gs-game .gs-stage {
+    top: 0; left: var(--rail-w); right: 0; bottom: 0;
+    width: calc(100% - var(--rail-w)); height: 100%;
+  }
+  .gs-game .gs-caption { left: calc(var(--rail-w) + 8px); top: calc(env(safe-area-inset-top, 0px) + 6px); }
+}
