@@ -96,6 +96,13 @@
   .kt-num.bump { animation: kt-bump 260ms var(--ease-pop); }
   @keyframes kt-bump { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
 
+  /* TK: bigger targets, count shown with dots too */
+  .kt-plan.kt-tk { --b: clamp(58px, 10.5vh, 88px); padding-top: 10px; }
+  .kt-num.dots { display: flex; flex-direction: column; justify-content: center; gap: 0; min-width: calc(var(--b) * 1.1); }
+  .kt-num.dots b { font-weight: 600; font-size: calc(var(--b) * 0.5); line-height: 1; }
+  .kt-num.dots svg { width: 86%; height: calc(var(--b) * 0.3); }
+  .kt-lead.who0 { background: #A8DB8F; }
+  .kt-lead.who1 { background: var(--sun); }
   .gs-action .kt-hop-ico { width: 40px; height: 34px; }
 
   /* SVG idle motion (CSS only, so no rAF runs while the scene is still) */
