@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mat Sains: Ayo Mulai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&family=Roboto:wght@500&display=swap">
+<link rel="stylesheet" href="shared/core.css">
+<style>
+  /* Onboarding: one cream card over the kampung scene. Top bar (back, progress, sound) stays put;
+     the body scrolls inside the card. Short landscape screens split into host | answers columns. */
+  html, body { height: 100%; }
+  body { overflow: hidden; background: var(--sky); }
+  input { -webkit-user-select: text; user-select: text; font: inherit; color: inherit; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+  .wrap {
+    position: relative; z-index: 1; height: 100%; height: 100dvh;
+    display: grid; place-items: center;
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(14px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .card {
+    width: min(560px, 100%); max-height: 100%; min-height: 0;
+    display: flex; flex-direction: column;
+    background: var(--panel); border: 4px solid var(--line); border-radius: 32px;
+    box-shadow: 0 10px 0 rgba(59, 42, 32, 0.35); overflow: hidden;
+  }
+  .bar { flex: none; display: flex; align-items: center; gap: 12px; padding: 12px 14px 0; }
+  .bar .gs-btn { width: 56px; height: 56px; min-width: 56px; border-radius: 18px; }
+  .bar .gs-btn[hidden] { display: inline-grid; visibility: hidden; }
+  .dots { flex: 1; display: flex; justify-content: center; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .dots[hidden] { display: flex; visibility: hidden; }
+  .dots li { width: 16px; height: 16px; border-radius: 999px; border: 3px solid var(--line); background: var(--card); transition: width 260ms var(--ease-pop), background 200ms; }
+  .dots li.done { background: var(--primary); }
+  .dots li.now { width: 40px; background: var(--sun); }
+
+  .body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .host { display: flex; align-items: center; gap: 6px; }
+  .cil { flex: none; width: 108px; height: 108px; }
+  .cil svg { width: 100%; height: 100%; display: block; }
+  .bubble {
+    position: relative; flex: 1; min-width: 0; margin: 0; padding: 12px 16px;
+    background: var(--card); border: 3px solid var(--line); border-radius: 22px;
+    box-shadow: 0 4px 0 rgba(59, 42, 32, 0.25); cursor: pointer;
+  }
+  .bubble::before { content: ''; position: absolute; left: -13px; top: 50%; width: 20px; height: 20px; margin-top: -10px; background: var(--card); border-left: 3px solid var(--line); border-bottom: 3px solid var(--line); transform: rotate(45deg); border-radius: 0 0 0 5px; }
+  .bubble .sub { margin: 0 0 2px; font-weight: 700; font-size: 17px; line-height: 1.3; color: #6B5444; }
+  .bubble h1 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(25px, 6.4vw, 34px); line-height: 1.08; text-wrap: balance; }
+  .bubble h1:focus { outline: none; }
+  .bubble.wobble { animation: gs-wobble 400ms ease-in-out; transform-origin: 0 100%; }
+
+  .stage { display: flex; flex-direction: column; gap: 14px; }
+  .screen { display: flex; flex-direction: column; gap: 14px; animation: s-in 280ms var(--ease-in); }
+  @keyframes s-in { from { opacity: 0; transform: translateX(28px); } }
+
+  /* question 1: name */
+  .big-input {
+    width: 100%; height: 76px; padding: 0 20px;
+    border: 4px solid var(--line); border-radius: 22px; background: var(--card);
+    font-family: var(--font-display); font-weight: 800; font-size: 34px; text-align: center;
+  }
+  .big-input::placeholder { color: #B3A592; font-weight: 800; }
+  .count { margin: -6px 0 0; text-align: center; font-family: var(--font-num); font-weight: 600; font-size: 16px; color: #8A7358; font-variant-numeric: tabular-nums; }
+  .row { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .gs-action { min-height: 72px; font-size: 30px; text-decoration: none; }
+  .gs-action svg { width: 30px; height: 30px; }
+  .btn-link {
+    min-height: 56px; min-width: 56px; padding: 0 16px; border: 0; background: none; cursor: pointer;
+    font-weight: 700; font-size: 18px; color: var(--primary-dark); text-decoration: underline; text-underline-offset: 4px; border-radius: 14px;
+  }
+
+  /* question 2: grade tiles */
+  .tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+  .tile {
+    flex: 0 0 calc((100% - 28px) / 3); min-height: 96px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    border: 3px solid var(--line); border-radius: 22px; background: var(--card); box-shadow: 0 5px 0 var(--line);
+    cursor: pointer; padding: 6px; transition: transform 80ms ease-out, box-shadow 80ms ease-out, background 150ms;
+  }
+  .tile:active { transform: translateY(4px) scale(0.96); box-shadow: 0 1px 0 var(--line); }
+  .tile[aria-pressed="true"] { background: var(--sun); }
+  .tile .small { white-space: nowrap; font-weight: 700; font-size: 16px; line-height: 1; color: #6B5444; }
+  .tile[aria-pressed="true"] .small { color: var(--ink); }
+  .tile .big { font-family: var(--font-num); font-weight: 600; font-size: 44px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+
+  /* question 3: avatar tiles */
+  .av-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .av {
+    position: relative; min-height: 148px; padding: 8px 4px 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px;
+    border: 3px solid var(--line); border-radius: 22px; background: var(--sky-low); box-shadow: 0 5px 0 var(--line);
+    cursor: pointer; transition: opacity 200ms, transform 80ms ease-out, box-shadow 80ms ease-out;
+  }
+  .av:active { transform: translateY(4px) scale(0.96); box-shadow: 0 1px 0 var(--line); }
+  .av svg { width: min(88px, 100%); height: 112px; }
+  .av span { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.1; }
+  .av[aria-pressed="true"] { background: var(--sun); }
+  .av-grid.picked .av:not([aria-pressed="true"]) { opacity: 0.45; }
+  .av.hop svg { animation: hop 650ms var(--ease-in) 2; transform-origin: 50% 100%; }
+  @keyframes hop { 0%, 100% { transform: none; } 30% { transform: translateY(-20px) scale(1.06); } 55% { transform: scale(1.06, 0.92); } 75% { transform: translateY(-6px); } }
+
+  /* login */
+  .who { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+  .who-av { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--line); background: var(--sky-low); overflow: hidden; display: grid; place-items: center; }
+  .who-av svg { width: 64px; height: 64px; display: block; }
+  .gbtn {
+    display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 56px; padding: 0 20px;
+    background: #FFFFFF; border: 1px solid #747775; border-radius: 999px; color: #1F1F1F; cursor: pointer;
+    font-family: 'Roboto', Arial, sans-serif; font-weight: 500; font-size: 16px; letter-spacing: 0.25px; white-space: nowrap;
+    transition: background 150ms, box-shadow 150ms;
+  }
+  .gbtn[hidden] { display: none; }
+  .gbtn span { overflow: hidden; text-overflow: ellipsis; }
+  .gbtn svg { width: 22px; height: 22px; flex: none; }
+  .gbtn:hover { box-shadow: 0 1px 2px rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15); }
+  .gbtn:active { background: #F2F2F2; }
+  .gbtn.off { background: rgba(255, 255, 255, 0.6); border-color: rgba(31, 31, 31, 0.12); color: rgba(31, 31, 31, 0.5); cursor: default; box-shadow: none; }
+  .gbtn.off svg { opacity: 0.45; }
+  .gslot { display: flex; justify-content: center; align-items: center; min-height: 56px; }
+  .gslot[hidden] { display: none; }
+  .note { margin: 0; padding: 10px 14px; border-radius: 16px; background: #E6F5F0; border: 2px solid #9CCFC4; font-size: 16px; line-height: 1.4; }
+  .note.small { background: none; border: 0; padding: 0; text-align: center; color: #6B5444; font-size: 15px; }
+  .or { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; color: #8A7358; }
+  .or::before, .or::after { content: ''; flex: 1; height: 3px; border-radius: 2px; background: #E6D7C0; }
+
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; gap: 4px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); }
+  .tab { min-height: 52px; border: 0; border-radius: 999px; background: none; cursor: pointer; font-family: var(--font-display); font-weight: 800; font-size: 21px; }
+  .tab[aria-selected="true"] { background: var(--primary); color: #fff; }
+  .form { display: flex; flex-direction: column; gap: 12px; }
+  .form[hidden] { display: none; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-weight: 700; font-size: 17px; }
+  .field .hint { margin: 0; font-size: 15px; color: #6B5444; }
+  .inp {
+    width: 100%; height: 58px; padding: 0 16px; min-width: 0;
+    border: 3px solid var(--line); border-radius: 16px; background: var(--card); font-family: var(--font-body); font-size: 20px;
+  }
+  .inp:focus { outline: 4px solid var(--primary); outline-offset: 2px; }
+  .inp[aria-invalid="true"] { border-color: var(--sun-dark); background: #FFF6DD; }
+  .pw { display: flex; gap: 8px; }
+  .eye { flex: none; width: 58px; height: 58px; border: 3px solid var(--line); border-radius: 16px; background: var(--card); display: grid; place-items: center; cursor: pointer; }
+  .eye svg { width: 30px; height: 30px; }
+  .eye[aria-pressed="true"] { background: var(--sun); }
+  .err { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-weight: 700; font-size: 16px; line-height: 1.35; color: #7A4E00; }
+  .err:empty { display: none; }
+  .err::before { content: ''; flex: none; width: 20px; height: 20px; margin-top: 1px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23F2A900' stroke='%233B2A20' stroke-width='2'/%3E%3Cpath d='M10 5v6' stroke='%233B2A20' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='10' cy='14.5' r='1.4' fill='%233B2A20'/%3E%3C/svg%3E"); }
+  .form .gs-action { width: 100%; min-height: 64px; font-size: 26px; margin-top: 4px; }
+  .gs-action[aria-busy="true"] { opacity: 0.85; cursor: progress; }
+  .spin { width: 24px; height: 24px; border-radius: 50%; border: 4px solid rgba(255, 255, 255, 0.45); border-top-color: #fff; animation: spin 800ms linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* done */
+  .done { align-items: center; text-align: center; }
+  .done-av { width: 140px; height: 160px; }
+  .done-av svg { width: 100%; height: 100%; }
+
+  /* Short landscape phones: two columns, answers scroll on their own. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    .card { width: min(860px, 100%); height: 100%; }
+    .bar { padding: 8px 12px 0; }
+    .body { display: grid; grid-template-columns: minmax(200px, 32%) 1fr; gap: 16px; overflow: hidden; padding: 6px 16px 12px; }
+    .host { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 10px; overflow-y: auto; }
+    .cil { width: 92px; height: 92px; align-self: center; order: 2; }
+    .bubble { order: 1; flex: none; }
+    .bubble::before { left: 50%; top: auto; bottom: -13px; margin: 0 0 0 -10px; transform: rotate(-45deg); }
+    .bubble h1 { font-size: 26px; }
+    .bubble .sub { font-size: 15px; }
+    .stage { overflow-y: auto; min-height: 0; padding: 4px 4px 10px; }
+    .tile { flex-basis: calc((100% - 56px) / 5); min-height: 92px; }
+    .tile .big { font-size: 38px; }
+    .av-grid { gap: 10px; }
+    .av { min-height: 108px; }
+    .tile .small { font-size: 14px; }
+    .av svg { width: min(70px, 100%); height: 88px; }
+    .big-input { height: 68px; font-size: 30px; }
+  }
+  @media (max-width: 380px) {
+    .body { padding-inline: 14px; }
+    .cil { width: 88px; height: 88px; }
+    .av svg { width: min(72px, 100%); height: 96px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .screen { animation: s-fade 200ms linear; }
+    @keyframes s-fade { from { opacity: 0; } }
+    .av.hop svg, .bubble.wobble { animation: none; }
+    .dots li { transition: none; }
+    .spin { animation: none; }
+  }
+</style>
+</head>
+<body data-auth="public">
+<svg id="bg" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+<main class="wrap">
+  <section class="card" aria-labelledby="q-title">
+    <div class="bar">
+      <button type="button" class="gs-btn" id="back" aria-label="Kembali" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5L8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <ol class="dots" id="dots" aria-label="Langkah"></ol>
+      <button type="button" class="gs-btn" id="sound" data-gs-sound aria-label="Matikan suara"></button>
+    </div>
+    <div class="body" id="body">
+      <div class="host">
+        <div class="cil" id="cil" aria-hidden="true"></div>
+        <div class="bubble" id="bubble" title="Ketuk untuk dengar lagi">
+          <p class="sub" id="q-sub"></p>
+          <h1 id="q-title" tabindex="-1" aria-live="polite">Halo!</h1>
+        </div>
+      </div>
+      <div class="stage" id="stage"></div>
+    </div>
+  </section>
+</main>
+<noscript><p style="position:fixed;inset:auto 0 0;z-index:9;background:#FFF8EC;padding:16px;text-align:center">Halaman ini butuh JavaScript.</p></noscript>
+
+<script src="shared/core.js"></script>
+<script src="shared/art.js"></script>
+<script src="shared/config.js"></script>
+<script src="shared/auth.js"></script>
+<script>
+(function () {
+  'use strict';
+  var GS = window.GS || {}, MS = window.MS || {}, A = MS.auth, X = A && A._;
+  var $ = function (id) { return document.getElementById(id); };
+  var params = (function () { try { return new URLSearchParams(location.search); } catch (e) { return { get: function () { return null; } }; } })();
+  var NEXT = X ? X.safeNext(params.get('next')) : 'index.html';
+  var touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  var reduced = !!GS.reducedMotion;
+
+  // Returning user with an active session: straight to the game map.
+  if (!A) { document.getElementById('q-title').textContent = 'Maaf, halaman belum lengkap.'; return; }
+  if (A.current()) { $('q-title').textContent = 'Sebentar ya...'; location.replace(NEXT); return; }
+
+  var ICON = {
+    next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12.5 6.5L18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    eye: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 16c3.5-6 8-9 13-9s9.5 3 13 9c-3.5 6-8 9-13 9S6.5 22 3 16z" fill="#fff" stroke="#3B2A20" stroke-width="2.6" stroke-linejoin="round"/><circle cx="16" cy="16" r="5" fill="#2F80C9" stroke="#3B2A20" stroke-width="2.4"/><circle cx="14.3" cy="14.3" r="1.5" fill="#fff"/></svg>',
+    eyeOff: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 16c3.5-6 8-9 13-9s9.5 3 13 9c-3.5 6-8 9-13 9S6.5 22 3 16z" fill="#fff" stroke="#3B2A20" stroke-width="2.6" stroke-linejoin="round"/><path d="M8 17.5q8 6 16 0" fill="none" stroke="#3B2A20" stroke-width="2.6" stroke-linecap="round"/><path d="M11 21l-1.5 2.5M16 22.5v3M21 21l1.5 2.5" stroke="#3B2A20" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    g: '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'
+  };
+
+  /* ---------------- state ---------------- */
+  var prof = A.profile();
+  var S = {
+    step: prof ? 'login' : 'name',
+    returning: !!prof,
+    name: prof ? prof.name : '',
+    kelas: prof ? prof.kelas : '',
+    avatar: prof ? prof.avatar : '',
+    tab: prof ? 'in' : 'up'
+  };
+  var STEPS = ['name', 'kelas', 'avatar'];
+
+  /* ---------------- background + chrome ---------------- */
+  try { if (GS.art && GS.art.scene) $('bg').innerHTML = GS.art.scene('kampung', 1280, 800); } catch (e) { /* plain sky */ }
+  try { if (GS.setMuted) GS.setMuted(!!GS.muted); } catch (e) { /* ignore */ }
+  $('sound').addEventListener('click', function () { if (GS.setMuted) GS.setMuted(!GS.muted); });
+  $('bubble').addEventListener('click', function () { if (GS.lastSay) speak(GS.lastSay); });
+  $('back').addEventListener('click', function () {
+    sfx('click');
+    var i = STEPS.indexOf(S.step);
+    if (S.step === 'login' && !S.returning) go('avatar');
+    else if (i > 0) go(STEPS[i - 1]);
+  });
+
+  function sfx(n) { try { if (GS.sfx && GS.sfx[n]) GS.sfx[n](); } catch (e) { /* audio blocked */ } }
+  function speak(t) { try { if (GS.say) GS.say(t); } catch (e) { /* no voice */ } }
+  function mood(m) { try { $('cil').innerHTML = GS.art ? GS.art.mascot({ mood: m, size: 108 }) : ''; } catch (e) { /* no art */ } }
+  function host(sub, title, spoken, m) {
+    $('q-sub').textContent = sub || '';
+    $('q-sub').hidden = !sub;
+    $('q-title').textContent = title;
+    mood(m || 'happy');
+    speak(spoken || ((sub ? sub + ' ' : '') + title));
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function dots() {
+    var i = S.step === 'login' || S.step === 'done' ? 3 : STEPS.indexOf(S.step);
+    var ol = $('dots');
+    ol.hidden = S.returning;
+    ol.setAttribute('aria-label', i < 3 ? 'Pertanyaan ' + (i + 1) + ' dari 3' : 'Pertanyaan selesai');
+    ol.innerHTML = STEPS.map(function (s, k) { return '<li class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></li>'; }).join('');
+  }
+  function backVisible() {
+    $('back').hidden = S.step === 'name' || S.step === 'done' || (S.step === 'login' && S.returning);
+  }
+  function go(step) {
+    S.step = step;
+    dots(); backVisible();
+    $('body').scrollTop = 0;
+    RENDER[step]();
+  }
+  function screen(html) {
+    var st = $('stage');
+    st.innerHTML = '<div class="screen">' + html + '</div>';
+    st.scrollTop = 0;
+    return st.firstChild;
+  }
+  function focusTitle() { try { $('q-title').focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
+
+  /* ---------------- questions ---------------- */
+  var RENDER = {};
+  RENDER.name = function () {
+    host('Halo, aku Si Cil!', 'Siapa nama panggilanmu?', null, 'point');
+    var el = screen(
+      '<form class="screen-form" id="f-name" novalidate style="display:flex;flex-direction:column;gap:14px">' +
+      '<input class="big-input" id="nick" name="nickname" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next" placeholder="Tulis namamu" aria-labelledby="q-title" aria-describedby="nick-count">' +
+      '<p class="count" id="nick-count"><span id="nick-n">0</span>/12 huruf</p>' +
+      '<div class="row"><button type="button" class="btn-link" id="skip">Lewati</button>' +
+      '<button type="submit" class="gs-action">Lanjut ' + ICON.next + '</button></div></form>');
+    var inp = el.querySelector('#nick');
+    inp.value = S.name && S.name !== 'Teman' ? S.name : '';
+    var upd = function () { $('nick-n').textContent = inp.value.length; };
+    upd();
+    inp.addEventListener('input', upd);
+    el.querySelector('#f-name').addEventListener('submit', function (e) {
+      e.preventDefault();
+      S.name = inp.value.replace(/\s+/g, ' ').trim().slice(0, 12) || 'Teman';
+      sfx('pop'); go('kelas');
+    });
+    el.querySelector('#skip').addEventListener('click', function () { S.name = 'Teman'; sfx('click'); go('kelas'); });
+    if (!touch) setTimeout(function () { try { inp.focus(); } catch (e) { /* ignore */ } }, 50);
+    else focusTitle();
+  };
+
+  RENDER.kelas = function () {
+    host('Salam kenal, ' + S.name + '!', 'Kamu kelas berapa?', null, 'think');
+    var el = screen('<div class="tiles" role="group" aria-labelledby="q-title">' + X.KELAS.map(function (k) {
+      var label = k.id === 'TK' ? 'TK, belum SD' : 'Kelas ' + k.big;
+      return '<button type="button" class="tile" data-k="' + k.id + '" aria-pressed="' + (S.kelas === k.id) + '" aria-label="' + label + '">' +
+        '<span class="small" aria-hidden="true">' + k.small + '</span><span class="big" aria-hidden="true">' + k.big + '</span></button>';
+    }).join('') + '</div>');
+    var busy = false;
+    el.querySelectorAll('.tile').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (busy) return; busy = true;
+        S.kelas = b.getAttribute('data-k');
+        el.querySelectorAll('.tile').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+        sfx('pop');
+        setTimeout(function () { go('avatar'); }, 320);
+      });
+    });
+    focusTitle();
+  };
+
+  RENDER.avatar = function () {
+    host('Dia akan menemanimu bermain.', 'Pilih temanmu!', 'Pilih temanmu! Dia akan menemanimu bermain.', 'point');
+    var el = screen('<div class="av-grid" role="group" aria-labelledby="q-title">' + X.AVATARS.map(function (a) {
+      return '<button type="button" class="av" data-a="' + a.id + '" aria-pressed="' + (S.avatar === a.id) + '">' + A.avatarSvg(a.id, 100, { full: true }) + '<span>' + esc(a.label) + '</span></button>';
+    }).join('') + '</div>');
+    var grid = el.querySelector('.av-grid'), busy = false;
+    grid.querySelectorAll('.av').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (busy) return; busy = true;
+        var a = b.getAttribute('data-a'), meta = X.AVATARS.filter(function (x) { return x.id === a; })[0];
+        S.avatar = a;
+        grid.classList.add('picked');
+        grid.querySelectorAll('.av').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); o.classList.remove('hop'); });
+        void b.offsetWidth; b.classList.add('hop');
+        X.saveProfile({ name: S.name, kelas: S.kelas, avatar: S.avatar });
+        host('', 'Hore! ' + meta.label + ' jadi temanmu!', null, 'cheer');
+        sfx('win');
+        try { var r = b.getBoundingClientRect(); if (GS.confetti) GS.confetti(r.left + r.width / 2, r.top + 20, 40); } catch (e) { /* ignore */ }
+        setTimeout(function () { go('login'); }, reduced ? 900 : 1500);
+      });
+    });
+    focusTitle();
+  };
+
+  /* ---------------- login / register ---------------- */
+  var CID = String((MS.config && MS.config.GOOGLE_CLIENT_ID) || '').trim();
+  RENDER.login = function () {
+    if (S.returning) host('Masuk untuk lanjut main.', 'Halo lagi, ' + S.name + '!', null, 'happy');
+    else host('Minta bantuan ayah, ibu, atau guru ya.', 'Simpan progresmu', 'Simpan progresmu! Minta bantuan ayah, ibu, atau guru ya.', 'happy');
+    var gLabel = CID ? 'Masuk dengan Google' : 'Masuk dengan Google (segera)';
+    var el = screen(
+      (S.returning ? '<div class="who"><span class="who-av">' + A.avatarSvg(S.avatar, 64) + '</span>' +
+        '<button type="button" class="btn-link" id="not-me">Bukan kamu? Mulai dari awal</button></div>' : '') +
+      '<button type="button" class="gbtn' + (CID ? '' : ' off') + '" id="gbtn"' + (CID ? '' : ' aria-disabled="true"') + ' aria-describedby="gnote">' + ICON.g + '<span>' + gLabel + '</span></button>' +
+      '<div class="gslot" id="gslot" hidden></div>' +
+      '<p class="note" id="gnote" role="status" hidden></p>' +
+      '<div class="or" aria-hidden="true">atau pakai email</div>' +
+      '<div class="tabs" role="tablist" aria-label="Masuk atau daftar">' +
+        '<button type="button" class="tab" role="tab" id="tab-in" aria-controls="f-in">Masuk</button>' +
+        '<button type="button" class="tab" role="tab" id="tab-up" aria-controls="f-up">Daftar</button></div>' +
+      '<form class="form" id="f-in" role="tabpanel" aria-labelledby="tab-in" novalidate>' +
+        field('in-email', 'Email', 'email', 'type="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" enterkeyhint="next"') +
+        pwField('in-pw', 'Kata sandi', 'current-password', '') +
+        '<button type="submit" class="gs-action">Masuk</button></form>' +
+      '<form class="form" id="f-up" role="tabpanel" aria-labelledby="tab-up" novalidate>' +
+        field('up-name', 'Nama panggilan', 'name', 'type="text" maxlength="12" autocomplete="nickname" autocapitalize="words" spellcheck="false" enterkeyhint="next"') +
+        field('up-email', 'Email ayah, ibu, atau guru', 'email', 'type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="next"') +
+        pwField('up-pw', 'Kata sandi', 'new-password', 'Minimal 4 huruf atau angka.') +
+        '<button type="submit" class="gs-action">Daftar</button>' +
+        '<p class="note small">Akun tersimpan di perangkat ini selama masa uji coba.</p></form>');
+
+    if (S.returning) el.querySelector('#not-me').addEventListener('click', function () {
+      X.clearProfile();
+      S = { step: 'name', returning: false, name: '', kelas: '', avatar: '', tab: 'up' };
+      sfx('click'); go('name');
+    });
+    $('up-name').value = S.name || '';
+
+    // tabs (click + arrow keys)
+    var tabs = [$('tab-in'), $('tab-up')];
+    function setTab(t, focus) {
+      S.tab = t;
+      $('tab-in').setAttribute('aria-selected', String(t === 'in')); $('tab-in').tabIndex = t === 'in' ? 0 : -1;
+      $('tab-up').setAttribute('aria-selected', String(t === 'up')); $('tab-up').tabIndex = t === 'up' ? 0 : -1;
+      $('f-in').hidden = t !== 'in'; $('f-up').hidden = t !== 'up';
+      if (focus) $('tab-' + t).focus();
+    }
+    tabs.forEach(function (b) {
+      b.addEventListener('click', function () { if (S.tab !== b.id.slice(4)) sfx('click'); setTab(b.id.slice(4)); });
+      b.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') { e.preventDefault(); setTab(S.tab === 'in' ? 'up' : 'in', true); }
+      });
+    });
+    setTab(S.tab);
+
+    // password show/hide
+    el.querySelectorAll('.eye').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var inp = $(b.getAttribute('aria-controls')), show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        b.setAttribute('aria-pressed', String(show));
+        b.setAttribute('aria-label', show ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+        b.innerHTML = show ? ICON.eyeOff : ICON.eye;
+      });
+    });
+    // enter in a field moves on to the next one, then submits
+    el.querySelectorAll('.form').forEach(function (f) {
+      var ins = f.querySelectorAll('.inp');
+      ins.forEach(function (inp, i) {
+        inp.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && i < ins.length - 1 && !ins[i + 1].value) { e.preventDefault(); ins[i + 1].focus(); }
+        });
+        inp.addEventListener('input', function () { if (inp.getAttribute('aria-invalid') === 'true') setErr(inp.id, ''); });
+      });
+    });
+
+    $('f-in').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = this.querySelector('.gs-action');
+      if (busy(btn)) return;
+      clearErrs(this);
+      var em = $('in-email').value, pw = $('in-pw').value, bad = false;
+      if (!em.trim()) { setErr('in-email', 'Tulis email dulu ya.'); bad = true; }
+      if (!pw) { setErr('in-pw', 'Tulis kata sandi dulu ya.'); bad = true; }
+      if (bad) return oops(this);
+      setBusy(btn, true, 'Masuk');
+      wait(450).then(function () { return X.loginEmail(em, pw); }).then(function (r) {
+        setBusy(btn, false, 'Masuk');
+        if (!r.ok) { setErr(r.field === 'email' ? 'in-email' : 'in-pw', r.msg); return oops($('f-in')); }
+        success(r.session);
+      });
+    });
+    $('f-up').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = this.querySelector('.gs-action');
+      if (busy(btn)) return;
+      clearErrs(this);
+      var nm = $('up-name').value.trim(), em = $('up-email').value.trim(), pw = $('up-pw').value, bad = false;
+      if (!nm) { setErr('up-name', 'Tulis nama panggilan dulu ya.'); bad = true; }
+      if (!em) { setErr('up-email', 'Tulis email dulu ya.'); bad = true; }
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { setErr('up-email', 'Emailnya belum lengkap. Contoh: nama@contoh.com'); bad = true; }
+      if (pw.length < 4) { setErr('up-pw', pw ? 'Kata sandi minimal 4 huruf atau angka.' : 'Buat kata sandi dulu ya.'); bad = true; }
+      if (bad) return oops(this);
+      setBusy(btn, true, 'Daftar');
+      wait(450).then(function () { return X.register(nm, em, pw); }).then(function (r) {
+        setBusy(btn, false, 'Daftar');
+        if (!r.ok) { setErr({ name: 'up-name', email: 'up-email', password: 'up-pw' }[r.field] || 'up-email', r.msg); return oops($('f-up')); }
+        S.name = r.session.name;
+        success(r.session);
+      });
+    });
+
+    setupGoogle();
+    focusTitle();
+  };
+
+  function field(id, label, name, attrs) {
+    return '<div class="field"><label for="' + id + '">' + label + '</label>' +
+      '<input class="inp" id="' + id + '" name="' + name + '" ' + attrs + ' aria-describedby="' + id + '-err">' +
+      '<p class="err" id="' + id + '-err"></p></div>';
+  }
+  function pwField(id, label, ac, hint) {
+    return '<div class="field"><label for="' + id + '">' + label + '</label>' +
+      (hint ? '<p class="hint" id="' + id + '-hint">' + hint + '</p>' : '') +
+      '<div class="pw"><input class="inp" id="' + id + '" name="password" type="password" autocomplete="' + ac + '" autocapitalize="off" spellcheck="false" enterkeyhint="go"' +
+      (ac === 'new-password' ? ' minlength="4"' : '') + ' aria-describedby="' + id + '-err' + (hint ? ' ' + id + '-hint' : '') + '">' +
+      '<button type="button" class="eye" aria-controls="' + id + '" aria-pressed="false" aria-label="Tampilkan kata sandi">' + ICON.eye + '</button></div>' +
+      '<p class="err" id="' + id + '-err"></p></div>';
+  }
+  function setErr(id, msg) {
+    var inp = $(id), p = $(id + '-err');
+    if (!inp || !p) return;
+    p.textContent = msg || '';
+    if (msg) inp.setAttribute('aria-invalid', 'true'); else inp.removeAttribute('aria-invalid');
+  }
+  function clearErrs(form) { form.querySelectorAll('.inp').forEach(function (i) { setErr(i.id, ''); }); }
+  function oops(form) {
+    var first = form.querySelector('[aria-invalid="true"]');
+    if (first) { try { first.focus(); first.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' }); } catch (e) { /* ignore */ } }
+    mood('oops'); sfx('oops');
+    var b = $('bubble'); b.classList.remove('wobble'); void b.offsetWidth; b.classList.add('wobble');
+    setTimeout(function () { if (S.step === 'login') mood('happy'); }, 1600);
+  }
+  function busy(btn) { return btn.getAttribute('aria-busy') === 'true'; }
+  function setBusy(btn, on, label) {
+    btn.setAttribute('aria-busy', String(on));
+    btn.innerHTML = on ? '<span class="spin" aria-hidden="true"></span>Sebentar...' : label;
+  }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  /* ---------------- Google Identity Services ---------------- */
+  function gnote(msg) { var n = $('gnote'); if (!n) return; n.textContent = msg; n.hidden = !msg; }
+  var gsiReady = false;
+  function setupGoogle() {
+    var btn = $('gbtn');
+    if (!CID) {
+      btn.addEventListener('click', function () { sfx('click'); gnote('Masuk dengan Google akan aktif setelah diatur oleh pengelola situs. Sementara ini, pakai email dulu ya.'); });
+      return;
+    }
+    if (location.protocol === 'file:') {
+      btn.classList.add('off'); btn.setAttribute('aria-disabled', 'true');
+      btn.addEventListener('click', function () { gnote('Masuk dengan Google hanya bisa dari alamat situs (https atau localhost), bukan dari file.'); });
+      return;
+    }
+    btn.addEventListener('click', function () {
+      if (!gsiReady) { gnote('Sebentar, Google sedang dimuat...'); return; }
+      try { google.accounts.id.prompt(); } catch (e) { gnote('Masuk dengan Google belum berhasil. Coba lagi ya.'); }
+    });
+    loadGsi().then(initGsi).catch(function () { gnote('Google belum bisa dimuat. Periksa internet lalu coba lagi.'); });
+  }
+  var gsiPromise = null;
+  function loadGsi() {
+    if (window.google && google.accounts && google.accounts.id) return Promise.resolve();
+    if (gsiPromise) return gsiPromise;
+    gsiPromise = new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true;
+      s.onload = function () { res(); }; s.onerror = function () { gsiPromise = null; rej(new Error('gsi')); };
+      document.head.appendChild(s);
+    });
+    return gsiPromise;
+  }
+  function initGsi() {
+    try {
+      google.accounts.id.initialize({
+        client_id: CID,
+        callback: onGoogleCredential,
+        ux_mode: 'popup',
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        itp_support: true,
+        use_fedcm_for_prompt: true
+      });
+      gsiReady = true;
+      var slot = $('gslot');
+      if (!slot) return;
+      slot.hidden = false;
+      google.accounts.id.renderButton(slot, {
+        type: 'standard', theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with',
+        logo_alignment: 'left', locale: 'id', width: Math.max(200, Math.min(400, slot.clientWidth || 320))
+      });
+      $('gbtn').hidden = true; // the official button takes its place
+    } catch (e) { gnote('Masuk dengan Google belum berhasil. Coba lagi ya.'); }
+  }
+  function onGoogleCredential(resp) {
+    // DEVELOPMENT ONLY: the ID token is decoded, not verified. Verify it on a server in production.
+    var r = X.loginGoogle(resp && resp.credential);
+    if (!r.ok) { gnote(r.msg); return; }
+    success(r.session);
+  }
+
+  /* ---------------- done ---------------- */
+  function success(session) {
+    S.step = 'done';
+    dots(); backVisible();
+    var name = session.name || S.name || 'Teman';
+    host('', 'Halo, ' + name + '! Ayo main!', null, 'cheer');
+    screen('<div class="screen done"><div class="done-av">' + A.avatarSvg(session.avatar, 140, { full: true }) + '</div>' +
+      '<a class="gs-action" href="' + esc(NEXT) + '" id="go">Ayo main! ' + ICON.next + '</a></div>');
+    sfx('win');
+    try { if (GS.confetti) GS.confetti(innerWidth / 2, innerHeight * 0.35, 80); } catch (e) { /* ignore */ }
+    focusTitle();
+    setTimeout(function () { location.replace(NEXT); }, 2000);
+  }
+
+  go(S.step);
+})();
+</script>
+</body>
+</html>
