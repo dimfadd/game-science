@@ -679,7 +679,7 @@
       finish(starsFor(wrong), wrong === 0 ? 'Semua tebakan pas!' : 'Semua benda sudah diamati!');
     }
 
-    S.solve = () => { items.forEach(t => assign(t, t.floats ? 'float' : 'sink')); setTimeout(() => S.cemplung(), 300); };
+    S.solve = () => { items.forEach(t => assign(t, t.floats ? 'float' : 'sink')); const s = S; setTimeout(() => { if (S === s) S.cemplung(); }, 300); };
     const intro = [
       'Terapung atau tenggelam? Seret ke keranjang tebakan.',
       'Tebak lagi. Terapung atau tenggelam?',

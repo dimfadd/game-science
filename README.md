@@ -1,4 +1,4 @@
-# Kampung Sains
+# Mat Sains
 
 Koleksi game HTML5 untuk anak kelas 1–3 SD. Anak belajar matematika dan fisika intuitif lewat mekanik permainan, bukan lewat kuis.
 
@@ -13,7 +13,9 @@ python3 -m http.server 8000
 
 ## Deploy ke Vercel
 
-Ini situs statis tanpa build. Di Vercel: **Add New → Project**, import repo ini, Framework Preset **Other**, Build Command dikosongkan, Output Directory `.`. Branch selain `main` otomatis mendapat Preview URL.
+Import repo ini di Vercel. `vercel.json` sudah mengatur semuanya: build menjalankan `scripts/build.sh` dan hanya menerbitkan file publik dari folder `dist/` (galeri aset, dokumen, dan template tidak ikut).
+
+Panduan lengkap proyek untuk developer atau AI ada di `CLAUDE.md`.
 
 ## Isi
 
@@ -26,7 +28,7 @@ Ini situs statis tanpa build. Di Vercel: **Add New → Project**, import repo in
 | Rakit Terapung | Terapung/tenggelam ditentukan massa jenis, kapasitas rakit, bentuk lambung |
 | Bagi Martabak | Bagian sama besar, ½ ⅓ ¼, membandingkan pecahan |
 
-`assets.html` menampilkan semua aset visual (maskot Si Cil, benda, makhluk, latar, landmark).
+`assets.html` menampilkan semua aset visual (maskot Si Cil, benda, makhluk, latar, landmark). Halaman ini hanya untuk developer dan tidak ikut di-deploy.
 
 ## Struktur
 

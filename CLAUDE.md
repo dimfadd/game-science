@@ -17,7 +17,7 @@ Core pedagogy (non-negotiable, details in `docs/DESIGN.md`):
 
 - Vanilla HTML/CSS/JS, **no framework, no npm runtime deps**. All art is hand-made inline SVG (`shared/art.js`), all sfx synthesized with Web Audio, narration via recorded clips or Web Speech `id-ID`.
 - Works from `file://` (open `index.html`) and from any static host.
-- Deployed on **Vercel** from branch `claude/educational-game-math-physics-ep6s5i` (the repo's only and default branch). `vercel.json` runs `scripts/build.sh`, which copies only public files into `dist/` (the asset gallery `assets.html`, `docs/`, `games/_template/`, project notes are **not** deployed).
+- Deployed on **Vercel** (e.g. game-science-seven.vercel.app) from branch `claude/educational-game-math-physics-ep6s5i` (the repo's only and default branch). `vercel.json` runs `scripts/build.sh`, which copies only public files into `dist/` (the asset gallery `assets.html`, `docs/`, `games/_template/`, project notes are **not** deployed).
 - Installable **PWA** (`manifest.webmanifest`, `sw.js`, `shared/pwa.js`). Display `fullscreen`, orientation `landscape`.
 - No backend or database yet. Accounts are client-side only (see Auth).
 
@@ -65,9 +65,9 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
 
 ## GS runtime (shared/core.js)
 
-`GS.store` (localStorage with memory fallback; key `kampung-sains.v1`, kept for progress compatibility) · `GS.sfx.*` · `GS.say(text)` (caption + speech; speech output goes through `GS.speakImpl`, replaced by `shared/voice.js`) · `GS.speakable(text)` (math symbols to words) · `GS.tween/ease/wait` · `GS.el/markup/svgPoint/drag` · `GS.confetti/floatText` · `GS.hud({...})` · `GS.runner({gameId,count,hud,start})` → `go(i)/next()/win(stars,text)` · `GS.celebrate` · `GS.levelPicker`.
+`GS.store` (localStorage with memory fallback; key `kampung-sains.v1`, kept for progress compatibility) · `GS.sfx.*` · `GS.say(text)` (caption + speech; speech is queued until the first tap, then goes through `GS.speakImpl`/`GS.stopSpeech`, replaced by `shared/voice.js`) · `GS.fx(el, cls)` (plays a shared animation class on an untransformed inner group, see the SVG rule below) · `GS.fs` (fullscreen helpers) · start gate: pages with `body.gs-game` show a "Main!" overlay that unlocks audio, requests fullscreen + landscape lock on touch devices and then speaks the first instruction (skipped when installed as an app, with `?autotest`, or under `navigator.webdriver`) · `GS.speakable(text)` (math symbols to words) · `GS.tween/ease/wait` · `GS.el/markup/svgPoint/drag` · `GS.confetti/floatText` · `GS.hud({...})` · `GS.runner({gameId,count,hud,start})` → `go(i)/next()/win(stars,text)` · `GS.celebrate` · `GS.levelPicker`.
 
-**SVG animation rule**: never put a CSS animation that sets `transform` on an SVG element that is positioned with a `transform` attribute (the CSS replaces the attribute and the element jumps to the origin). Use the individual `translate`/`rotate`/`scale` properties or animate an inner `<g>`.
+**SVG animation rule** (caused the "scale flies away" bug, 2026-10-08): never put CSS `transform` (rules, `:hover`/`:active`, keyframes) on an SVG element that is positioned with a `transform` attribute. The CSS replaces the attribute and the element jumps to the origin. Position with an outer `<g transform=...>` and animate an inner `<g>` (use `GS.fx`). `tests/hub-hover.js` guards the hub map.
 
 ## Auth (development only)
 
@@ -86,7 +86,12 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
 
 ## Testing
 
-- `tests/` holds Playwright scripts (uses `playwright-core`; Chromium path via `CHROMIUM` env or `/opt/pw-browsers/...`). Run `npm --prefix tests install` once, then `node tests/smoke.js` (every page loads without errors over HTTP) and `node tests/levels.js [gameId]` (solves every level of every game).
+- `tests/` holds Playwright scripts (uses `playwright-core`; Chromium path via `CHROMIUM` env or `/opt/pw-browsers/...`). Run `npm --prefix tests install` once, then:
+  - `node tests/smoke.js`: every page loads without errors or horizontal overflow at 4 device sizes (`SITE_DIR=dist` to test the Vercel build).
+  - `node tests/levels.js [gameId]`: solves every level (run one game per command; the whole set takes over 10 minutes).
+  - `node tests/journey.js [phoneLandscape|phonePortrait|tablet]`: new player end to end with the login guard on (onboarding, dev login, hub, tap a landmark, start gate).
+  - `node tests/hub-hover.js`: hub landmarks stay in place on hover/press.
+  - `node tests/collect-lines.js`: plays every level and rewrites the narrator line list in `docs/NARASI.md`.
 - Always test phone landscape 844×390, phone portrait 412×915, tablet 1180×820 and desktop 1280×800, with `isMobile`/`hasTouch` for touch bugs.
 
 ## Conventions

@@ -270,7 +270,7 @@ button { font: inherit; color: inherit; }
 .gs-gate-hint { margin: 0; max-width: 30ch; font-size: 16px; line-height: 1.4; font-weight: 700; color: #5C4636; }
 @media (max-height: 500px) {
   /* phone landscape: mascot beside the text so nothing is cut off */
-  .gs-gate-card { width: min(640px, 100%); flex-direction: row; gap: 18px; padding: 14px 22px 18px; text-align: left; }
+  .gs-gate-card { width: auto; max-width: min(640px, 100%); flex-direction: row; gap: 18px; padding: 14px 28px 18px 22px; text-align: left; }
   .gs-gate-mascot { height: 130px; flex: none; }
   .gs-gate-mascot svg { width: 130px; height: 130px; }
   .gs-gate-body { align-items: flex-start; gap: 12px; }

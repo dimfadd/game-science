@@ -8,6 +8,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
 <link rel="stylesheet" href="shared/core.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#9ED8EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <style>
   /* Layout: the illustrated kampung map is the whole first screen (the hub);
      the parent guide sits below it on a cream panel. Single sunny theme by choice. */
@@ -25,6 +33,15 @@
   }
   .brand p { margin: 6px 0 0; font-weight: 700; font-size: clamp(15px, 1.8vw, 20px); max-width: 32ch; }
   .head-tools { pointer-events: auto; display: flex; gap: 10px; align-items: center; }
+  @media (max-width: 640px) {
+    /* Narrow phones: title on its own line, tools wrap underneath so nothing is clipped. */
+    .map-head { flex-direction: column; align-items: stretch; gap: 10px; }
+    .brand p { max-width: none; }
+    .head-tools { flex-wrap: wrap; gap: 8px; }
+    .head-tools .gs-btn, .total { height: 52px; }
+    .head-tools .gs-btn { width: 52px; min-width: 52px; }
+    .map-scroll { padding-top: 64px; } /* keep the header from covering the landmarks */
+  }
   .total {
     display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 16px 0 10px;
     background: var(--card); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
@@ -101,6 +118,17 @@
   .principles div { border-top: 4px solid var(--line); padding-top: 12px; }
   .principles h4 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
   .principles p { margin: 0; font-size: 16px; line-height: 1.5; }
+  .profile { display: flex; align-items: center; }
+  .profile:empty { display: none; }
+  .install-cta {
+    margin-top: 32px; display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
+    padding: 16px; background: var(--card); border: 3px solid var(--line); border-radius: 24px;
+  }
+  .install-cta[hidden] { display: none; }
+  .install-cta img { width: 64px; height: 64px; border-radius: 16px; border: 2px solid var(--line); }
+  .install-cta h4 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+  .install-cta p { margin: 0; font-size: 16px; line-height: 1.45; }
+  @media (max-width: 560px) { .install-cta { grid-template-columns: 56px 1fr; } .install-cta .play { grid-column: 1 / -1; justify-content: center; } }
   .foot { margin-top: 36px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 16px; }
   .foot a { color: var(--primary-dark); font-weight: 700; }
   .reset { min-height: 44px; padding: 0 16px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); font-weight: 700; cursor: pointer; }
@@ -118,6 +146,7 @@
       <div class="head-tools">
         <div class="total" aria-label="Total bintang"><span id="totalStar"></span><span id="totalN">0</span></div>
         <button type="button" class="gs-btn" id="sound" data-gs-sound aria-label="Matikan suara"></button>
+        <div id="profile" class="profile"></div>
       </div>
     </div>
     <div class="map-scroll" id="scroller">
@@ -136,6 +165,11 @@
       <div><h4>Tanpa nyawa dan timer</h4><p>Tidak ada tanda salah berwarna merah. Bintang diberikan untuk ketelitian, bukan kecepatan.</p></div>
       <div><h4>Fisika yang jujur</h4><p>Simulasi mengikuti hukum nyata: benda berat tidak jatuh lebih cepat, ukuran tidak menentukan berat.</p></div>
     </div>
+    <div class="install-cta" data-pwa-install hidden>
+      <img src="icons/icon-192.png" alt="" width="64" height="64">
+      <div><h4>Pasang Mat Sains di layar utama</h4><p>Buka seperti aplikasi, layar penuh, dan tetap bisa dimainkan tanpa internet.</p></div>
+      <button type="button" class="play">Pasang</button>
+    </div>
     <div class="foot">
       <span class="confirm" id="resetBox"><button type="button" class="reset" id="reset">Hapus progres</button></span>
     </div>
@@ -144,6 +178,10 @@
 
 <script src="shared/core.js"></script>
 <script src="shared/art.js"></script>
+<script src="shared/config.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/voice.js"></script>
+<script src="shared/pwa.js"></script>
 <script>
 (function () {
   'use strict';
@@ -199,7 +237,10 @@
   GAMES.forEach((g, i) => {
     const s = stars(g.id); total += s;
     const a = GS.el('a', { href: 'games/' + g.id + '/index.html', class: 'node' + (s ? '' : ' fresh'), tabindex: '0', 'aria-label': g.name + ', ' + s + ' bintang' }, nodes);
-    const lm = GS.el('g', { class: 'lm', transform: 'translate(' + g.x + ' ' + g.y + ')' }, a);
+    // Position lives on an outer group; the hover/press scale animates an inner one.
+    // (A CSS transform on the positioned group would replace its translate and fling it to 0,0.)
+    const pos = GS.el('g', { transform: 'translate(' + g.x + ' ' + g.y + ')' }, a);
+    const lm = GS.el('g', { class: 'lm' }, pos);
     if (has('landmark')) lm.innerHTML = art.landmark(g.lm);
     else lm.innerHTML = '<rect x="-80" y="-150" width="160" height="150" rx="24" fill="#FFF8EC" stroke="#3B2A20" stroke-width="5"/>';
     // signboard
@@ -234,6 +275,7 @@
   }
 
   // --- header widgets ---
+  if (window.MS && MS.auth && MS.auth.mountProfileChip) MS.auth.mountProfileChip(document.getElementById('profile'));
   document.getElementById('totalStar').innerHTML = GS.ICON.star;
   document.getElementById('totalN').textContent = total;
   document.getElementById('sound').addEventListener('click', () => { GS.sfx.click(); GS.setMuted(!GS.muted); });

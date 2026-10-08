@@ -1,4 +1,4 @@
-# Kampung Sains: Design Bible
+# Mat Sains: Design Bible
 
 Koleksi game HTML5 untuk anak kelas 1–3 SD (6–9 tahun). Matematika dan fisika intuitif diajarkan **lewat mekanik game itu sendiri**.
 Dokumen ini adalah sintesis dari empat brainstorming spesialis (didaktik matematika, pendidikan IPAS/fisika, game design, art direction) dan menjadi acuan wajib untuk semua builder.
