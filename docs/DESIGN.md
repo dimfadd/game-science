@@ -90,6 +90,10 @@ Ekspresi: idle, happy, cheer, think, surprise, oops, point.
 | `ketapel` | **Ketapel Mangga** | bidik, luncurkan | Gaya tarik → kecepatan → jarak, gravitasi membuat lintasan melengkung, benda berat lebih lambat dari tarikan yang sama; garis bilangan patok | Kebun |
 | `perahu` | **Rakit Terapung** | prediksi, muat | Terapung/tenggelam bergantung bahan (massa jenis), bukan berat; kapasitas rakit (menghitung, menjumlah) | Sungai |
 | `martabak` | **Bagi Martabak** | potong, bagi | Bagian sama besar, setengah, seperempat, sepertiga; membandingkan pecahan satuan | Warung |
+| `bibit` | **Kebun Bibit** | tanam, tarik pojok | Larik baris × kolom, perkalian dan pembagian, faktor, luas, keliling | Kebun bibit |
+| `kembalian` | **Warung Kembalian** | bayar, beri kembalian | Nilai uang rupiah, penjumlahan, pengurangan dengan menghitung lanjut, lembar paling sedikit, harga × jumlah | Kelontong |
+| `jam` | **Jam Kampung** | putar jarum | Membaca jam, lama waktu, jadwal, zona waktu; fisika: posisi matahari dan panjang bayangan | Pos ronda |
+| `wayang` | **Wayang Bayangan** | geser, sorot | Cahaya merambat lurus, ukuran bayangan (perbandingan), bahan tembus/tidak tembus cahaya, pantulan cermin | Panggung |
 
 ## 6. Aturan kebenaran fisika (untuk coder)
 

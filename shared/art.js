@@ -1031,6 +1031,30 @@
       s += f3(C(0, -166, 15), [-15, -181, 30, 30], PAL.brass, { k: 0.12, sw: 2.6 }) + C(0, -166, 10.5)(stk(1.4, '#A8771F')) + txt(0, -161.5, 'Rp', 12, '#7A5518', "'Baloo 2', system-ui, sans-serif") + spec(-7, -173, 1.6);
       return s;
     },
+/* landmark: panggung (game wayang) */
+    // Panggung wayang: a kelir (white screen) in a wooden frame with a red-black plangitan,
+    // a gunungan shadow on it, the brass blencong hanging at the left, banana trunks at the base.
+    // Suggested hub icon: GS.art.item('kucing') (a wayang kucing is the first puppet in TK level 1).
+    panggung() {
+      let s = shadow(86) + grassBase(88);
+      // frame posts and the screen
+      s += f3(R(-58, -150, 8, 140, 2), [-58, -150, 8, 140], PAL.wood, { hl: false, k: 0.3 }) + f3(R(74, -150, 8, 140, 2), [74, -150, 8, 140], PAL.wood, { hl: false, k: 0.3 });
+      s += solid(R(-50, -142, 124, 118, 2), '#FFEFC4', 2.6) + R(-50, -142, 124, 118)(`fill="none" stroke="#B5322B" stroke-width="2.4"`);
+      // gunungan shadow on the kelir, with carved light dots
+      s += P('M12 -132C24 -116 40 -96 44 -70C46 -58 40 -50 34 -48L22 -48L22 -34L2 -34L2 -48L-10 -48C-16 -50 -22 -58 -20 -70C-16 -96 0 -116 12 -132Z')(fl('#2B1D14', 0.88));
+      [[12, -104], [12, -88], [12, -72], [2, -94], [22, -94], [-2, -76], [26, -76], [12, -40]].forEach(([x, y]) => { s += dot(x, y, 2.4, '#FFEFC4'); });
+      // plangitan (top band) with gold triangles
+      s += solid(R(-64, -162, 152, 16, 3), '#241A1C', 2.4);
+      for (let x = -58; x < 82; x += 12) s += P(`M${x} -148L${x + 6} -158L${x + 12} -148Z`)(fl('#D9A441'));
+      // banana trunks (gedebog) holding the screen
+      s += f3(R(-70, -30, 164, 14, 7), [-70, -30, 164, 14], ['#D8D2A0', '#ECE7C2', '#B3AC74'], { hl: false, k: 0.2, sw: 2.4 }) + f3(R(-64, -18, 152, 13, 6.5), [-64, -18, 152, 13], ['#D8D2A0', '#ECE7C2', '#B3AC74'], { hl: false, k: 0.2, sw: 2.4 });
+      // blencong lamp hanging at the left, with its flame and warm glow
+      s += ln('M-78 -168V-118', 1.8, '#9C8A66') + dot(-72, -104, 16, '#FFD98A', 0.25);
+      s += f3(P('M-94 -108C-94 -98 -86 -94 -78 -95C-71 -96 -68 -100 -67 -106Z'), [-94, -108, 27, 14], PAL.brass, { hl: false, k: 0.15, sw: 2 });
+      s += solid(P('M-90 -110C-92 -120 -86 -126 -80 -124C-76 -123 -75 -119 -76 -116L-71 -114L-76 -111Z'), '#D9A441', 1.8);
+      s += solid(P('M-66 -118C-62 -113 -61 -108 -66 -104C-71 -108 -70 -113 -66 -118Z'), '#F28C28', 1.6) + P('M-66 -114C-64 -111 -64 -109 -66 -107C-68 -109 -68 -111 -66 -114Z')(fl('#FFE08A'));
+      return s;
+    },
     /* landmark: posronda (game jam) */
     posronda() {
       // pos ronda tower with a big wall clock, kentongan hanging below

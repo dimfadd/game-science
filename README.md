@@ -27,6 +27,10 @@ Panduan lengkap proyek untuk developer atau AI ada di `CLAUDE.md`.
 | Ketapel Mangga | Tarikan → kecepatan → jarak, lintasan parabola, massa dan hambatan udara |
 | Rakit Terapung | Terapung/tenggelam ditentukan massa jenis, kapasitas rakit, bentuk lambung |
 | Bagi Martabak | Bagian sama besar, ½ ⅓ ¼, membandingkan pecahan |
+| Kebun Bibit | Perkalian sebagai baris × kolom, pembagian, faktor, luas, keliling |
+| Warung Kembalian | Nilai uang, membayar tepat, kembalian, belanja dan anggaran |
+| Jam Kampung | Membaca jam, lama waktu, jadwal, WIB/WITA/WIT, matahari dan bayangan |
+| Wayang Bayangan | Cahaya dan bayangan, bahan tembus cahaya, perbandingan, pantulan cermin |
 
 `assets.html` menampilkan semua aset visual (maskot Si Cil, benda, makhluk, latar, landmark). Halaman ini hanya untuk developer dan tidak ikut di-deploy.
 
@@ -40,7 +44,7 @@ shared/core.css       token desain dan komponen UI
 shared/art.js         library aset SVG (window.GS.art)
 games/<id>/           satu folder per game
 docs/DESIGN.md        prinsip pedagogi, gaya visual, aturan fisika
-docs/GAMES.md         spesifikasi level setiap game
+docs/KURIKULUM.md     daftar level setiap game per kelas
 ```
 
 Tanpa build step dan tanpa library eksternal. Semua gambar adalah SVG buatan tangan, semua suara disintesis dengan Web Audio, dan instruksi diucapkan dengan Web Speech API (`id-ID`). Kalau perangkat tidak punya suara Bahasa Indonesia, teks tetap muncul di gelembung Si Cil.

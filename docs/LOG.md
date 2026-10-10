@@ -2,6 +2,16 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-10: Wave 2, four new games (10 in total)
+
+Requested by the owner: more game variety that follows the curriculum; ideas proposed first, owner approved ideas 1, 2, 6, 9 (Warung Kembalian, Jam Kampung, Kebun Bibit, Wayang Bayangan); Tenun Motif and Pancing Magnet postponed. Ideas not yet chosen: Jembatan Bambu (length), Tuang Sirup (volume), Ubin Rumah Joglo (shapes), Panen Grafik (data), Lintasan Kelereng (slopes, friction).
+- Spec per tier in `docs/KURIKULUM.md` ("Gelombang 2"); per-tier descriptions in `shared/curriculum.js`. Chosen to cover the elements the first six games never touched: measurement (money, time), arrays/area/perimeter, IPAS light.
+- Built by one specialist agent per game, 38 levels each (152 new, 380 in total). Results: `tests/levels.js` ok on all five tiers for each; `tests/visual-qc.js` 0 of 76 level views fail for each (kembalian 9 -> 0 during the build).
+- Hub map re-laid out for ten places (three rows, landmarks at 0.86 scale, whole kampung visible on tablet/desktop, phones scroll sideways); four new landmarks in `shared/art.js` (`bibit`, `kelontong`, `posronda`, `panggung`); `tests/hub-hover.js` now expects one landmark per game.
+- Core: `GS.tween` clamps progress at 0 (the first rAF timestamp can precede the start time; a negative SVG height logged an error in wayang).
+- Decisions: wayang measuring levels use 1 m = 220 u so puppets are 40–60 cm (20 cm would be too small to drag on a phone); jam snaps the hand only to the tier grid (hour / 30 / 5 / 1 min), never to the answer; kembalian "fewest pieces" levels cap stars at 2 when not minimal.
+- Open: captions on phones cover up to about x < 600, y < 130 (larger than the 380 × 130 the QC doc assumes); the speakable workarounds above could move into `core.js`; new narrator lines are not yet in `docs/NARASI.md` (run `node tests/collect-lines.js`).
+
 ## 2026-10-08 (evening): Visual size QC
 
 Owner reported from a phone: Timbangan weights unreadable and the left side of the game not filling the screen; suspected the same in other games.

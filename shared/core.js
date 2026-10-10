@@ -210,7 +210,7 @@
     return new Promise(res => {
       const t0 = performance.now();
       function step(now) {
-        const p = Math.min(1, (now - t0) / dur);
+        const p = Math.max(0, Math.min(1, (now - t0) / dur)); // rAF time can precede t0
         fn(e(p), p);
         if (p < 1) requestAnimationFrame(step); else res();
       }

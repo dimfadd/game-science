@@ -45,7 +45,8 @@
   const ROT_SNAP = TIER === 'tk' || TIER === 'k1' ? 15 : 5;          // stated rotation grid
   let SPEED = 1;
   const ms = v => v / SPEED;
-  const tw = (d, fn, e) => GS.tween(ms(d), fn, e);
+  // rAF timestamps can be a little older than the tween start, so clamp the first frame at 0
+  const tw = (d, fn, e) => GS.tween(ms(d), (v, raw) => fn(Math.max(0, v), Math.max(0, raw)), e);
   const wait = d => GS.wait(ms(d));
 
   /* ================= small utilities ================= */
@@ -510,7 +511,7 @@
   }
   function drawTargetLabels() {
     const lab = RD.label || (RD.targets || []).map(t => t.label).filter(Boolean)[0];
-    if (lab) GS.markup(kelirUI, `<g class="wy-tlabel">${pill(PCX, 24, lab, 38, { cls: lab.match(/\d/) ? '' : 't-body' })}</g>`);
+    if (lab) GS.markup(kelirUI, `<g class="wy-tlabel">${pill(PCX, 26, lab, 44, { cls: lab.match(/\d/) ? '' : 't-body' })}</g>`);
   }
   function render() {
     if (!RD) return;
@@ -612,13 +613,13 @@
     const L = LAMPS[0];
     let s = Rc(L.x - 10, FOOT + 18, SX - L.x + 20, 58, 10, fill('#FFF3DC', .94)) + line(`M${L.x} ${FOOT + 26}H${SX}`, 3);
     for (let i = 0; i <= 30; i++) { const x = L.x + i * UM / 10, big = i % 10 === 0, mid = i % 5 === 0; s += line(`M${n1(x)} ${FOOT + 26}v${big ? 22 : mid ? 15 : 8}`, big ? 3.4 : 2.2); }
-    for (let i = 0; i <= 3; i++) s += txt(L.x + i * UM + (i === 0 ? 14 : i === 3 ? -30 : 0), FOOT + 70, i === 0 ? '0' : i + ' m', 36, { w: 600 });
+    for (let i = 0; i <= 3; i++) s += txt(L.x + i * UM + (i === 0 ? 14 : i === 3 ? -34 : 0), FOOT + 72, i === 0 ? '0' : i + ' m', 40, { w: 600 });
     (RD.marks || []).forEach(d => { const x = L.x + d * UM; s += Pa(`M${n1(x)} ${FOOT + 24}l-9 -14h18Z`, solid('#FFC83D', 2.4)); });
     GS.markup(propsG, s);
     let k = Rc(KX1 - 92, KY0 + 6, 88, FOOT - KY0 + 70, 10, fill('#FFF3DC', .92)) + line(`M${KX0} ${FOOT}H${KX1}`, 3, '#7E5A2E', .55);
     for (let cm = 0; cm * 2.2 <= FOOT - KY0 - 6; cm += 10) { const y = FOOT - cm * 2.2; k += line(`M${KX1 - (cm % 50 ? 18 : 32)} ${n1(y)}H${KX1 - 6}`, cm % 50 ? 2.4 : 3.6, '#5A3E2E'); }
-    [50, 100, 150].forEach(cm => { k += txt(KX1 - 38, FOOT - cm * 2.2 + 13, String(cm), 36, { anchor: 'end', fill: '#5A3E2E', w: 600 }); });
-    k += txt(KX1 - 38, FOOT + 44, 'cm', 32, { anchor: 'end', fill: '#5A3E2E', cls: 't-body', w: 700 });
+    [50, 100, 150].forEach(cm => { k += txt(KX1 - 36, FOOT - cm * 2.2 + 14, String(cm), 40, { anchor: 'end', fill: '#5A3E2E', w: 600 }); });
+    k += txt(KX1 - 30, FOOT + 46, 'cm', 34, { anchor: 'end', fill: '#5A3E2E', cls: 't-body', w: 700 });
     GS.markup(kelirUI, `<g class="wy-ruler">${k}</g>`);
   }
   const distM = P => (P.x - LAMPS[0].x) / UM;
@@ -628,13 +629,13 @@
     if (!P || !RD.numeric) return '';
     const top = P.y + P.k * SH[P.shape].bb.y0, bot = P.y + P.k * SH[P.shape].bb.y1, bx = P.x - 60;
     let s = line(`M${bx} ${n1(top)}V${n1(bot)}M${bx - 8} ${n1(top)}h16M${bx - 8} ${n1(bot)}h16`, 3.4, '#FFE7B0');
-    s += pill(bx - 56, (top + bot) / 2, RD.H + ' cm', 34, { w: 104 });
-    if (RD.showDist !== false) s += Pa(`M${n1(P.x)} ${FOOT + 84}l-10 14h20Z`, fill('#FFE08A')) + pill(P.x, FOOT + 118, dec(Math.round(distM(P) * 100) / 100) + ' m', 36, { w: 118, bg: '#FFE08A' });
+    s += pill(bx - 66, (top + bot) / 2, RD.H + ' cm', 40, { w: 124 });
+    if (RD.showDist !== false) s += Pa(`M${n1(P.x)} ${FOOT + 84}l-10 14h20Z`, fill('#FFE08A')) + pill(P.x, FOOT + 120, dec(Math.round(distM(P) * 100) / 100) + ' m', 40, { w: 128, bg: '#FFE08A' });
     return s;
   }
   function measuredLabel(hs) {
     const y = FOOT - hs * 2.2;
-    return `<g class="wy-meas">${line(`M${KX0 + 8} ${n1(y)}H${KX1 - 8}`, 4, '#0F8C7A')}${pill(KX0 + 74, y - 34, Math.round(hs) + ' cm', 36, { w: 132 })}</g>`;
+    return `<g class="wy-meas">${line(`M${KX0 + 8} ${n1(y)}H${KX1 - 8}`, 4, '#0F8C7A')}${pill(KX0 + 80, y - 36, Math.round(hs) + ' cm', 40, { w: 144 })}</g>`;
   }
   function clearHints() { kelirUI.querySelectorAll('.wy-hint').forEach(n => n.remove()); }
   function arrowV(x, y1, y2) {
@@ -821,7 +822,7 @@
         const on = LAMPS[0].art === art;
         c.innerHTML = Rc(-62, -62, 124, 132, 16, `fill="${on ? '#FFE08A' : CREAM}" ${ol(3)}`) +
           `<g transform="translate(18 -14) scale(.62)">${lampArt({ art: art === 'besar' ? 'blencong' : 'blencong' })}${flameArt({ art, r: art === 'besar' ? 26 : 2 })}</g>` +
-          txt(0, 54, word, 30, { cls: 't-body', w: 700 });
+          txt(0, 56, word, 33, { cls: 't-body', w: 700 });
       };
       c.__draw = draw; draw();
       c.style.cursor = 'pointer';
@@ -881,12 +882,12 @@
     if (RD.variant === 'lift') {
       MK.ghost.innerHTML = `<g transform="translate(${n1(PCX)} ${n1(MK.y)}) rotate(${P.rot}) scale(${n1(MK.sc * 1000) / 1000})"><use href="#wy-ol-${P.shape}" fill="#F2A900" fill-opacity=".16" stroke="#E07B00" stroke-width="5" stroke-dasharray="12 9" vector-effect="non-scaling-stroke"/></g>`;
       MK.tab.innerHTML = line(`M${SX - 6} ${n1(MK.y)}H${KX0 + 30}`, 4, '#E07B00') + Rc(782, MK.y - 52, 96, 104, 18, solid('#FFE08A', 3)) +
-        Pa(`M830 ${n1(MK.y - 42)}l-14 16h28Z`, fill(OUT)) + Pa(`M830 ${n1(MK.y + 42)}l-14 -16h28Z`, fill(OUT)) + txt(830, MK.y + 10, 'tebak', 30, { cls: 't-body', w: 700 }) +
+        Pa(`M830 ${n1(MK.y - 42)}l-14 16h28Z`, fill(OUT)) + Pa(`M830 ${n1(MK.y + 42)}l-14 -16h28Z`, fill(OUT)) + txt(830, MK.y + 11, 'tebak', 32, { cls: 't-body', w: 700 }) +
         Rc(776, MK.y - 58, 108, 116, 18, fill('transparent'));
     } else {
       MK.ghost.innerHTML = line(`M${KX0 + 8} ${n1(MK.y)}H${KX1 - 50}`, 5, '#E07B00') + line(`M${KX0 + 8} ${n1(MK.y)}H${KX1 - 50}`, 2, '#FFE08A');
       MK.tab.innerHTML = line(`M${SX - 6} ${n1(MK.y)}H${KX0 + 20}`, 4, '#E07B00') + Rc(768, MK.y - 54, 112, 108, 18, solid('#FFE08A', 3)) +
-        txt(824, MK.y + 2, String(MK.cm), 42, { w: 600 }) + txt(824, MK.y + 38, 'cm', 30, { cls: 't-body', w: 700 }) +
+        txt(824, MK.y + 4, String(MK.cm), 44, { w: 600 }) + txt(824, MK.y + 40, 'cm', 32, { cls: 't-body', w: 700 }) +
         Pa(`M824 ${n1(MK.y - 64)}l-12 10h24Z`, fill('#FFE08A')) + Pa(`M824 ${n1(MK.y + 64)}l-12 -10h24Z`, fill('#FFE08A')) +
         Rc(764, MK.y - 58, 120, 116, 18, fill('transparent'));
     }
@@ -946,15 +947,16 @@
   function setupSort() {
     LAMPS = RD.lamps.map(buildLamp);
     TRAYS = [['bening', 430], ['samar', 600], ['pekat', 770]].map(([kind, x]) => ({ kind, x, y: 735, w: 160, items: [] }));
-    let s = '';
+    let s = '', front = '';
     TRAYS.forEach(T => {
       const a = { bening: .06, samar: .38, pekat: .9 }[T.kind];
       s += shadowE(T.x, 772, 84) + f3(q => Pa(`M${T.x - 80} 702H${T.x + 80}L${T.x + 70} 770H${T.x - 70}Z`, q), [T.x - 80, 702, 160, 68], ['#B07A48', '#CC9866', '#7E4A27'], { hl: false, k: .1 });
-      s += Ci(T.x - 56, 738, 14, `fill="#FFF3DC" ${ol(2.4)}`) + Ci(T.x - 56, 738, 14, fill('#22160F', a)) + txt(T.x + 16, 749, T.kind, 30, { cls: 't-body', fill: CREAM, w: 700 });
+      front += Rc(T.x - 74, 718, 148, 46, 10, fill('#7E4A27')) + Ci(T.x - 56, 741, 14, `fill="#FFF3DC" ${ol(2.4)}`) + Ci(T.x - 56, 741, 14, fill('#22160F', a)) + txt(T.x + 16, 752, T.kind, 33, { cls: 't-body', fill: CREAM, w: 700 });
     });
     s += f3(q => Rc(14, 120, 14, 540, 4, q), [14, 120, 14, 540], P3.wood, { hl: false, k: .3 }) + f3(q => Rc(298, 120, 14, 540, 4, q), [298, 120, 14, 540], P3.wood, { hl: false, k: .3 });
     [300, 478, 656].forEach(y => { s += f3(q => Rc(4, y, 318, 16, 5, q), [4, y, 318, 16], P3.wood, { hl: false, k: .25 }); });
     GS.markup(propsG, s);
+    GS.markup(coverG, `<g pointer-events="none">${front}</g>`);   // tray fronts in front of the sticks, so the words stay readable
     PUPS = RD.items.map((it, i) => buildPup(Object.assign({ drag: 'free', bounds: [-70, SX - 60, 110, 712 - it.k * SH[it.shape].bb.y1], x: SHELF[i][0], y: SHELF[i][1], say: cap(MAT[it.mat].name) + '.' }, it)));
     PUPS.forEach((P, i) => { P.home = { x: SHELF[i][0], y: SHELF[i][1] }; });
     buildShadows();
@@ -1158,7 +1160,7 @@
         const p = bn.p, n = bn.n;
         s += line(`M${n1(p.x)} ${n1(p.y)}L${n1(p.x + n.x * 110)} ${n1(p.y + n.y * 110)}`, 3, '#FFE7B0', .9).replace('stroke-linecap', 'stroke-dasharray="8 7" stroke-linecap');
         const b1 = norm({ x: n.x - bn.din.x, y: n.y - bn.din.y }), b2 = norm({ x: n.x + bn.dout.x, y: n.y + bn.dout.y });
-        s += pill(p.x + b1.x * 96, p.y + b1.y * 96, bn.ang + '°', 36, { w: 92 }) + pill(p.x + b2.x * 96, p.y + b2.y * 96, bn.ang + '°', 36, { w: 92 });
+        s += pill(p.x + b1.x * 100, p.y + b1.y * 100, bn.ang + '°', 40, { w: 100 }) + pill(p.x + b2.x * 100, p.y + b2.y * 100, bn.ang + '°', 40, { w: 100 });
       });
       raysG.insertAdjacentHTML('beforeend', s);
       const hit = r.end === 'target';
@@ -1194,7 +1196,7 @@
     };
   }
   function drawTable() {
-    const x0 = 384, cw = [96, 144, 142, 110], y0 = 132, hh = 72, rh = 46;
+    const x0 = 372, cw = [92, 156, 156, 108], y0 = 132, hh = 72, rh = 46;
     const rows = TB.rows.slice();
     if (TB.phase === 'predict') rows.push({ d: TB.d, hs: null });
     const n = Math.max(3, rows.length);
@@ -1202,7 +1204,7 @@
     const head = [['jarak', '(m)'], ['bayangan', '(cm)'], ['bayangan', '÷ ' + RD.H + ' cm'], ['3 m', '÷ jarak']];
     let x = x0;
     head.forEach((h, i) => {
-      s += txt(x + cw[i] / 2, y0 + 32, h[0], 30, { cls: 't-body', w: 700 }) + txt(x + cw[i] / 2, y0 + 64, h[1], 30, { cls: 't-body', w: 700, fill: '#5A3E2E' });
+      s += txt(x + cw[i] / 2, y0 + 30, h[0], h[0].match(/\d/) ? 36 : 30, h[0].match(/\d/) ? { w: 600 } : { cls: 't-body', w: 700 }) + txt(x + cw[i] / 2, y0 + 64, h[1], h[1].match(/\d/) ? 36 : 30, h[1].match(/\d/) ? { w: 600, fill: '#5A3E2E' } : { cls: 't-body', w: 700, fill: '#5A3E2E' });
       if (i) s += line(`M${x} ${y0 + 8}V${y0 + hh + rh * (TB.phase === 'predict' ? 4 : 3)}`, 2, '#C9B48E');
       x += cw[i];
     });
@@ -1215,7 +1217,7 @@
       let xx = x0;
       vals.forEach((v, i) => {
         if (row.hs == null && i === 1) s += Rc(xx + 10, y + 5, cw[i] - 20, rh - 10, 10, fill('#FFE08A'));
-        s += txt(xx + cw[i] / 2, y + 37, v, 36, { w: 600 }); xx += cw[i];
+        s += txt(xx + cw[i] / 2, y + 36, v, 38, { w: 600 }); xx += cw[i];
       });
     }
     void n;
@@ -1230,7 +1232,7 @@
       const m = (SX - L.x) / (P.x - L.x);
       TB.rows.push({ d, hs: RD.H * m }); GS.sfx.coin();
       GS.say('Dicatat: ' + dec(d) + ' m, bayangan ' + Math.round(RD.H * m) + ' cm.');
-      if (TB.rows.length >= 3) { await wait(1500); startPredictRow(); }
+      if (TB.rows.length >= 3) { const my = tok; busy = true; updateDock(); await wait(1500); if (my !== tok) return; busy = false; startPredictRow(); }
       render(); updateDock();
       return;
     }
@@ -1287,7 +1289,7 @@
     s += shadowE(T.tx, GY + 2, 40) + f3(q => Pa(`M${T.tx - 14} ${GY}L${T.tx - 9} ${n1(GY - trunkH - 10)}L${T.tx + 9} ${n1(GY - trunkH - 10)}L${T.tx + 14} ${GY}Z`, q), [T.tx - 14, GY - trunkH - 10, 28, trunkH + 10], P3.wood, { hl: false, k: .2 });
     const cy = GY - T.ht * TU + crownR;
     s += f3(q => Pa(`M${T.tx} ${n1(cy - crownR)}C${n1(T.tx + crownR * 1.3)} ${n1(cy - crownR)} ${n1(T.tx + crownR * 1.4)} ${n1(cy + crownR * .9)} ${T.tx} ${n1(cy + crownR * .8)}C${n1(T.tx - crownR * 1.4)} ${n1(cy + crownR * .9)} ${n1(T.tx - crownR * 1.3)} ${n1(cy - crownR)} ${T.tx} ${n1(cy - crownR)}Z`, q), [T.tx - crownR * 1.2, cy - crownR, crownR * 2.4, crownR * 1.8], P3.green, { k: .08 });
-    s += txt(T.sx, GY - T.hs * TU - 20, dec(T.hs) + ' m', 36, { w: 600 });
+    s += pill(T.sx + 6, GY - T.hs * TU - 34, dec(T.hs) + ' m', 40, { w: 100 });
     GS.markup(outG, s);
     // two tape measures: drag the yellow case to the tip of each shadow (0.5 m grid)
     [[T.sx, 'tongkat'], [T.tx, 'pohon']].forEach(([x0, who], i) => {
@@ -1317,12 +1319,12 @@
     });
     const a = T.tapes[0].len, b = T.tapes[1].len;
     // a small table: what is measured, and the one number to find
-    const X = 848, cw = [146, 132, 132];
-    let c = Rc(X, 18, 410, 168, 18, solid(CREAM, 3)) + line(`M${X + 10} 66H${X + 400}M${X + 10} 124H${X + 400}M${X + cw[0]} 28V176M${X + cw[0] + cw[1]} 28V176`, 2, '#C9B48E');
-    c += txt(X + cw[0] + cw[1] / 2, 54, 'tinggi', 30, { cls: 't-body', w: 700 }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 54, 'bayangan', 30, { cls: 't-body', w: 700 });
-    c += txt(X + cw[0] / 2, 106, 'tongkat', 30, { cls: 't-body', w: 700 }) + txt(X + cw[0] / 2, 164, 'pohon', 30, { cls: 't-body', w: 700 });
-    c += txt(X + cw[0] + cw[1] / 2, 108, dec(T.hs) + ' m', 36, { w: 600 }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 108, dec(a) + ' m', 36, { w: 600 });
-    c += Rc(X + cw[0] + 10, 130, cw[1] - 20, 44, 10, fill('#FFE08A')) + txt(X + cw[0] + cw[1] / 2, 165, dec(STEP.v) + ' m', 36, { w: 600, fill: '#215F98' }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 166, dec(b) + ' m', 36, { w: 600 });
+    const X = 826, cw = [140, 128, 172];
+    let c = Rc(X, 18, 440, 168, 18, solid(CREAM, 3)) + line(`M${X + 10} 66H${X + 430}M${X + 10} 124H${X + 430}M${X + cw[0]} 28V176M${X + cw[0] + cw[1]} 28V176`, 2, '#C9B48E');
+    c += txt(X + cw[0] + cw[1] / 2, 54, 'tinggi', 33, { cls: 't-body', w: 700 }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 54, 'bayangan', 33, { cls: 't-body', w: 700 });
+    c += txt(X + cw[0] / 2, 106, 'tongkat', 33, { cls: 't-body', w: 700 }) + txt(X + cw[0] / 2, 164, 'pohon', 33, { cls: 't-body', w: 700 });
+    c += txt(X + cw[0] + cw[1] / 2, 108, dec(T.hs) + ' m', 40, { w: 600 }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 108, dec(a) + ' m', 40, { w: 600 });
+    c += Rc(X + cw[0] + 10, 130, cw[1] - 20, 44, 10, fill('#FFE08A')) + txt(X + cw[0] + cw[1] / 2, 165, dec(STEP.v) + ' m', 40, { w: 600, fill: '#215F98' }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 166, dec(b) + ' m', 40, { w: 600 });
     T.card.innerHTML = c;
   }
   async function checkTree() {
@@ -1602,12 +1604,12 @@
       let lamp, mirrors, blocks, target;
       if (variant === 2) {
         lamp = { x: 200, y: 170 }; target = { x: 790, y: Math.round(rr(440, 520)) };
-        const M1 = { x: 420, y: 610 }, M2 = { x: 640, y: 120 };
+        const M1 = { x: 420, y: 610 }, M2 = { x: 640, y: 150 };
         mirrors = [Object.assign(M1, { sol: mirrorFor(M1, lamp, M2) }), Object.assign(M2, { sol: mirrorFor(M2, M1, target) })];
-        blocks = [{ kind: 'sketsel', x: 560, y: 330, w: 40, h: 318 }];
+        blocks = [{ kind: 'sketsel', x: 560, y: 340, w: 40, h: 308 }];
       } else if (variant === 'top') {
         lamp = { x: 230, y: 430 }; target = { x: 770, y: Math.round(rr(400, 470)) };
-        const M = { x: 500, y: 120 };
+        const M = { x: 500, y: 160 };
         mirrors = [Object.assign(M, { sol: mirrorFor(M, lamp, target) })];
         blocks = [{ kind: 'sketsel', x: 590, y: 330, w: 46, h: 318 }];
       } else {

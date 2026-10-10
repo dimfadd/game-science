@@ -5,7 +5,7 @@ Keep it current: **every change that alters behavior, structure or decisions mus
 
 ## What it is
 
-Mat Sains (formerly "Kampung Sains") is a collection of HTML5 games that teach **math and intuitive physics to Indonesian children from TK to kelas 3 SD** (target ages 5–9), played mostly on Android phones, tablets and iPads. The owner is a non-developer; communicate in Bahasa Indonesia, plainly.
+Mat Sains (formerly "Kampung Sains") is a collection of HTML5 games that teach **math and intuitive physics to Indonesian children from TK to kelas 4+ SD** (target ages 5–10), played mostly on Android phones, tablets and iPads. The owner is a non-developer; communicate in Bahasa Indonesia, plainly.
 
 Core pedagogy (non-negotiable, details in `docs/DESIGN.md`):
 - **No chocolate-covered broccoli.** The math/physics *is* the game mechanic. Never "answer a quiz to unlock play". Feedback comes from the game world (beam tilts, raft sinks), never a red "Salah!".
@@ -24,7 +24,7 @@ Core pedagogy (non-negotiable, details in `docs/DESIGN.md`):
 ## File map
 
 ```
-index.html              Hub "Peta Kampung": illustrated map with 6 game landmarks + parent/teacher guide
+index.html              Hub "Peta Kampung": illustrated map with 10 game landmarks + parent/teacher guide
 welcome.html            Onboarding (3 quick questions) then register/login
 assets.html             Internal asset gallery (NOT deployed, not linked)
 manifest.webmanifest    PWA manifest
@@ -42,7 +42,7 @@ shared/profile.js       window.MS.profileEditor: change name, kelas and avatar (
 shared/config.js        window.MS.config: GOOGLE_CLIENT_ID, voice settings
 shared/pwa.js           window.MS.pwa: SW registration, install button ([data-pwa-install])
 shared/voice.js         Narrator: recorded clips first, tuned TTS fallback (GS.speakImpl)
-games/<id>/index.html   One folder per game: timbangan, angkot, katak, ketapel, perahu, martabak
+games/<id>/index.html   One folder per game: timbangan, angkot, katak, ketapel, perahu, martabak, bibit, kembalian, jam, wayang
 games/<id>/game.js
 games/_template/        Starting point for a new game
 docs/DESIGN.md          Design bible: pedagogy, visual style, palette, fonts, motion, physics rules
@@ -73,12 +73,18 @@ Every game has five tiers: `tk`, `k1`, `k2`, `k3`, `k4` (Kelas 4+), following Ku
 | ketapel | Ketapel Mangga | 6 / 8 | Pull → speed → distance, parabolic flight, mass and air drag, patok number line |
 | perahu | Rakit Terapung | 6 / 8 | Float/sink by density, raft capacity (exact sums), hull shape capacity |
 | martabak | Bagi Martabak | 6 / 8 | Equal parts, ½ ⅓ ¼ by swipe-cutting (Fruit Ninja style; round food gets diameter and radial wedge cuts), comparing and adding fractions |
+| bibit | Kebun Bibit | 6 / 8 | Arrays rows × columns (drag the field corner; basket must empty exactly), repeated addition, ×/÷, factors, distributive split, remainder, area, perimeter (fence), primes, LCM, area model 12 × 13, L-shapes |
+| kembalian | Warung Kembalian | 6 / 8 | Rupiah: pay exact, give change (counting up), fewest pieces (DP-checked), several items, n × price, patungan, budgets, unit price, rounding |
+| jam | Jam Kampung | 6 / 8 | Analog clock with geared hands (drag the minute hand, angle unwrapped), the kampung follows the time truthfully (sun elevation 90 − 15·|t − 12|, shadow H / tan e), o'clock to minutes, 24-hour, durations, schedules, WIB/WITA/WIT, sundial |
+| wayang | Wayang Bayangan | 6 / 8 | Shadow play with a true point-light projection (shadow = size × screen distance ÷ lamp distance), materials (opaque/translucent/clear), penumbra from a big lamp, two/coloured lamps, light travels straight, mirrors (reflection), ratios, tree height from a shadow |
+
+Wave 2 (bibit, kembalian, jam, wayang, 2026-10-10) covers the Kurikulum Merdeka elements the first six never touched: measurement (money, time), arrays/area/perimeter and IPAS light. Hub map landmarks: `bibit`, `kelontong`, `posronda`, `panggung` in `GS.art` LM.
 
 Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solve()` completes the **current round**; multi-round levels need repeated calls. Angkot also has `speed(n)` to speed up animations in tests.
 
 ## GS runtime (shared/core.js)
 
-`GS.store` (localStorage with memory fallback; key `kampung-sains.v1`, kept for progress compatibility) · `GS.sfx.*` · `GS.say(text)` (caption + speech; speech is queued until the first tap, then goes through `GS.speakImpl`/`GS.stopSpeech`, replaced by `shared/voice.js`) · `GS.fx(el, cls)` (plays a shared animation class on an untransformed inner group, see the SVG rule below) · `GS.fs` (fullscreen helpers) · start gate: pages with `body.gs-game` show a "Main!" overlay that unlocks audio, requests fullscreen + landscape lock on touch devices and then speaks the first instruction (skipped when installed as an app, with `?autotest`, or under `navigator.webdriver`) · `GS.speakable(text)` (math symbols to words) · `GS.tween/ease/wait` · `GS.el/markup/svgPoint/drag` · `GS.confetti/floatText` · `GS.hud({...})` · `GS.runner({gameId,count,hud,start})` → `go(i)/next()/win(stars,text)` · `GS.celebrate` · `GS.levelPicker`.
+`GS.store` (localStorage with memory fallback; key `kampung-sains.v1`, kept for progress compatibility) · `GS.sfx.*` · `GS.say(text)` (caption + speech; speech is queued until the first tap, then goes through `GS.speakImpl`/`GS.stopSpeech`, replaced by `shared/voice.js`) · `GS.fx(el, cls)` (plays a shared animation class on an untransformed inner group, see the SVG rule below) · `GS.fs` (fullscreen helpers) · start gate: pages with `body.gs-game` show a "Main!" overlay that unlocks audio, requests fullscreen + landscape lock on touch devices and then speaks the first instruction (skipped when installed as an app, with `?autotest`, or under `navigator.webdriver`) · `GS.speakable(text)` (math symbols to words; `jam` wraps it locally for "07.25" and "km", `kembalian` speaks money as words via a local caption wrapper, and `bibit` speaks ":" as "dibagi" in its own lines) · `GS.tween/ease/wait` · `GS.el/markup/svgPoint/drag` · `GS.confetti/floatText` · `GS.hud({...})` · `GS.runner({gameId,count,hud,start})` → `go(i)/next()/win(stars,text)` · `GS.celebrate` · `GS.levelPicker`.
 
 **Stage fitting**: games draw in a fixed 1280×800 canvas; `GS.fitStage` widens the viewBox to fill wide screens (`GS.stageView = {x0, x1, scale}`, event `gs:stage`). Scenery from `GS.art.scene` extends 60% past each edge; game-drawn floors must span x −600..1880. On short landscape screens the HUD is a left rail so the canvas gets the full height. Small phones show the canvas at **scale ≈ 0.45**, so sizes follow `docs/QC-VISUAL.md` (numbers ≥ 36 u, text ≥ 30 u, targets ≥ 90 u; SVG tap targets carry `data-hit`).
 
