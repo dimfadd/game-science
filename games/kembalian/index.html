@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Warung Kembalian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<link rel="manifest" href="../../manifest.webmanifest">
+<meta name="theme-color" content="#9ED8EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icons/favicon-32.png">
+<style>
+  /* Warung Kembalian: game-specific styles only */
+  .gs-stage .km-piece, .gs-stage .km-cell { cursor: grab; }
+  .gs-stage .km-piece.locked { cursor: default; }
+  .gs-stage [data-hit] { cursor: pointer; }
+  .gs-stage text { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .gs-stage text.km-body { font-family: var(--font-body); font-weight: 700; }
+  .gs-stage text.km-disp { font-family: var(--font-display); font-weight: 800; }
+  .km-breathe { animation: km-breathe 2.6s cubic-bezier(.37,0,.63,1) infinite; }
+  @keyframes km-breathe { 50% { transform: translateY(-4px); } }
+  .km-sway { animation: km-sway 3.4s cubic-bezier(.37,0,.63,1) infinite alternate; transform-box: fill-box; transform-origin: 50% 0; }
+  @keyframes km-sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+  .gs-action .km-ico { width: 34px; height: 34px; }
+  .gs-action.km-wide { min-width: 170px; }
+  @media (max-height: 500px) {
+    .gs-action .km-ico { width: 28px; height: 28px; }
+    .gs-action.km-wide { min-width: 132px; }
+  }
+  /* Tall screens: the caption sits top-left over the sky, not over the cash drawer. */
+  @media (min-height: 501px) {
+    .gs-caption { top: calc(var(--hud-h) + env(safe-area-inset-top, 0px) + 10px); bottom: auto; align-items: flex-start; transform: translateY(-12px); }
+    .gs-caption.show { transform: none; }
+    .gs-caption-text { margin: 8px 0 0; border-radius: 6px 20px 20px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .km-breathe, .km-sway { animation: none; } }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Area permainan"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="../../shared/config.js"></script>
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/curriculum.js"></script>
+<script src="../../shared/voice.js"></script>
+<script src="../../shared/pwa.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kebun Bibit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<link rel="manifest" href="../../manifest.webmanifest">
+<meta name="theme-color" content="#9ED8EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icons/favicon-32.png">
+<style>
+  /* Kebun Bibit: game-specific styles only. Animations only on inner groups without a transform attribute. */
+  .bb-sway { transform-box: fill-box; transform-origin: 50% 100%; animation: bb-sway 3.2s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
+  .bb-sway.d1 { animation-delay: -0.8s; } .bb-sway.d2 { animation-delay: -1.6s; } .bb-sway.d3 { animation-delay: -2.4s; }
+  @keyframes bb-sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+  .bb-hint { transform-box: fill-box; transform-origin: center; animation: bb-hint 1.1s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes bb-hint { 50% { transform: scale(1.12); } }
+  .bb-breathe { animation: bb-breathe 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes bb-breathe { 50% { transform: translateY(-3px); } }
+  .bb-glow { animation: bb-glow 900ms ease-in-out infinite; }
+  @keyframes bb-glow { 50% { opacity: 0.35; } }
+  .bb-flap { transform-box: fill-box; transform-origin: 20% 80%; animation: bb-flap 180ms linear infinite alternate; }
+  @keyframes bb-flap { from { transform: rotate(-25deg); } to { transform: rotate(20deg); } }
+  .gs-stage .bb-hit { cursor: pointer; }
+  .gs-action[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .bb-sway, .bb-hint, .bb-breathe, .bb-glow, .bb-flap { animation: none; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Kebun bibit: tanam bibit dalam baris dan kolom"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="../../shared/config.js"></script>
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/curriculum.js"></script>
+<script src="../../shared/voice.js"></script>
+<script src="../../shared/pwa.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

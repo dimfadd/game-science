@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jam Kampung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<link rel="manifest" href="../../manifest.webmanifest">
+<meta name="theme-color" content="#9ED8EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icons/favicon-32.png">
+<style>
+  /* Jam Kampung: game-specific styles only.
+   * Rule (CLAUDE.md): CSS transforms only on elements WITHOUT a transform attribute. */
+  .gs-stage { background: #1A2452; }
+  .gs-stage .t-body { font-family: var(--font-body); font-weight: 700; }
+  .gs-stage .t-display { font-family: var(--font-display); font-weight: 800; }
+  .jm-glow { transition: opacity 400ms ease-out; }
+  .jm-hand-in { transition: filter 120ms ease-out; }
+  .jm-grab .jm-hand-in { filter: brightness(1.12); }
+  .jm-rays { transform-box: view-box; transform-origin: 0 0; animation: jm-spin 40s linear infinite; }
+  @keyframes jm-spin { to { transform: rotate(360deg); } }
+  .jm-cloud { animation: jm-drift 18s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
+  .jm-cloud.d1 { animation-duration: 23s; animation-delay: -7s; }
+  .jm-cloud.d2 { animation-duration: 27s; animation-delay: -13s; }
+  @keyframes jm-drift { to { transform: translateX(40px); } }
+  .jm-flag { transform-box: fill-box; transform-origin: 0 50%; animation: jm-wave 1.8s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate; }
+  @keyframes jm-wave { from { transform: skewY(-4deg) scaleX(0.96); } to { transform: skewY(4deg) scaleX(1); } }
+  .jm-bob { animation: jm-bob 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes jm-bob { 50% { transform: translateY(-3px); } }
+  .jm-crow { transform-box: fill-box; transform-origin: 30% 90%; animation: jm-crow 520ms ease-in-out 3; }
+  @keyframes jm-crow { 50% { transform: rotate(-24deg); } }
+  .jm-kent { transform-box: view-box; transform-origin: 930px 616px; }
+  .jm-kent.hit { animation: jm-kent 260ms ease-in-out; }
+  @keyframes jm-kent { 30% { transform: rotate(9deg); } 70% { transform: rotate(-6deg); } }
+  .jm-steam path { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; animation: jm-steam 2.2s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  .jm-steam path:nth-child(2) { animation-delay: -0.7s; }
+  .jm-steam path:nth-child(3) { animation-delay: -1.4s; }
+  @keyframes jm-steam { 0% { opacity: 0; transform: translateY(10px); } 30% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(-50px) scaleX(1.25); } }
+  .jm-wave-arc { opacity: 0; animation: jm-wave-out 1.4s ease-out infinite; transform-box: view-box; }
+  .jm-wave-arc:nth-child(2) { animation-delay: 0.45s; }
+  .jm-wave-arc:nth-child(3) { animation-delay: 0.9s; }
+  @keyframes jm-wave-out { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+  .jm-slot-hot { animation: jm-hot 700ms ease-in-out infinite; }
+  @keyframes jm-hot { 50% { stroke-opacity: 0.35; } }
+  .jm-sparkle { animation: jm-sparkle 900ms ease-out forwards; transform-box: fill-box; transform-origin: center; }
+  @keyframes jm-sparkle { 0% { transform: scale(0.2); opacity: 0; } 30% { opacity: 1; transform: scale(1.15); } 100% { transform: scale(0.9) translateY(-20px); opacity: 0; } }
+  .jm-zzz { animation: jm-zzz 2.4s ease-out forwards; }
+  @keyframes jm-zzz { 0% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(30px, -90px); } }
+  .jm-press { transition: transform 80ms ease-out; transform-box: fill-box; transform-origin: center; }
+  .jm-press:active, .jm-press.down { transform: scale(0.92); }
+  .gs-action.jm-nudge { animation: jm-nudge 900ms ease-in-out infinite; }
+  @keyframes jm-nudge { 50% { transform: scale(1.08); box-shadow: 0 6px 0 var(--line), 0 0 0 8px rgba(242, 169, 0, 0.55); } }
+  .gs-action[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .jm-rays, .jm-cloud, .jm-flag, .jm-bob, .jm-crow, .jm-kent.hit, .jm-slot-hot, .gs-action.jm-nudge { animation: none; }
+    .jm-steam path { animation: none; opacity: 0.5; }
+    .jm-wave-arc { animation: none; opacity: 0.6; }
+    .jm-zzz, .jm-sparkle { animation-duration: 1ms; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Jam kampung: putar jarum jam, kampung ikut berjalan"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="../../shared/config.js"></script>
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/curriculum.js"></script>
+<script src="../../shared/voice.js"></script>
+<script src="../../shared/pwa.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
