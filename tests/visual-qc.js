@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { serve, launch } = require('./lib');
 
-const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak'];
+const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang'];
 const TIERS = { tk: 6, k1: 8, k2: 8, k3: 8, k4: 8 };
 // The smallest common Android phone in landscape, and a typical one.
 const DEVICES = { phoneSmall: [740, 360], phone: [844, 390] };

@@ -78,6 +78,46 @@
         k3: 'Pecahan seperti ¾ dan 2/4, mengurutkan pecahan, dan pecahan dari kumpulan.',
         k4: 'Pecahan senilai, penjumlahan dan pengurangan penyebut sama, pecahan campuran.'
       }
+    },
+    bibit: {
+      name: 'Kebun Bibit', kind: 'mat',
+      desc: {
+        tk: 'Satu bibit untuk setiap lubang. Membandingkan barisan dan mengisi lahan kecil sampai pas.',
+        k1: 'Baris isi 5 dan 10, dobel, genap dan ganjil, serta sisa bibit sebagai pengurangan.',
+        k2: 'Perkalian sebagai baris × kolom dan penjumlahan berulang, tukar baris dan kolom, pembagian awal.',
+        k3: 'Perkalian dan pembagian sampai 100, faktor, sifat distributif, luas dan keliling dalam petak.',
+        k4: 'Perkalian dua angka dengan model luas, bilangan prima, kelipatan persekutuan, luas bangun L.'
+      }
+    },
+    kembalian: {
+      name: 'Warung Kembalian', kind: 'mat',
+      desc: {
+        tk: 'Membayar dengan koin sebanyak titik di label harga. Mana yang lebih mahal.',
+        k1: 'Uang ribuan sampai Rp20.000: membayar tepat, kembalian dari Rp10.000, lembar paling sedikit.',
+        k2: 'Sampai Rp100.000: kembalian dengan menghitung lanjut, belanja beberapa barang, cukup atau tidak.',
+        k3: 'Ratusan rupiah, harga × jumlah barang, patungan, dan menukar uang.',
+        k4: 'Ratusan ribu, perkiraan, harga satuan yang lebih hemat, anggaran, dan pembagian bersisa.'
+      }
+    },
+    jam: {
+      name: 'Jam Kampung', kind: 'mix',
+      desc: {
+        tk: 'Pagi, siang, malam mengikuti matahari. Mengurutkan kegiatan sehari dan bayangan yang memendek.',
+        k1: 'Jam tepat dan setengah jam. Memutar jarum dan melihat kampung ikut berjalan.',
+        k2: 'Seperempat jam, kelipatan 5 menit, jam digital, dan lama waktu dalam jam dan menit.',
+        k3: 'Menit tepat, format 24 jam, lama waktu melewati jam, jadwal, dan detik.',
+        k4: 'Lama waktu jam dan menit, konversi, jadwal kereta, WIB WITA WIT, dan jam matahari.'
+      }
+    },
+    wayang: {
+      name: 'Wayang Bayangan', kind: 'fis',
+      desc: {
+        tk: 'Bayangan muncul saat cahaya terhalang. Dekat lampu besar, jauh dari lampu kecil.',
+        k1: 'Membuat bayangan pas dengan bentuk pesanan, bahan tembus dan tidak tembus cahaya.',
+        k2: 'Bayangan dua dan tiga kali tinggi wayang, tinggi lampu, dua lampu, mengurutkan bahan.',
+        k3: 'Cahaya merambat lurus, ukuran bayangan dengan angka, tepi kabur, dan bahan bening atau buram.',
+        k4: 'Perbandingan ukuran bayangan, pantulan cermin, dan mengukur tinggi pohon dengan bayangan.'
+      }
     }
   };
 

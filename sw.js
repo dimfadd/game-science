@@ -4,7 +4,7 @@
 const VERSION = '__BUILD_ID__';
 const APP_CACHE = 'matsains-app-' + VERSION;
 const FONT_CACHE = 'matsains-fonts-v1';
-const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak'];
+const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang'];
 const PRECACHE = [
   './', 'index.html', 'welcome.html', 'manifest.webmanifest',
   'shared/core.css', 'shared/core.js', 'shared/art.js', 'shared/auth.js', 'shared/curriculum.js', 'shared/profile.js', 'shared/config.js', 'shared/pwa.js', 'shared/voice.js',

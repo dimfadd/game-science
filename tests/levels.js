@@ -2,7 +2,7 @@
  * checks that each one reaches the win overlay without errors.
  * Usage: node tests/levels.js [gameId] [tier]   (tier: tk k1 k2 k3 k4) */
 const { serve, launch, VIEWPORTS, watch } = require('./lib');
-const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak'];
+const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang'];
 const TIERS = { tk: 6, k1: 8, k2: 8, k3: 8, k4: 8 }; // keep in sync with shared/curriculum.js
 const only = process.argv[2];
 const onlyTier = process.argv[3];
