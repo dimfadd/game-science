@@ -54,7 +54,7 @@ const SIZES = { phoneWide: [1000, 452], phoneLandscape: [844, 390], phonePortrai
   await page.evaluate(async () => {
     MS.auth._.saveProfile({ name: 'Dimfad', kelas: 'TK', avatar: 'p0' });
     await MS.auth._.loginEmail('test@matsains.id', 'test');
-    ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak'].forEach(g => GS.store.set('stars.' + g + '@tk', [3, 3, 2, 3, 1, 3]));
+    ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang'].forEach(g => GS.store.set('stars.' + g + '@tk', [3, 3, 2, 3, 1, 3]));
   });
   await page.goto(base + 'index.html?autotest'); await page.waitForTimeout(900);
   check('level-up banner shown after finishing TK', await page.isVisible('#levelUp'));

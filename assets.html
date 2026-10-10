@@ -130,7 +130,7 @@
     scenes.appendChild(c);
   });
 
-  var LMN = { pasar: 'Pasar', terminal: 'Terminal', sawah: 'Sawah', kebun: 'Kebun', sungai: 'Sungai', warung: 'Warung', rumah: 'Rumah panggung' };
+  var LMN = { pasar: 'Pasar', terminal: 'Terminal', sawah: 'Sawah', kebun: 'Kebun', sungai: 'Sungai', warung: 'Warung', rumah: 'Rumah panggung', bibit: 'Kebun bibit', kelontong: 'Warung kelontong', posronda: 'Pos ronda', panggung: 'Panggung wayang' };
   var lms = document.getElementById('landmarks');
   Object.keys(LMN).forEach(function (n) { lms.appendChild(card(wrap(A.landmark(n), '-96 -176 192 182', 220, 208, LMN[n]), LMN[n], "landmark('" + n + "')")); });
 })();

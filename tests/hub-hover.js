@@ -9,6 +9,8 @@ const { serve, launch, VIEWPORTS } = require('./lib');
   await page.waitForTimeout(800);
   let failed = 0;
   const n = await page.$$eval('.node .lm', els => els.length);
+  const want = await page.evaluate(() => Object.keys(MS.kur.GAMES).length);
+  if (n !== want || n < 10) { failed++; console.log('FAIL expected ' + want + ' landmarks on the map, found ' + n); }
   for (let i = 0; i < n; i++) {
     const box = () => page.evaluate(i => { const r = document.querySelectorAll('.node .lm')[i].getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, i);
     const rest = await box();
