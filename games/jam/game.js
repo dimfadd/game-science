@@ -360,7 +360,7 @@
       const a = k * 30 * Math.PI / 180, r0 = k % 3 === 0 ? r * 0.74 : r * 0.84, r1 = r * 0.94;
       s += line(`M${n1(Math.sin(a) * r0)} ${n1(-Math.cos(a) * r0)}L${n1(Math.sin(a) * r1)} ${n1(-Math.cos(a) * r1)}`, k % 3 === 0 ? 3.4 : 2, INK);
     }
-    if (o.nums) [12, 3, 6, 9].forEach(k => { const a = k * 30 * Math.PI / 180; s += txt(Math.sin(a) * r * 0.58, -Math.cos(a) * r * 0.58 + 13, String(k), 38, { w: 600 }); });
+    if (o.nums) [12, 3, 6, 9].forEach(k => { const a = k * 30 * Math.PI / 180; s += txt(Math.sin(a) * r * 0.58, -Math.cos(a) * r * 0.58 + 13, String(k), 40, { w: 600 }); });
     if (sec != null) s += miniHands(r, sec);
     return s + Ci(0, 0, Math.max(3, r * 0.08), solid('#D9A441', 1.6));
   }
@@ -717,12 +717,12 @@
     cardG.setAttribute('display', 'inline');
     // wrap long lines; a card with long text drops its picture to make room
     const wrapAll = maxC => [].concat(...(c.lines || []).map(l => (typeof l === 'string' ? { t: l } : l)).map(l => (l.lcd || l.num ? [l] : wrapWords(l.t, maxC).map(t => Object.assign({}, l, { t })))));
-    let lines = wrapAll(c.icon ? 12 : 18);
-    if (c.icon && lines.length > 3) { c = Object.assign({}, c, { icon: null }); lines = wrapAll(18); }
+    let lines = wrapAll(c.icon ? 11 : 16);
+    if (c.icon && lines.length > 3) { c = Object.assign({}, c, { icon: null }); lines = wrapAll(16); }
     const W = c.w || (lines.length ? CARD.w : 140), tx = c.icon ? 126 : 22;
     let y = 14;
     const items = lines.map(l => {
-      const size = l.size || (lines.length > 2 ? 36 : 38), lh = l.lcd ? size * 1.5 : size * 1.2;
+      const size = l.size || 40, lh = l.lcd ? size * 1.5 : size * 1.2;
       const it = { l, size, y: y + lh * 0.5 + size * 0.35, top: y, lh }; y += lh + 2; return it;
     });
     const h = Math.max(c.icon ? 132 : 0, y + 14), ch = c.counter ? 66 : 0;
@@ -740,7 +740,7 @@
     cardG.querySelectorAll('text').forEach(t => { try { const L = t.getComputedTextLength(); if (L > avail + 4 && !t.closest('[data-qc]')) { t.setAttribute('textLength', avail); t.setAttribute('lengthAdjust', 'spacingAndGlyphs'); } } catch (e) { /* not rendered */ } });
     if (ch) {
       if (c.counter === 'pips') pipsG = el('g', { transform: `translate(64 ${h + 33})` }, cardG);
-      else counterEl = GS.el('text', { x: 60, y: h + 46, 'font-size': 38, fill: INK, class: 't-body' }, cardG);
+      else counterEl = GS.el('text', { x: 60, y: h + 46, 'font-size': 40, fill: INK, class: 't-body' }, cardG);
     }
     GS.fx(cardG, 'gs-wobble', 450);
   }
@@ -771,7 +771,7 @@
     GS.markup(groundFx, signpost(24, 'Timur') + signpost(708, 'Barat'));
   }
   function signpost(x, word) {
-    return `<g transform="translate(${x} 704)">${Rc(-4, -78, 8, 78, 2, solid('#A8673A', 2.4))}${f3(a => Rc(-62, -116, 124, 44, 10, a), [-62, -116, 124, 44], P.cream, { hl: false, k: 0.1 })}${txt(0, -83, word, 30, { cls: 't-body' })}</g>`;
+    return `<g transform="translate(${x} 704)">${Rc(-4, -78, 8, 78, 2, solid('#A8673A', 2.4))}${f3(a => Rc(-62, -116, 124, 44, 10, a), [-62, -116, 124, 44], P.cream, { hl: false, k: 0.1 })}${txt(0, -82, word, 34, { cls: 't-body' })}</g>`;
   }
   function markAt(x, col, redraw) {
     if (!redraw && LV) (LV.marks = LV.marks || []).push(x);
@@ -789,7 +789,7 @@
     let s = '';
     [1, 2].forEach(m => [1, -1].forEach(d => {
       const x = POLE.x + d * POLE.h * m;
-      s += line(`M${x} ${POLE.y + 12}V${POLE.y + 26}`, 4, '#7E4A27') + txt(x, POLE.y + 62, m + ' tiang', 36, { cls: 't-body', fill: '#5C3A1E' });
+      s += line(`M${x} ${POLE.y + 12}V${POLE.y + (m === 1 ? 26 : 62)}`, 4, '#7E4A27') + Rc(x - 62, POLE.y + (m === 1 ? 28 : 64), 124, 44, 12, fill('#FFF8EC', 0.85)) + txt(x, POLE.y + (m === 1 ? 62 : 98), m + ' tiang', 36, { cls: 't-body', fill: '#5C3A1E' });
     }));
     GS.markup(groundFx, s);
   }
@@ -801,7 +801,7 @@
       g.innerHTML = shadowE(0, 262, 30) + Rc(-7, 70, 14, 192, 3, solid('#A8673A', 2.4)) +
         f3(a => Rc(-64, -170, 128, 52, 12, a), [-64, -170, 128, 52], i === 0 ? P.blue : i === 1 ? P.teal : P.orange, { hl: false, k: 0.1 }) +
         txt(0, -131, ZN[i], 38, { cls: 't-display', fill: '#FFFFFF' }) + miniClock(82, null) +
-        f3(a => Rc(-74, 98, 148, 50, 12, a), [-74, 98, 148, 50], P.cream, { hl: false, k: 0.1 }) + txt(0, 134, CITY[i], 30, { cls: 't-body' });
+        f3(a => Rc(-74, 98, 148, 50, 12, a), [-74, 98, 148, 50], P.cream, { hl: false, k: 0.1 }) + txt(0, 136, CITY[i], 34, { cls: 't-body' });
       const hg = el('g', {}, g); zoneUI.hands.push(hg);
       if (i === cover) {
         const cv = el('g', {}, g);
@@ -1083,7 +1083,7 @@
     RI = ri; RD = LV.rounds[ri];
     clearWorldUI();
     busy = false; inputOn = true;
-    T0 = 2 * DAY + RD.start; T = T0;
+    T0 = 2 * DAY + (RD.start != null ? RD.start : tod(T)); T = T0;
     sleepAt = RD.sleepAt != null ? RD.sleepAt : HM(21);
     warungAt = RD.warungAt != null ? RD.warungAt : HM(6);
     hands.m.setAttribute('display', RD.kind === 'clock' && RD.mode === 'hour' ? 'none' : 'inline');
@@ -1198,7 +1198,9 @@
     if (r.arc) return (diff < 0 ? (ev && ev.early ? ev.early + ' ' : '') + 'Putar maju sedikit lagi.' : (ev && ev.late ? ev.late + ' ' : '') + 'Putar mundur sedikit.');
     return 'Jammu ' + words + '. ' + (diff < 0 ? (ev && ev.early ? ev.early : 'Belum waktunya.') + ' Putar maju.' : (ev && ev.late ? ev.late : 'Sudah lewat.') + ' Putar mundur.');
   }
+  let lastOk = '';
   async function success(r, my, text) {
+    lastOk = text;
     hud.mood('cheer');
     GS.sfx.coin();
     sparkle(CX, CY - 40);
@@ -1223,7 +1225,7 @@
     if (RI + 1 < LV.rounds.length) { startRound(RI + 1); return; }
     const stars = tries === 0 ? 3 : tries <= 2 ? 2 : 1;
     busy = true; inputOn = false; updateDock();
-    run.win(stars, LV.win || (RD.okSay && typeof RD.okSay === 'string' ? RD.okSay : 'Hebat! Jamnya pas.'));
+    run.win(stars, LV.win || lastOk || 'Hebat! Jamnya pas.');
   }
 
   /* ================= speed: the angkot drives at the stated speed ================= */
@@ -1248,7 +1250,7 @@
       const g = el('g', { transform: `translate(${xs[i]} ${sy})` }, orderG);
       let m = Rc(-cw / 2 - 6, -chh / 2 - 6, cw + 12, chh + 12, 22, `fill="#FFF8EC" fill-opacity=".55" stroke="${OUT}" stroke-width="3.4" stroke-dasharray="12 9"`);
       if (tkMode) m += `<g opacity=".9" transform="translate(0 0) scale(1.15)">${icon(s.icon)}</g>`;
-      else m += txt(0, -chh / 2 - 22, String(i + 1), 44, { w: 600 });
+      else m += Ci(0, -chh / 2 - 36, 30, solid('#FFF8EC', 3)) + txt(0, -chh / 2 - 21, String(i + 1), 44, { w: 600 });
       if (i < n - 1) m += Pa(`M${cw / 2 + 12} -10l14 10l-14 10`, `fill="none" ${ol(4)}`);
       g.innerHTML = m;
       const ring = el('rect', { x: -cw / 2 - 6, y: -chh / 2 - 6, width: cw + 12, height: chh + 12, rx: 22, fill: 'none', stroke: '#0F8C7A', 'stroke-width': 7, opacity: 0 }, g);
@@ -1350,7 +1352,7 @@
     const g = el('g', { transform: `translate(${cx} ${cy})` }, parent);
     const st = { v: o.value, min: o.min, max: o.max, step: o.step };
     const valT = GS.el('text', { x: 0, y: 16, 'font-size': 64, 'text-anchor': 'middle', fill: INK, 'font-weight': 600 }, g);
-    GS.markup(g, txt(0, 58, o.unit, 30, { cls: 't-body', fill: '#5C3A1E' }));
+    GS.markup(g, txt(0, 60, o.unit, 34, { cls: 't-body', fill: '#5C3A1E' }));
     const show = () => { valT.textContent = String(st.v); };
     hitButton(g, -122, 0, 50, '', () => { st.v = Math.max(st.min, st.v - st.step); show(); GS.sfx.pop(); }, { glyph: GLYPH.minus, name: 'minus', col: ['#F28C28', '#F8B26A', '#C76A12'] });
     hitButton(g, 122, 0, 50, '', () => { st.v = Math.min(st.max, st.v + st.step); show(); GS.sfx.pop(); }, { glyph: GLYPH.plus, name: 'plus' });
@@ -1360,7 +1362,7 @@
   }
   function panelBox(y, h, title) {
     GS.markup(panelG, Rc(PANEL.x + 4, y + 6, PANEL.w, h, 22, fill(OUT, 0.22)) + Rc(PANEL.x, y, PANEL.w, h, 22, solid('#FFF8EC', 4)) +
-      (title ? txt(PANEL.x + PANEL.w / 2, y + 40, title, 32, { cls: 't-body' }) : ''));
+      (title ? txt(PANEL.x + PANEL.w / 2, y + 40, title, 34, { cls: 't-body' }) : ''));
   }
   function cardBottom() { try { const b = cardG.getBBox(); return CARD.y + b.y + b.height; } catch (e) { return 200; } }
   function buildHowlong(r) {
@@ -1424,7 +1426,7 @@
       const x = PANEL.x + 96 + i * 170, g = el('g', { transform: `translate(${x} ${y0 + 104})` }, panelG);
       const inner = el('g', { class: 'jm-press' }, g);
       inner.innerHTML = Rc(-78, -88, 156, 172, 18, solid('#EAF6F8', 3.4)) + Rc(-66, 6, 132, 22, 4, fill('#E5BE86')) + Pa(`M-40 12L${-40 + o[2] * 0.6} 13L${-40 + o[2] * 0.6} 19L-40 20Z`, fill(OUT, 0.45)) + line('M-40 16V-56', 4) + Rc(-38, -56, 20, 13, 0, fill('#E2453C')) +
-        txt(0, 64, o[1], 30, { cls: 't-body' });
+        txt(0, 66, o[1], 32, { cls: 't-body' });
       const hit = el('rect', { x: -80, y: -90, width: 160, height: 176, fill: 'transparent', 'data-hit': 'tebak-' + o[0] }, g);
       hit.style.cursor = 'pointer';
       hit.addEventListener('click', () => choosePredict(o[0], inner));

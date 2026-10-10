@@ -488,9 +488,9 @@
       const cy = 16 + rowH * i + rowH / 2;
       let tx = 30;
       if (row.item) { itemG(body, row.item, TK ? 72 : 54, TK ? 66 : 56, cy + (TK ? 36 : 27), TK ? 96 : 70, true); tx = TK ? 128 : 104; }
-      if (row.money) { const m = el('g', { transform: `translate(${row.coin ? 58 : 66} ${cy}) scale(${row.coin ? 0.5 : 0.48})` }, body); GS.markup(m, moneyArt(row.money)); tx = 126; }
+      if (row.money) { const m = el('g', { transform: `translate(${row.coin ? 58 : 66} ${cy}) scale(${row.coin ? 0.5 : 0.48})` }, body); GS.markup(m, moneyArt(row.money)); m.querySelectorAll('text').forEach(t => t.setAttribute('data-qc', 'decor')); tx = 126; }
       if (row.dots) { let s = ''; for (let k = 0; k < row.dots; k++) s += coinDot(tx + 28 + k * 60, cy, 25); GS.markup(body, s); }
-      if (row.text) txt(body, tx, cy + 2, row.text, { size: row.small ? 32 : 44, anchor: 'start', cls: row.small ? 'km-body' : null });
+      if (row.text) txt(body, tx, cy + 2, row.text, { size: row.size || (row.small ? 32 : 44), anchor: 'start', cls: row.small ? 'km-body' : null });
     });
     tween(360, e => inner.setAttribute('transform', `scale(${n1((0.4 + 0.6 * e) * 100) / 100})`), 'outBack');
     GS.sfx.pop();
@@ -528,9 +528,9 @@
     txt(L.mat, M.x + M.w / 2, M.y + 30, 'Uang pembeli', { size: 30, cls: 'km-body', fill: '#6B4A20' });
     S.paidEls = [];
     const keysSorted = keys.slice().sort((a, b) => DEN[b].v - DEN[a].v), n = keysSorted.length;
-    const dx = n > 1 ? Math.min(16, (M.w - 30 - NW * 0.8) / (n - 1)) : 0;
+    const dx = n > 1 ? Math.min(16, (M.w - 30 - NW * 0.84) / (n - 1)) : 0;
     keysSorted.forEach((k, i) => {
-      const g = el('g', { transform: `translate(${n1(M.x + M.w / 2 - (n - 1) * dx / 2 + i * dx)} ${n1(M.y + 110 - (n - 1) * 3 + i * 6)}) scale(0.8)` }, L.mat);
+      const g = el('g', { transform: `translate(${n1(M.x + M.w / 2 - (n - 1) * dx / 2 + i * dx)} ${n1(M.y + 110 - (n - 1) * 3 + i * 6)}) scale(0.84)` }, L.mat);
       GS.markup(g, moneyArt(k));
       S.paidEls.push(g);
     });
@@ -1361,7 +1361,7 @@
       const c = card(L.cards, 256 + i * 314, 298, 296, 288, i ? 'paket' : 'satuan');
       if (i === 0) itemG(c.body, O.name, 84, c.w / 2, 108, 120, true);
       else [-1, 0, 1].forEach(k => itemG(c.body, O.name, 70, c.w / 2 + k * 62, 104 - Math.abs(k) * 4, 70, true));
-      txt(c.body, c.w / 2, 140, i ? 'Paket isi 3' : 'Satu bungkus', { size: 30, cls: 'km-body', fill: '#6B4A20' });
+      txt(c.body, c.w / 2, 140, i ? 'Paket isi 3' : 'Satu bungkus', { size: 36, cls: 'km-body', fill: '#6B4A20' });
       txt(c.body, c.w / 2, 186, rp(i ? O.pack : O.unit), { size: 46 });
       c.total = el('g', null, c.body);
       return c;
@@ -1693,7 +1693,7 @@
       // 6: fewest notes and coins (Rp3.800 = 2.000 + 1.000 + 500 + 200 + 100)
       lv('Bayar pas dengan lembar dan koin paling sedikit.', () => { const keys = COINS3.concat(['n2000', 'n5000']); return [pay({ items: [it(pick1(MID), minAtLeast(() => hundreds(11, 99), keys, 4))], denoms: keys, minimal: true })]; }),
       // 7: exchange a note for coins: how many pieces
-      lv('Tukar uangnya jadi koin, ya.', () => { const ex = Math.random() < 0.6 ? ['n10000', 'c500'] : ['n5000', 'c500']; return [chg({ exchange: true, paid: [ex[0]], denoms: [ex[1]], bubble: [{ money: ex[0], text: 'Tukar jadi', small: true }, { money: ex[1], coin: true, text: 'koin ' + rp(DEN[ex[1]].v) }] })]; }),
+      lv('Tukar uangnya jadi koin, ya.', () => { const ex = Math.random() < 0.6 ? ['n10000', 'c500'] : ['n5000', 'c500']; return [chg({ exchange: true, paid: [ex[0]], denoms: [ex[1]], bubble: [{ money: ex[0], text: rp(DEN[ex[0]].v) }, { money: ex[1], coin: true, text: 'Jadi koin ' + rp(DEN[ex[1]].v), size: 38 }] })]; }),
       // 8: challenge
       lv('Tantangan! Tiga pembeli datang.', () => {
         const nm = pickN(ANY, 3);

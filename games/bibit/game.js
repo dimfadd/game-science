@@ -554,7 +554,7 @@
       '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" fill="' + CREAM + '" stroke="' + OL + '" stroke-width="3"/>' +
       '<circle cx="' + (x + w / 2) + '" cy="' + (y + 2) + '" r="7" fill="#E2453C" stroke="' + OL + '" stroke-width="2"/>' +
       Tc(x + w / 2, y + 34, 'Pesanan Pak Tani', 30, { body: true, fill: '#7E4A27' }) + Tc(x + w / 2, y + 88, a + ' × ' + b, 60);
-    if (k2) s += Tc(x + w / 2, y + 144, a + ' baris, isi ' + b, 32, { body: true });
+    if (k2) s += Tc(x + w / 2, y + 142, a + ' baris, isi ' + b, 38, { body: true });
     GS.markup(layers.ui, s);
   }
   /** Notes board: arrangements / results found so far. entries: [{t, r, c, grey}] */
@@ -567,7 +567,7 @@
     let s = '<rect x="' + (x + 4) + '" y="' + (y + 6) + '" width="' + w + '" height="' + h + '" rx="16" fill="' + OL + '" opacity=".18"/>' +
       '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" fill="#A8673A" stroke="' + OL + '" stroke-width="3"/>' +
       '<rect x="' + (x + 8) + '" y="' + (y + 8) + '" width="' + (w - 16) + '" height="' + (h - 16) + '" rx="11" fill="' + CREAM + '"/>' +
-      Tc(x + w / 2, y + 34, title || 'Catatan', 32, { body: true, fill: '#7E4A27' });
+      Tc(x + w / 2, y + 34, title || 'Catatan', /\d/.test(title || '') ? 38 : 32, { body: true, fill: '#7E4A27' });
     entries.forEach((e, i) => {
       const yy = y + 58 + i * rowH + rowH / 2;
       if (e.r) {
@@ -695,7 +695,7 @@
         for (let i = 0; i < ns; i++) slots.push({ x: x0 + (ns > 1 ? i / (ns - 1) : 0.5) * span, y: top + (i % 2 ? 10 : 0) });
         slots.sort((a, b) => a.y - b.y).forEach(p => {
           m += p.b ? '<g transform="translate(' + n1(p.x) + ' ' + n1(p.y + 18) + ') scale(.8)">' + bundleArt(S.bundleSize || 10, 'seed', true) + '</g>'
-            : '<use href="#bb-' + (s.wilt ? 'wilt' : 'seedns') + '" transform="translate(' + n1(p.x) + ' ' + n1(p.y + 6) + ') scale(.9)"/>';
+            : '<use href="#bb-' + (s.wilt ? 'wilt' : 'seedns') + '" transform="translate(' + n1(p.x) + ' ' + n1(p.y + (s.wilt ? -12 : 6)) + ') scale(' + (s.wilt ? 1.1 : 0.9) + ')"/>';
         });
         const body = 'M' + (-w / 2) + ' ' + top + 'Q0 ' + n1(top + 2 * ry) + ' ' + (w / 2) + ' ' + top + 'L' + n1(w * 0.4) + ' -8Q0 8 ' + n1(-w * 0.4) + ' -8Z';
         m += '<path d="' + body + '" fill="#C99A5B"/>' +
@@ -1904,8 +1904,8 @@
     tier: TIER,
     get state() { return { level: run.current, round: ri, rounds: rounds.length, kind: C && C.kind, mode: S.mode, tries, busy, r: S.r, c: S.c, s: S.s, t: S.t, N: S.N }; },
     toScreen: (x, y) => { const q = toScreen(x, y); return q ? { x: q.x, y: q.y } : null; },
-    handle: () => { const p = S.handle ? handlePos() : null; return p ? toScreen(p.x, p.y) : null; },
-    cellScreen: (r, c) => S.g ? toScreen(cxOf(S.g, c), cyOf(S.g, r)) : null,
+    handle: () => { const p = S.handle ? handlePos() : null; return p ? window.__game.toScreen(p.x, p.y) : null; },
+    cellScreen: (r, c) => S.g ? window.__game.toScreen(cxOf(S.g, c), cyOf(S.g, r)) : null,
     geom: () => S.g
   };
 
