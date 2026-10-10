@@ -19,7 +19,7 @@
   const svg = document.getElementById('stage');
   const dock = document.getElementById('dock');
   const hud = GS.hud({ gameId: GAME, title: 'Lompat Katak', levelCount: LEVELS, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS, hud, start: buildLevel });
+  const run = GS.runner({ gameId: GAME, count: LEVELS, hud, start: i => buildLevel(i), demo: demoSpec });
   const art = GS.art || {};
 
   /* ---------------- layers ---------------- */
@@ -602,12 +602,16 @@
   const frogBase = () => -7 * stoneScale(cam.z);
 
   /* ---------------- build a level ---------------- */
-  function buildLevel(i) {
+  let demoSig = '';           // the example's numbers; the child's own level must differ
+  const sigOf = l => l.start + '>' + l.target + ':' + l.sol.map(p => p.size + 'x' + p.count).join(',');
+  function buildLevel(i, demo) {
     token++;
     world.innerHTML = ''; uiL.innerHTML = '';
     camFns = []; stoneEls = {}; crocEls = {}; labelEls = {}; trail = [];
     tries = 0; busy = false; restored = false; stoneN = 0; crocN = 0;
     L = makeLevel(i);
+    for (let k = 0; k < 12 && sigOf(L) === demoSig; k++) L = makeLevel(i);
+    if (demo) demoSig = sigOf(L);
     P = L.stages.map(st => ({ size: st.sizes[0], count: 1, dir: 1 }));
     arcsL = GS.el('g', {}, world); gapL = GS.el('g', {}, world); stonesL = GS.el('g', {}, world);
     labelsL = GS.el('g', {}, world); friendL = GS.el('g', {}, world); frogL = GS.el('g', {}, world); fxL = GS.el('g', {}, world);
@@ -663,8 +667,41 @@
     hud.mood('happy');
     layout();
     const tk = token;
-    GS.say(L.say);
+    if (!demo) GS.say(L.say);
     setTimeout(() => { if (tk === token) camTween(ov, 1100, 'inOutCubic'); }, T(500));
+  }
+
+  /* ---------------- worked example (GS.demo, SOP docs/CONTOH.md) ----------------
+   * The ghost hand plans the hops on the real panel with OTHER numbers and presses Lompat!,
+   * while Si Cil thinks aloud. Challenge levels only replay on request (auto: false). */
+  function demoSpec(i) {
+    return {
+      key: 'L' + (i + 1),
+      auto: !/^Tantangan/.test(makeLevel(i).say),
+      build: () => buildLevel(i, true),
+      script: async d => {
+        await d.wait(1300);                      // let the camera settle on the line
+        await d.say(L.say);
+        const sol = solution();
+        for (let si = 0; si < sol.length; si++) {
+          const want = sol[si], ref = panelRefs[si];
+          if (L.dir && want.dir != null && P[si].dir !== want.dir) await d.tap(ref.dirBtns[want.dir > 0 ? 1 : 0]);
+          const pad = ref.pads.find(b => +b.dataset.size === want.size);
+          if (pad && P[si].size !== want.size) await d.tap(pad);
+          let guard = 40;
+          while (P[si].count < want.count && guard--) await d.tap(ref.plus);
+          while (P[si].count > want.count && guard--) await d.tap(ref.minus);
+        }
+        await d.say(demoLine(sol), 2600);
+        await d.tap(goBtn);
+        await d.success(60000);
+      }
+    };
+  }
+  function demoLine(sol) {
+    if (L.meet) return 'Kodi dan Kiki sama-sama sampai di ' + fmt(L.target) + '.';
+    const parts = sol.map(p => (L.dir && p.dir < 0 ? 'mundur ' : '') + 'lompat ' + fmt(p.size) + ' sebanyak ' + p.count + ' kali');
+    return (L.tk ? '' : 'Dari ' + fmt(L.start) + ', ') + parts.join(', lalu ') + '.';
   }
 
   function pill(n, color) {
@@ -818,6 +855,7 @@
   async function fail(kind, pos) {
     const tk = token;
     tries++;
+    if (tries === 2) run.offerDemo();
     hud.mood('oops');
     let line;
     if (kind === 'water' || kind === 'croc') {

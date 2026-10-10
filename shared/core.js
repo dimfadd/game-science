@@ -158,6 +158,7 @@
   // latest line is queued (its caption still shows) and spoken on the first tap.
   const AUTOTEST = /[?&]autotest\b/.test(location.search) || !!navigator.webdriver;
   let speechReady = AUTOTEST, pendingSay = null;
+  GS.speechReady = () => speechReady;
   function flushSay() {
     speechReady = true;
     const p = pendingSay; pendingSay = null;
@@ -350,7 +351,8 @@
     expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     collapse: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4.8v14.4a1 1 0 0 0 1.5.9l11-7.2a1 1 0 0 0 0-1.7l-11-7.2A1 1 0 0 0 8 4.8z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
-    hint: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.1V17h5v-1.1c0-.8.4-1.6 1.1-2.1A6 6 0 0 0 12 3z" fill="currentColor"/><rect x="9.5" y="18.5" width="5" height="2.5" rx="1.2" fill="currentColor"/></svg>'
+    hint: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.1V17h5v-1.1c0-.8.4-1.6 1.1-2.1A6 6 0 0 0 12 3z" fill="currentColor"/><rect x="9.5" y="18.5" width="5" height="2.5" rx="1.2" fill="currentColor"/></svg>',
+    demo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.2 11.6V5.2a1.7 1.7 0 0 1 3.4 0v5.2l.1-1.3a1.6 1.6 0 0 1 3.2.2v1.4a1.5 1.5 0 0 1 3 .3v4.6c0 3.4-2.3 6.1-5.8 6.1h-.6c-2 0-3.4-.8-4.5-2.4l-2.7-4a1.6 1.6 0 0 1 2.4-2z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>'
   };
   GS.ICON = ICON;
 
@@ -433,8 +435,13 @@
    * apps, when already fullscreen, and in automated tests (?autotest or navigator.webdriver).
    */
   GS._gateOpen = true;
-  function startGate(title) {
-    if (AUTOTEST || GS.fs.standalone() || GS.fs.active() || document.querySelector('.gs-gate')) return;
+  const gateWaiters = [];
+  /** Run fn once the start gate is gone (at once when there is none). */
+  GS.afterGate = fn => { if (document.querySelector('.gs-gate')) gateWaiters.push(fn); else fn(); };
+  GS._startGate = (title, force) => startGate(title, force);
+  function startGate(title, force) {
+    if (AUTOTEST || document.querySelector('.gs-gate')) return;
+    if (!force && (GS.fs.standalone() || GS.fs.active())) return;
     GS._gateOpen = false;
     const g = document.createElement('div');
     g.className = 'gs-gate';
@@ -458,7 +465,7 @@
       flushSay();
       if (GS.lastSay && GS._bubble) GS._bubble(GS.lastSay);
       g.classList.remove('show');
-      setTimeout(() => g.remove(), GS.reducedMotion ? 0 : 260);
+      setTimeout(() => { g.remove(); gateWaiters.splice(0).forEach(f => f()); }, GS.reducedMotion ? 0 : 260);
     });
   }
 
@@ -485,6 +492,9 @@
     if (o.levelCount && o.onLevelPick) {
       right.appendChild(button('gs-levels', 'Pilih level', ICON.grid, () => GS.levelPicker({ gameId: o.gameId, count: o.levelCount, title: o.title, onPick: o.onLevelPick })));
     }
+    const demoBtn = button('gs-demo-btn', 'Lihat contoh', ICON.demo, () => { if (GS._runner) GS._runner.playDemo(); });
+    demoBtn.hidden = true;
+    right.appendChild(demoBtn);
     right.appendChild(button('gs-voice', 'Ulangi petunjuk', ICON.voice, () => { if (GS.lastSay) GS.say(GS.lastSay); }));
     const snd = button('gs-sound', '', '', () => GS.setMuted(!GS.muted));
     snd.setAttribute('data-gs-sound', '');
@@ -544,6 +554,8 @@
         el.setAttribute('aria-label', (t ? t.label + ', ' : '') + 'level ' + (i + 1) + (o.levelCount ? ' dari ' + o.levelCount : ''));
       },
       bubble: GS._bubble,
+      /** Show or hide the "Lihat contoh" button; offer=true makes it pulse (after repeated misses). */
+      setDemo(on, offer) { demoBtn.hidden = !on; demoBtn.classList.toggle('gs-offer', !!(on && offer)); },
       mood(m) { if (GS.art && GS.art.mascot) face.innerHTML = GS.art.mascot({ mood: m, size: 64 }); }
     };
   };
@@ -634,23 +646,249 @@
     setTimeout(() => d.remove(), 1100);
   };
 
+  /* ---------------- worked examples ("Contoh") ----------------
+   * Before a child tries a new kind of level, a ghost hand plays one example through the
+   * game's REAL input handlers (synthetic pointer events at the same points a finger would
+   * touch), with different numbers than the child's own task. SOP: docs/CONTOH.md.
+   * A game passes GS.runner({ demo: i => spec | null }) where
+   *   spec = { key, build(), script: async d => { ... } }
+   *   key     what kind of level this is ('pasangan10'); the example auto-plays only the first
+   *           time a child meets that key in the current kelas, the HUD button replays it later
+   *   build() builds the level in example mode (other numbers, no intro GS.say)
+   *   script  drives the hand: d.say(text), d.tap(target), d.drag(from, to), d.path(points),
+   *           d.wait(ms), d.success(). Targets are SVG points {x, y}, Elements, CSS selectors
+   *           or functions returning one of these (evaluated when the step runs).
+   * While an example plays, run.win() does not save stars or celebrate; it only marks the
+   * example as solved, which d.success() waits for. Real touches are blocked except "Lewati". */
+  const DEMO_ID = 4242;
+  const demo = GS.demo = {
+    active: false,
+    speed: 1,
+    suppressed: () => (AUTOTEST && !/[?&]demotest\b/.test(location.search)) || /[?&]nodemo\b/.test(location.search),
+    seenKey: (gameId, key) => 'demo.' + gameId + '@' + (GS.tier ? GS.tier() : 'k1') + '.' + key,
+    seen: (gameId, key) => !!GS.store.get(demo.seenKey(gameId, key), false),
+    markSeen: (gameId, key) => GS.store.set(demo.seenKey(gameId, key), true)
+  };
+  let demoRun = null; // { aborted, solved, ui, hand }
+  class DemoSkip extends Error {}
+
+  // Block real input while an example plays (synthetic events have isTrusted === false).
+  ['pointerdown', 'pointermove', 'pointerup', 'click', 'touchstart', 'touchmove', 'touchend', 'keydown'].forEach(t =>
+    window.addEventListener(t, e => {
+      if (!demo.active || !e.isTrusted) return;
+      if (e.target && e.target.closest && e.target.closest('.gs-demo-skip')) return;
+      if (t === 'keydown' && e.key !== 'Escape') { e.preventDefault(); e.stopPropagation(); return; }
+      if (t === 'keydown') { demo.skip(); return; }
+      e.preventDefault(); e.stopPropagation();
+    }, true));
+
+  // Synthetic pointers have no real capture; swallow capture calls for the demo pointer.
+  ['setPointerCapture', 'releasePointerCapture'].forEach(fn => {
+    const orig = Element.prototype[fn];
+    if (!orig) return;
+    Element.prototype[fn] = function (id) { if (id === DEMO_ID) return; return orig.call(this, id); };
+  });
+  if (Element.prototype.hasPointerCapture) {
+    const orig = Element.prototype.hasPointerCapture;
+    Element.prototype.hasPointerCapture = function (id) { return id === DEMO_ID ? true : orig.call(this, id); };
+  }
+
+  function demoUI() {
+    const ui = document.createElement('div');
+    ui.className = 'gs-demo';
+    ui.innerHTML = '<div class="gs-demo-frame" aria-hidden="true"></div>' +
+      '<div class="gs-demo-bar" role="status"><span class="gs-demo-tag">' + ICON.demo + '<b>Contoh</b></span>' +
+      '<button type="button" class="gs-demo-skip">Lewati<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5v13l8-6.5zM13 5.5v13l8-6.5z" fill="currentColor"/></svg></button></div>' +
+      '<div class="gs-demo-hand" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M24 30V12a5 5 0 0 1 10 0v15l.3-3.8a4.6 4.6 0 0 1 9.2.6v4a4.3 4.3 0 0 1 8.5.8v13C52 51 45.6 58 35.6 58h-1.8c-5.6 0-9.6-2.2-12.8-6.8L13.4 40a4.6 4.6 0 0 1 7-5.8z" fill="#FFF8EC" stroke="#3B2A20" stroke-width="3.6" stroke-linejoin="round"/><path d="M34 27v9M43.5 30v7" stroke="#3B2A20" stroke-width="2.6" stroke-linecap="round"/></svg></div>';
+    document.body.appendChild(ui);
+    ui.querySelector('.gs-demo-skip').addEventListener('click', () => { GS.sfx.click(); demo.skip(); });
+    requestAnimationFrame(() => ui.classList.add('show'));
+    return ui;
+  }
+
+  function demoPoint(t) {
+    if (typeof t === 'function') t = t();
+    if (typeof t === 'string') t = document.querySelector(t);
+    if (!t) throw new Error('demo target not found');
+    if (t instanceof Element) {
+      const r = t.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    const svg = document.querySelector('svg.gs-stage');
+    const m = svg && svg.getScreenCTM();
+    if (!m) return { x: t.x, y: t.y };
+    return { x: m.a * t.x + m.c * t.y + m.e, y: m.b * t.x + m.d * t.y + m.f };
+  }
+  function demoTarget(p) {
+    const els = document.elementsFromPoint(p.x, p.y);
+    return els.find(el => !el.closest('.gs-demo')) || document.body;
+  }
+  function fire(el, type, p) {
+    const init = { bubbles: true, cancelable: true, composed: true, clientX: p.x, clientY: p.y, pointerId: DEMO_ID, pointerType: 'touch', isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, pressure: type === 'pointerup' ? 0 : 0.5, width: 20, height: 20 };
+    let ev;
+    try { ev = type.startsWith('pointer') ? new PointerEvent(type, init) : new MouseEvent(type, init); } catch (e) { ev = new MouseEvent(type, init); }
+    el.dispatchEvent(ev);
+  }
+
+  function makeDriver(run) {
+    const hand = run.ui.querySelector('.gs-demo-hand');
+    let at = null;
+    const check = () => { if (run.aborted) throw new DemoSkip(); };
+    const sleep = async ms => {
+      const end = performance.now() + ms / demo.speed;
+      while (performance.now() < end) { check(); await new Promise(r => setTimeout(r, Math.min(60, end - performance.now()))); }
+      check();
+    };
+    const place = (p, down) => {
+      hand.style.transform = 'translate(' + (p.x - 18).toFixed(1) + 'px,' + (p.y - 6).toFixed(1) + 'px)' + (down ? ' scale(0.88)' : '');
+      hand.classList.add('on');
+      at = p;
+    };
+    const glide = async (p, ms) => {
+      const from = at || { x: p.x + 80, y: p.y + 120 };
+      const t0 = performance.now(), dur = Math.max(1, (ms || 600) / demo.speed);
+      for (;;) {
+        check();
+        const k = Math.min(1, (performance.now() - t0) / dur), e = GS.ease.inOutCubic ? GS.ease.inOutCubic(k) : k;
+        place({ x: from.x + (p.x - from.x) * e, y: from.y + (p.y - from.y) * e });
+        if (k >= 1) break;
+        await new Promise(r => requestAnimationFrame(r));
+      }
+    };
+    const d = {
+      /** Speak a line (caption + voice) and wait roughly as long as it takes to say it. */
+      async say(text, ms) { check(); GS.say(text); await sleep(ms || Math.max(1400, text.length * 62)); },
+      wait: sleep,
+      /** Move the hand to a target without touching. */
+      async point(target, ms) { await glide(demoPoint(target), ms); await sleep(250); },
+      /** Tap a target: pointerdown + pointerup + click on whatever is under that point. */
+      async tap(target) {
+        const p = demoPoint(target);
+        await glide(p, 650);
+        const el = demoTarget(p);
+        place(p, true); fire(el, 'pointerdown', p); await sleep(140);
+        fire(el, 'pointerup', p); fire(el, 'click', p); place(p); await sleep(380);
+      },
+      /** Press at `from`, move along to `to`, release. Moves go to the pressed element (like capture). */
+      async drag(from, to, ms) { await d.path([from, to], ms); },
+      /** Press at the first point and slide through the others (swipes, circular clock drags). */
+      async path(points, ms) {
+        const pts = points.map(demoPoint);
+        await glide(pts[0], 650);
+        const el = demoTarget(pts[0]);
+        place(pts[0], true); fire(el, 'pointerdown', pts[0]); await sleep(220);
+        const total = Math.max(1, (ms || 900 * (pts.length - 1)) / demo.speed);
+        const seg = []; let len = 0;
+        for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); seg.push(l); len += l; }
+        const t0 = performance.now();
+        for (;;) {
+          check();
+          const k = Math.min(1, (performance.now() - t0) / total);
+          let dist = (GS.ease.inOutCubic ? GS.ease.inOutCubic(k) : k) * len, i = 0;
+          while (i < seg.length - 1 && dist > seg[i]) { dist -= seg[i]; i++; }
+          const f = seg[i] ? dist / seg[i] : 1, a = pts[i], b = pts[i + 1];
+          const p = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+          place(p, true); fire(el, 'pointermove', p);
+          if (k >= 1) break;
+          await new Promise(r => requestAnimationFrame(r));
+        }
+        await sleep(160);
+        const last = pts[pts.length - 1];
+        fire(el, 'pointerup', last); place(last); await sleep(380);
+      },
+      /** Wait until the game reports the example solved (run.win called in example mode). */
+      async success(timeout) {
+        const end = performance.now() + (timeout || 20000);
+        while (!run.solved) {
+          check();
+          if (performance.now() > end) throw new Error('demo did not reach success');
+          await new Promise(r => setTimeout(r, 60));
+        }
+        hand.classList.remove('on');
+      }
+    };
+    return d;
+  }
+
+  /** Play an example. Resolves 'success', 'skipped' or 'failed'; never throws. */
+  demo.play = async function (gameId, spec) {
+    if (demoRun) demo.skip();
+    const run = demoRun = { aborted: false, solved: false, ui: demoUI() };
+    demo.active = true;
+    document.body.classList.add('gs-demo-on');
+    let result = 'success';
+    try {
+      spec.build();
+      const d = makeDriver(run);
+      await spec.script(d);
+      if (!run.solved) await d.success(8000);
+      GS.say('Sekarang giliranmu!');
+      await new Promise(r => setTimeout(r, 900 / demo.speed));
+    } catch (e) {
+      if (e instanceof DemoSkip) result = 'skipped';
+      else { result = 'failed'; console.error('Contoh gagal: ' + (e && e.message)); }
+    }
+    demo.markSeen(gameId, spec.key);
+    run.ui.classList.remove('show');
+    setTimeout(() => run.ui.remove(), 250);
+    if (demoRun === run) demoRun = null;
+    demo.active = false;
+    document.body.classList.remove('gs-demo-on');
+    if (GS.stopSpeech) GS.stopSpeech();
+    return result;
+  };
+  demo.skip = () => { if (demoRun) demoRun.aborted = true; };
+  demo._solved = () => { if (demoRun) demoRun.solved = true; };
+
   /**
    * Standard level runner used by every game.
-   * GS.runner({ gameId, count, start(i) }) -> { go(i), next(), win(stars, text), current }
-   * start(i) builds level i. win() saves stars and shows the celebration.
+   * GS.runner({ gameId, count, hud, start(i), demo(i) }) -> { go(i), next(), win(stars, text), playDemo(), offerDemo(), current }
+   * start(i) builds level i. win() saves stars and shows the celebration (in example mode it
+   * only marks the example solved). demo(i) returns the level's example spec (see GS.demo).
    */
   GS.runner = function (o) {
     GS.store.set('lastGame', o.gameId);
+    let token = 0;
     const r = {
       current: 0,
-      go(i) { r.current = GS.clamp(i, 0, o.count - 1); if (o.hud) o.hud.setLevel(r.current); o.start(r.current); },
+      demoSpec: null,
+      go(i) {
+        r.current = GS.clamp(i, 0, o.count - 1);
+        if (o.hud) o.hud.setLevel(r.current);
+        demo.skip();
+        const t = ++token;
+        r.demoSpec = o.demo ? o.demo(r.current) : null;
+        if (o.hud && o.hud.setDemo) o.hud.setDemo(!!r.demoSpec);
+        if (r.demoSpec && r.demoSpec.auto !== false && !demo.suppressed() && !demo.seen(o.gameId, r.demoSpec.key)) {
+          // An example needs its voice: without a gesture yet (installed app, no gate), show the
+          // "Main!" gate first. Wait for the gate, and let a skipped example finish unwinding.
+          if (!GS.speechReady()) GS._startGate(document.title, true);
+          if (document.querySelector('.gs-gate')) o.start(r.current); // something to see behind the gate
+          GS.afterGate(() => setTimeout(() => { if (t === token) r.playDemo(); }, 0));
+        } else o.start(r.current);
+      },
       next() { r.go(r.current + 1); },
+      /** Play (or replay) the current level's example, then rebuild the level for the child. */
+      async playDemo() {
+        const spec = r.demoSpec;
+        if (!spec) return 'none';
+        const t = ++token;
+        document.querySelectorAll('.gs-overlay').forEach(x => x.remove());
+        if (o.hud && o.hud.setDemo) o.hud.setDemo(true, false);
+        const res = await demo.play(o.gameId, spec);
+        if (t === token) o.start(r.current);
+        return res;
+      },
+      /** After repeated misses: make the "Lihat contoh" button pulse (never forces the example). */
+      offerDemo() { if (r.demoSpec && o.hud && o.hud.setDemo) o.hud.setDemo(true, true); },
       win(stars, text) {
+        if (demo.active) { demo._solved(); return Promise.resolve(); }
         GS.store.setStars(o.gameId, r.current, stars);
         const hasNext = r.current < o.count - 1;
         return GS.celebrate({ stars, text, hasNext, onNext: () => r.next(), onReplay: () => r.go(r.current) });
       }
     };
+    GS._runner = r;
     return r;
   };
 })();

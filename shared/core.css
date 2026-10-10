@@ -362,3 +362,41 @@ button { font: inherit; color: inherit; }
   }
   .gs-game .gs-caption { left: calc(var(--rail-w) + 8px); top: calc(env(safe-area-inset-top, 0px) + 6px); }
 }
+
+/* ---------- worked example ("Contoh", GS.demo; SOP docs/CONTOH.md) ----------
+ * A warm frame + a top pill say "this is an example"; the ghost hand shows each touch.
+ * The layer itself ignores touches (real input is blocked in core.js) except "Lewati". */
+.gs-demo { position: fixed; inset: 0; z-index: 35; pointer-events: none; opacity: 0; transition: opacity 200ms ease-out; }
+.gs-demo.show { opacity: 1; }
+.gs-demo-frame { position: absolute; inset: 0; box-shadow: inset 0 0 0 7px var(--sun), inset 0 0 0 10px var(--line); }
+.gs-demo-bar {
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + var(--hud-h) + 10px); left: 50%; translate: -50% 0;
+  display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 16px;
+  background: var(--card); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
+}
+.gs-demo-tag { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-display); font-weight: 800; font-size: 24px; color: var(--ink); }
+.gs-demo-tag svg { width: 30px; height: 30px; color: #C98A00; }
+.gs-demo-skip {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 52px; padding: 0 18px;
+  background: var(--primary); color: #fff; border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 3px 0 var(--line);
+  font-family: var(--font-display); font-weight: 800; font-size: 22px; cursor: pointer;
+}
+.gs-demo-skip svg { width: 22px; height: 22px; }
+.gs-demo-skip:active { translate: 0 3px; box-shadow: 0 0 0 var(--line); }
+.gs-demo-hand {
+  position: absolute; left: 0; top: 0; width: 72px; height: 72px; opacity: 0;
+  transform-origin: 18px 6px; filter: drop-shadow(0 4px 0 rgba(59, 42, 32, 0.35));
+}
+.gs-demo-hand.on { opacity: 1; }
+.gs-demo-hand svg { width: 100%; height: 100%; display: block; }
+.gs-demo-btn { background: #FFF1C9; }
+.gs-demo-btn svg { color: #9A6A00; }
+.gs-demo-btn.gs-offer { animation: gs-offer 1.1s ease-in-out infinite; }
+@keyframes gs-offer { 50% { scale: 1.12; background: var(--sun); } }
+@media (max-height: 500px) and (orientation: landscape) {
+  .gs-demo-bar { top: calc(env(safe-area-inset-top, 0px) + 8px); left: auto; right: max(12px, env(safe-area-inset-right, 0px)); translate: 0 0; } /* caption owns the top-left here */
+  .gs-demo-tag { font-size: 20px; }
+  .gs-demo-skip { min-height: 48px; font-size: 20px; }
+  .gs-demo-hand { width: 60px; height: 60px; }
+}
+@media (prefers-reduced-motion: reduce) { .gs-demo-btn.gs-offer { animation: none; background: var(--sun); } }
