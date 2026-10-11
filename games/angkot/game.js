@@ -993,7 +993,7 @@
     A.state = 'unloading';
     showArrow(A, null);
     updateDock();
-    tries++; A.angTries++;
+    miss(); A.angTries++;
     GS.sfx.whoosh();
     await setDoor(A, true);
     const mine = [];
@@ -1249,20 +1249,191 @@
   };
   const LEVELS = LEVELS_BY_TIER[TIER] || LEVELS_BY_TIER.k1;
 
+  /* ------------------------------------------------------------------ worked examples (GS.demo, SOP docs/CONTOH.md)
+   * One example round per level with other numbers (kept small so the example stays short).
+   * Levels that repeat a mechanic share its key; mixed/challenge levels replay on request only. */
+  const dsum = n => String(n).split('').reduce((s, c) => s + +c, 0);
+  function easy(gen, ok) { let r; for (let k = 0; k < 400; k++) { r = gen(); if (ok(r)) return r; } return r; }
+  const sumOf = r => r.parts.reduce((s, v) => s + v, 0);
+  const one = (o, groups, angkots) => [PL(Object.assign(o, { waves: [{ angkots: angkots || [0], groups: GS.shuffle(groups) }] }))];
+  function pairDecoy(capN, lo, hi) {
+    const a = rnd(lo, hi), c = pick([1, 2, 3, 4, 5, 6, 7].filter(x => x < capN && x !== a && x !== capN - a));
+    return G_([a, capN - a]).concat([{ n: c, d: 'decoy' }]);
+  }
+  const D_ = {
+    tkSatu: () => one({ cap: 5 }, singles(5, 0)),
+    tkTambah: () => { const a = rnd(1, 3); return one({ cap: 5 }, singles(5 - a, 1), [a]); },
+    tkPilih: () => [PL({ cap: 5, label: 'dots', waves: [choiceRound(5, 1, 3)] })],
+    tkGabung: () => { const a = rnd(1, 2); return one({ cap: 5, label: 'dots' }, G_([a, 5 - a])); },
+    tkGabungN: () => one({ cap: 5 }, pairDecoy(5, 1, 2)),
+    pilih10: () => [PL({ waves: [choiceRound(10, 3, 7)] })],
+    gabung10: () => one({}, pairDecoy(10, 2, 5)),
+    pasang: () => one({ label: 'both' }, pairDecoy(10, 1, 5)),
+    tiga: () => one({ label: 'both' }, G_(triple(2))),
+    sisa: () => { const p = pair(2, 5); const d = strayFor([{ needs: [10], sizes: p }]); return one({ label: 'both' }, G_(p).concat([{ n: d, d: 'stray' }])); },
+    angka: () => one({ label: 'num' }, pairDecoy(10, 1, 5)),
+    puluhan: () => [{ type: 'tens', n: rnd(12, 13) }],
+    kirim: () => [easy(() => calcBuild([10, 1], 21, 49), r => dsum(r.target) <= 6)],
+    gabung2: carry => () => [easy(() => sumRound2(carry), r => dsum(sumOf(r)) <= (carry ? 10 : 8))],
+    turun: () => [easy(() => subRound(false), r => dsum(r.parts[0] - r.take) <= 7)],
+    banding: () => [cmpRound('tens')],
+    baca: zero => () => [easy(() => readRound([100, 10, 1], 101, 499, zero), r => dsum(r.parts[0]) <= 7)],
+    kirim100: () => [easy(() => calcBuild([100, 10, 1], 101, 499), r => dsum(r.target) <= 7)],
+    kali: () => [multRound(10, 3, 5)],
+    bagi: rem => () => { const N = 3, k = rnd(3, 4), r = rem ? rnd(1, 2) : 0; return [{ type: 'share', N, k, n: N * k + r, rem: r }]; },
+    gabung3: () => [easy(sum3Round, r => dsum(sumOf(r)) <= 8 && r.parts.reduce((s, v) => s + dsum(v), 0) <= 18)],
+    ribu: () => [easy(() => readRound([1000, 100, 10, 1], 1001, 3999), r => dsum(r.parts[0]) <= 8)],
+    ribuKirim: () => [easy(() => calcBuild([1000, 100, 10, 1], 1001, 3999), r => dsum(r.target) <= 8)],
+    butuh: () => [easy(() => fleetRound('ceil', 10), r => r.m <= 3)],
+    penuh: () => [easy(() => fleetRound('floor', rnd(6, 9)), r => r.m <= 3)],
+    kelipatan: () => [multiRound(pick([[3, 4], [3, 5], [4, 6]]))],
+    kali2: () => [easy(() => multRound(rnd(6, 9), 11, 15), r => dsum(r.cap * r.cnt) <= 9)],
+    bulat: () => [easy(estRound, r => Math.round(sumOf(r) / 100) <= 5)]
+  };
+  const DEMOS_BY_TIER = {
+    tk: [['satu', D_.tkSatu], ['tambah', D_.tkTambah], ['pilih', D_.tkPilih], ['gabung', D_.tkGabung], ['pilih', D_.tkPilih], ['gabungN', D_.tkGabungN, false]],
+    k1: [['pilih10', D_.pilih10], ['pilih10', D_.pilih10], ['gabung10', D_.gabung10], ['pasang', D_.pasang], ['tiga', D_.tiga], ['sisa', D_.sisa], ['angka', D_.angka], ['gabung10', D_.gabung10, false]],
+    k2: [['puluhan', D_.puluhan], ['puluhan', D_.puluhan], ['kirim', D_.kirim], ['kirim', D_.kirim], ['gabung2', D_.gabung2(false)], ['turun', D_.turun], ['banding', D_.banding], ['gabung2', D_.gabung2(true), false]],
+    k3: [['baca100', D_.baca(false)], ['nol', D_.baca(true)], ['kirim100', D_.kirim100], ['kali', D_.kali], ['bagi', D_.bagi(false)], ['bagisisa', D_.bagi(true)], ['gabung3', D_.gabung3], ['kirim100', D_.kirim100, false]],
+    k4: [['ribu', D_.ribu], ['butuh', D_.butuh], ['penuh', D_.penuh], ['kelipatan', D_.kelipatan], ['kali2', D_.kali2], ['bulat', D_.bulat], ['butuh', D_.butuh, false], ['ribukirim', D_.ribuKirim, false]]
+  };
+  const DEMOS = (DEMOS_BY_TIER[TIER] || DEMOS_BY_TIER.k1).map(([key, demo, auto]) => ({ key, demo, auto: auto !== false }));
+  /** Tens rounds pick their crowd size up front so the signature can compare it. */
+  function prepRounds(rs) {
+    rs.forEach(r => { if (r.type === 'tens' && r.n == null) { let n; do { n = rnd(r.lo, r.hi); } while (n % 10 === 0); r.n = n; } });
+    return rs;
+  }
+  /** One signature per angkot wave / round: the example's must not reappear in the child's task. */
+  function unitSig(r) {
+    if (r.type === 'pool') return r.waves.map(w => r.cap + '|' + w.angkots.join(',') + '|' + w.groups.map(g => g.n + (g.d ? 'x' : '')).sort().join(','));
+    const o = Object.assign({}, r); delete o.kind;
+    return [JSON.stringify(o, Object.keys(o).sort())];
+  }
+  function demoSpec(i) {
+    const D = DEMOS[i];
+    if (!D) return null;
+    return { key: D.key, auto: D.auto, build: () => buildLevel(i, true), script: d => demoScript(d) };
+  }
+  const UNIT_NAME = { 1000: 'kereta', 100: 'bus', 10: 'angkot', 1: 'becak' };
+  const listJoin = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' dan ' + a[a.length - 1] : a[0] || '';
+  async function waitFor(d, fn, ms) {
+    const end = performance.now() + (ms || 40000);
+    while (!fn()) { if (performance.now() > end) throw new Error('demo wait'); await d.wait(80); }
+  }
+  /** A canvas point on the rombongan that really hits it (front groups can overlap back ones). */
+  function groupPt(gr) {
+    const s = gr.s || 1;
+    for (const dy of [55, 75, 35, 95, 115, 20]) for (const dx of [0, -14, 14, -28, 28]) {
+      const c = { x: gr.x + dx * s, y: gr.y - dy * s }, sp = toScreen(c.x, c.y);
+      const top = document.elementsFromPoint(sp.x, sp.y).find(e => !e.closest('.gs-demo'));
+      if (top && gr.g.contains(top)) return c;
+    }
+    return { x: gr.x, y: gr.y - 60 * s };
+  }
+  function stepBtn(B, col) { return [...B.steps.children].find(b => b.__col === col && /^Tambah/.test(b.getAttribute('aria-label') || '')); }
+  async function tapSteps(d, B, digits) {
+    for (let i = 0; i < digits.length; i++) {
+      if (B.locks[i]) continue;
+      for (let k = 0; k < digits[i]; k++) await d.tap(stepBtn(B, i));
+    }
+  }
+  async function demoScript(d) {
+    const S = cfg;
+    if (S.type === 'pool') {
+      const settled = () => cur && cur.state === 'ready' && halte.length && halte.every(g => g.state === 'halte');
+      await waitFor(d, settled);
+      const need = cur.cap - cur.count, plan = findPlan(halte, need, []);
+      const capW = cur.cap === 5 ? 'lima' : 'sepuluh';
+      if (plan.every(g => g.n === 1)) await d.say(cur.count ? 'Sudah ada ' + cur.count + '. Kurang ' + need + ' lagi.' : 'Angkot muat ' + capW + ' orang. Ketuk satu-satu.');
+      else if (plan.length === 1) await d.say('Kursi kosong ada ' + need + '. Rombongan ' + need + ' pas!');
+      else await d.say(listJoin(plan.map(g => String(g.n))) + ', jadi ' + capW + '. Pas!');
+      for (const gr of plan) {
+        await waitFor(d, settled);
+        if (TK) await d.tap(() => groupPt(gr));
+        else await d.drag(() => groupPt(gr), () => ({ x: cur.x + 300, y: GROUND - 200 }), 1100);
+        await waitFor(d, () => gr.state === 'riding');
+      }
+      if (S.waves[0].groups.some(g => g.d === 'stray')) await d.say('Yang tidak cocok naik becak saja.');
+    } else if (S.type === 'tens') {
+      const ready = () => cur && cur.state === 'ready' && !mode.busy;
+      await waitFor(d, ready);
+      await d.say('Satu angkot isi sepuluh.');
+      while (mode.crowd.length >= 10) { await waitFor(d, ready); await d.tap(mode.btnFill); await waitFor(d, () => mode.busy); }
+      await waitFor(d, ready);
+      await d.point(mode.btnBecak);
+      await d.say('Sisanya naik becak.');
+      await d.tap(mode.btnBecak);
+      await waitFor(d, () => mode.phase === 'compose');
+      const B = mode.board;
+      await d.say(B.vals[0] + ' angkot dan ' + B.vals[1] + ' becak.');
+      await tapSteps(d, B, B.vals.slice());
+      await d.tap(mode.btnCek);
+    } else if (S.type === 'calc') {
+      await waitFor(d, () => !mode.busy);
+      await d.wait(900);
+      const B = mode.board, val = S.mode === 'build' ? S.target : mode.expected, dig = digitsOf(val, S.units);
+      const parts = S.units.map((u, i) => dig[i] ? dig[i] + ' ' + UNIT_NAME[u] : null).filter(Boolean);
+      if (S.mode === 'build') await d.say('Pesanannya ' + fmt(val) + '. Itu ' + listJoin(parts) + '.');
+      else if (S.op === 'mult') await d.say(S.cnt + ' angkot isi ' + S.cap + '. ' + S.cnt + ' kali ' + S.cap + ' sama dengan ' + val + '.');
+      else if (S.op === 'est') await d.say('Tepatnya ' + mode.truth + '. Ratusan terdekat ' + val + '.');
+      else if (S.op === 'sub') await d.say('Yang masih di jalan ' + listJoin(parts) + '. Jadi ' + val + '.');
+      else if (S.op === 'sum') await d.say('Gabungkan semua. ' + listJoin(parts) + ', jadi ' + fmt(val) + '.');
+      else await d.say('Hitung kendaraannya. ' + listJoin(parts) + ', jadi ' + fmt(val) + '.');
+      await tapSteps(d, B, dig);
+      await d.tap(mode.btnSend);
+    } else if (S.type === 'share') {
+      await d.wait(900);
+      await d.say(S.n + ' penumpang, ' + S.N + ' angkot. ' + S.N + ' kali ' + S.k + ' sama dengan ' + (S.N * S.k) + '.' + (S.rem ? ' Sisa ' + S.rem + '.' : ''));
+      await tapSteps(d, mode.board, [S.k]);
+      await d.tap(mode.btnGo);
+    } else if (S.type === 'fleet') {
+      await d.wait(900);
+      const left = S.n - S.m * S.c;
+      await d.say(S.how === 'ceil' ? S.m + ' angkot muat ' + (S.m * S.c) + '. Semua ' + S.n + ' terangkut.' : S.m + ' angkot penuh berisi ' + (S.m * S.c) + '. Sisa ' + left + '.');
+      await tapSteps(d, mode.board, [S.m - 1]);
+      await d.tap(mode.btnGo);
+    } else if (S.type === 'multi') {
+      await d.wait(900);
+      const n = lcm(S.a, S.b), hop = c => { const a = []; for (let x = c; x <= n; x += c) a.push(x); return a.join(', '); };
+      await d.say('Hitung loncat ' + S.a + ': ' + hop(S.a) + '.', 2600);
+      await d.say('Hitung loncat ' + S.b + ': ' + hop(S.b) + '. Sama-sama ' + n + '!', 3000);
+      await tapSteps(d, mode.board, digitsOf(n, [10, 1]));
+      await d.tap(mode.btnGo);
+    } else if (S.type === 'compare') {
+      await d.wait(600);
+      const ta = Math.floor(S.A / 10), tb = Math.floor(S.B / 10), sym = S.A < S.B ? '<' : S.A > S.B ? '>' : '=';
+      await d.say(ta !== tb ? 'Bandingkan angkotnya dulu: ' + ta + ' dan ' + tb + '.' : 'Angkotnya sama. Bandingkan becaknya.');
+      await d.say(S.A + (sym === '<' ? ' kurang dari ' : sym === '>' ? ' lebih dari ' : ' sama dengan ') + S.B + '.');
+      await d.tap(mode.btns.find(b => b.textContent.trim() === sym));
+    }
+    await d.success(60000);
+  }
+
   /* ------------------------------------------------------------------ HUD + runner */
   const hud = GS.hud({ gameId: GAME, title: 'Angkot Penuh!', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: buildLevel });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: demoSpec });
 
   /* ------------------------------------------------------------------ level / round state */
   let cfg = {}, LV = 0, tries = 0, cur = null, kenek = null, halte = [], selected = null, dragging = null;
   let finished = false, tapHinted = false, waves = [], waveIdx = 0, pres = [], departed = 0, btnDown = null;
   let mode = {}, rounds = [], roundIdx = 0, levelWon = false, levelTok = 0, roundReady = false, levelDef = null;
+  let DEMO = false, demoSig = [];
 
-  function buildLevel(i) {
+  function buildLevel(i, demo) {
     levelTok++;
     LV = i; levelDef = LEVELS[i]; tries = 0; levelWon = false; tapHinted = false;
+    DEMO = !!demo;
     colorCursor = rnd(0, 5);
-    rounds = levelDef.rounds();
+    if (demo) {
+      rounds = prepRounds(DEMOS[i].demo());
+      demoSig = rounds.flatMap(unitSig);
+    } else {
+      // the child's task must not repeat the example's numbers
+      for (let k = 0; k < 30; k++) {
+        rounds = prepRounds(levelDef.rounds());
+        if (!rounds.flatMap(unitSig).some(s => demoSig.includes(s))) break;
+      }
+    }
     roundIdx = 0;
     startRound(true);
   }
@@ -1309,7 +1480,9 @@
     updateDock();
     run.win(stars, text || 'Hebat! Semua angkot berangkat.');
   }
-  function sayFirst(say, fallback) { GS.say(say || fallback); }
+  function sayFirst(say, fallback) { if (!DEMO) GS.say(say || fallback); }
+  function intro(text) { if (!DEMO) GS.say(text); }
+  function miss() { tries++; if (tries === 2 && !DEMO) run.offerDemo(); }
 
   /* ================================================================== POOL ROUNDS (TK, Kelas 1) */
   function startPool(say) {
@@ -1660,7 +1833,7 @@
   /* ================================================================== TENS ROUND (puluhan & satuan) */
   function startTens(say) {
     mode = { phase: 'fill', crowd: [], busy: false, roundTries: 0, trips: 0 };
-    const B = mode.board = makeBoard([10, 1], { x: 396, y: 8 });
+    const B = mode.board = makeBoard([10, 1], { x: DEMO ? 340 : 396, y: 8 });
     B.onStep = (i, sign) => { B.dig[i] = GS.clamp(B.dig[i] + sign, 0, 9); B.setDigit(i, B.dig[i]); };
     mode.btnFill = mkBtn('Isi angkot!', false, () => fillAngkot());
     mode.btnBecak = mkBtn('Becak', true, () => callBecak());
@@ -1668,7 +1841,7 @@
     mode.btnCek.hidden = true;
     sayFirst(say, 'Ketuk Isi angkot! Sisanya naik becak.');
     arriveAngkot(0);
-    let n; do { n = rnd(cfg.lo, cfg.hi); } while (n % 10 === 0);
+    const n = cfg.n;
     mode.n = n;
     B.render(); B.setDigits(['?', '?']);
     mode.crowd = makeCrowd(n);
@@ -1715,7 +1888,7 @@
       mode.busy = false;
       updateDock();
     } else {
-      tries++; mode.roundTries++;
+      miss(); mode.roundTries++;
       GS.sfx.oops();
       kenek.pose('think'); hud.mood('think');
       kenekBubble('Belum penuh!');
@@ -1745,7 +1918,7 @@
     const t = tok;
     if (mode.phase !== 'fill' || mode.busy || !cur || cur.state !== 'ready') return;
     if (mode.crowd.length >= 10) {
-      tries++; mode.roundTries++;
+      miss(); mode.roundTries++;
       GS.sfx.oops(); hud.mood('think'); kenek.pose('think');
       GS.say('Masih banyak. Isi angkot dulu, ya.');
       nudge(mode.btnFill);
@@ -1791,7 +1964,7 @@
       if (!alive(t)) return;
       roundDone('Hebat! Kamu paham puluhan dan satuan.');
     } else {
-      tries++; mode.roundTries++;
+      miss(); mode.roundTries++;
       GS.sfx.oops();
       hud.mood('oops');
       [[okT, 0], [okO, 1]].forEach(([ok, i]) => { if (!ok) { GS.fx(B.boxes[i].g, 'gs-wobble'); GS.fx(B.iconG[i], 'gs-wobble'); } });
@@ -1935,7 +2108,7 @@
       orderCard(S.target, false);
       mode.expected = S.target;
       sayFirst(say, 'Pesanan baru!');
-      timers.push(setTimeout(() => GS.say('Kirim ' + S.target + ' penumpang. Atur kendaraannya di papan!'), 2200 / SPEED));
+      timers.push(setTimeout(() => intro('Kirim ' + S.target + ' penumpang. Atur kendaraannya di papan!'), 2200 / SPEED));
     } else {
       B.onStep = (i, sign) => { if (mode.busy) return; B.dig[i] = GS.clamp(B.dig[i] + sign, 0, 9); B.setDigit(i, B.dig[i]); };
       B.setDigits(B.dig);
@@ -1947,7 +2120,7 @@
       calcCard(S);
       sayFirst(say, 'Berapa penumpang yang sampai?');
       if (S.op === 'sub') unloadAnim();
-      else timers.push(setTimeout(() => GS.say(S.op === 'est' ? 'Pilih ratusannya, lalu Kirim!' : 'Susun angkanya di papan, lalu Kirim!'), 2400 / SPEED));
+      else timers.push(setTimeout(() => intro(S.op === 'est' ? 'Pilih ratusannya, lalu Kirim!' : 'Susun angkanya di papan, lalu Kirim!'), 2400 / SPEED));
     }
     B.showSteps(true);
     mode.btnSend = mkBtn('Kirim!', false, () => kirim());
@@ -2054,7 +2227,7 @@
       roundDone('Hebat! Semua sampai di pasar.');
       return;
     }
-    tries++; mode.roundTries++;
+    miss(); mode.roundTries++;
     GS.sfx.oops();
     hud.mood('oops');
     if (S.mode === 'build') {
@@ -2100,12 +2273,12 @@
       A.pos = pp; A.host = host;
       mode.cars.push(A);
     }
-    const B = mode.board = makeBoard([{ title: 'TIAP ANGKOT', icon: 'dot' }], { x: 650, y: 8 });
+    const B = mode.board = makeBoard([{ title: 'TIAP ANGKOT', icon: 'dot' }], { x: DEMO ? 520 : 650, y: 8 });
     B.onStep = (i, sign) => { if (mode.busy) return; B.vals[0] = GS.clamp(B.vals[0] + sign, 0, 10); B.setDigit(0, B.vals[0]); B.render(sign > 0 ? 0 : -1); };
     B.setDigits([0]); B.render(); B.showSteps(true);
     mode.btnGo = mkBtn('Bagikan!', false, () => bagikan());
     sayFirst(say, 'Bagi sama rata!');
-    timers.push(setTimeout(() => GS.say('Ada ' + S.n + ' penumpang dan ' + S.N + ' angkot. Tiap angkot berapa?'), 2300 / SPEED));
+    timers.push(setTimeout(() => intro('Ada ' + S.n + ' penumpang dan ' + S.N + ' angkot. Tiap angkot berapa?'), 2300 / SPEED));
   }
   function seatWorld(A, i) {
     const s = A.seats[Math.min(i, A.seats.length - 1)];
@@ -2158,7 +2331,7 @@
   }
   async function shareFail(taken, msg, shortCars) {
     const t = tok;
-    tries++; mode.roundTries++;
+    miss(); mode.roundTries++;
     GS.sfx.oops(); hud.mood('oops'); kenek.pose('think');
     GS.say(msg);
     (shortCars || []).forEach(A => GS.fx(A.shake, 'gs-wobble'));
@@ -2177,14 +2350,14 @@
     mode = { busy: false, roundTries: 0, cars: [] };
     mode.crowd = makeCrowd(S.n);
     crowdSign(S.n);
-    const B = mode.board = makeBoard([{ title: 'ANGKOT ISI ' + S.c, icon: 'cap', cap: S.c }], { x: 650, y: 8 });
+    const B = mode.board = makeBoard([{ title: 'ANGKOT ISI ' + S.c, icon: 'cap', cap: S.c }], { x: DEMO ? 520 : 650, y: 8 });
     B.vals[0] = 1;
     B.onStep = (i, sign) => { if (mode.busy) return; const v = GS.clamp(B.vals[0] + sign, 1, 6); if (v === B.vals[0]) return; B.vals[0] = v; B.setDigit(0, v); B.render(sign > 0 ? 0 : -1); };
     B.setDigits([1]); B.render(); B.showSteps(true);
     mode.btnGo = mkBtn('Berangkat!', false, () => fleetGo());
     sayFirst(say, 'Berapa angkot?');
     const q = S.how === 'ceil' ? S.n + ' penumpang, angkot isi ' + S.c + '. Butuh berapa angkot?' : S.n + ' penumpang, angkot isi ' + S.c + '. Berapa angkot yang penuh?';
-    timers.push(setTimeout(() => GS.say(q), 2400 / SPEED));
+    timers.push(setTimeout(() => intro(q), 2400 / SPEED));
   }
   async function fleetGo() {
     const t = tok, S = cfg, B = mode.board;
@@ -2235,7 +2408,7 @@
       else if (left >= S.c) fail = 'Sisanya ' + left + '. Masih cukup untuk satu angkot penuh.';
     }
     if (fail) {
-      tries++; mode.roundTries++;
+      miss(); mode.roundTries++;
       GS.sfx.oops(); hud.mood('oops'); kenek.pose('think');
       GS.say(fail);
       (bad || []).forEach(A => GS.fx(A.shake, 'gs-wobble'));
@@ -2284,12 +2457,12 @@
       T(sg, 80, 88, 'isi ' + c, 44, P.ink, { class: 'gs-num' });
       mode.lanes.push({ c, y, cars: [], g: G(L_.angkot) });
     });
-    const B = mode.board = makeBoard([10, 1], { x: 396, y: 8 });
+    const B = mode.board = makeBoard([10, 1], { x: DEMO ? 316 : 396, y: 8 });
     B.onStep = (i, sign) => { if (mode.busy) return; B.dig[i] = GS.clamp(B.dig[i] + sign, 0, i === 0 ? 4 : 9); B.setDigit(i, B.dig[i]); };
     B.setDigits(B.dig); B.showSteps(true);
     mode.btnGo = mkBtn('Isi!', false, () => multiGo());
     sayFirst(say, 'Cari jumlah yang pas!');
-    timers.push(setTimeout(() => GS.say('Angkot isi ' + S.a + ' dan isi ' + S.b + '. Berapa orang supaya semua penuh?'), 2600 / SPEED));
+    timers.push(setTimeout(() => intro('Angkot isi ' + S.a + ' dan isi ' + S.b + '. Berapa orang supaya semua penuh?'), 2600 / SPEED));
   }
   async function multiGo() {
     const t = tok, S = cfg, B = mode.board;
@@ -2333,7 +2506,7 @@
       roundDone('Hebat! Kamu menemukan kelipatan yang sama.');
       return;
     }
-    tries++; mode.roundTries++;
+    miss(); mode.roundTries++;
     GS.sfx.oops(); hud.mood('oops'); kenek.pose('think');
     const bad = res.filter(r => !r.full);
     bad.forEach(r => GS.fx(r.last.shake, 'gs-wobble'));
@@ -2373,7 +2546,7 @@
       return b;
     });
     sayFirst(say, 'Mana yang lebih ramai?');
-    timers.push(setTimeout(() => GS.say('Pilih tanda yang benar: lebih, kurang, atau sama.'), 2300 / SPEED));
+    timers.push(setTimeout(() => intro('Pilih tanda yang benar: lebih, kurang, atau sama.'), 2300 / SPEED));
   }
   async function chooseSign(sym) {
     const t = tok, S = cfg;
@@ -2412,7 +2585,7 @@
       roundDone('Hebat! Kamu pandai membandingkan.');
       return;
     }
-    tries++; mode.roundTries++;
+    miss(); mode.roundTries++;
     GS.sfx.oops(); hud.mood('oops');
     GS.fx(sg, 'gs-wobble');
     GS.say(truth === '=' ? 'Lihat, tidak ada yang tersisa. Sama banyak!' : 'Lihat yang tersisa. Terminal ' + (truth === '>' ? 'A' : 'B') + ' lebih ramai.');
