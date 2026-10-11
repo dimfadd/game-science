@@ -162,17 +162,17 @@
   /* Level lists per grade tier (docs/KURIKULUM.md). Every level: say = first spoken line. */
   const TIERS = {
     tk: [
-      { marks: 'tk', lock: true, guide: true, hint: true, proj: ['kelereng'], make: () => ({ cans: [2] }), say: 'Tarik sedikit saja. Kalengnya dekat!' },
-      { marks: 'tk', lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [8] }), say: 'Kalengnya jauh. Tarik yang kuat!' },
+      { marks: 'tk', lock: true, guide: true, hint: true, proj: ['kelereng'], make: () => ({ cans: [2] }), ex: () => ({ cans: [4] }), say: 'Tarik sedikit saja. Kalengnya dekat!' },
+      { marks: 'tk', lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [8] }), ex: () => ({ cans: [6] }), say: 'Kalengnya jauh. Tarik yang kuat!' },
       { marks: 'tk', lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [R(1, 2) * 2, R(4, 5) * 2] }), say: 'Dua kaleng: dekat dan jauh.' },
       { marks: 'tk', lock: true, proj: ['kelereng'], make: () => ({ cans: [R(2, 4) * 2] }), say: 'Sekarang tanpa titik bantu. Ayo!' },
       { marks: 'tk', lock: true, proj: ['kelereng'], make: () => mangoSetup(1, false, { x: R(64, 70) / 10, y: R(18, 21) / 10 }), say: 'Jatuhkan mangga ke keranjang!' },
-      { marks: 'tk', lock: true, proj: ['kelereng'], make: () => ({ cans: [2, 6, 10] }), say: 'Tiga kaleng! Robohkan semua.' }
+      { marks: 'tk', lock: true, proj: ['kelereng'], make: () => ({ cans: [2, 6, 10] }), ex: () => ({ cans: [4, 8] }), say: 'Tiga kaleng! Robohkan semua.' }
     ],
     k1: [
-      { lock: true, guide: true, hint: true, proj: ['kelereng'], make: () => ({ cans: [3] }), say: 'Robohkan kalengnya! Ketuk dulu patok tebakanmu.' },
-      { lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [6] }), say: 'Kalengnya lebih jauh. Ketuk patok tebakanmu dulu.' },
-      { lock: true, proj: ['kelereng'], make: () => ({ cans: [4, 8] }), say: 'Dua kaleng! Tarik pendek untuk dekat, panjang untuk jauh.' },
+      { lock: true, guide: true, hint: true, proj: ['kelereng'], make: () => ({ cans: [3] }), ex: () => ({ cans: [5] }), say: 'Robohkan kalengnya! Ketuk dulu patok tebakanmu.' },
+      { lock: true, guide: true, proj: ['kelereng'], make: () => ({ cans: [6] }), ex: () => ({ cans: [8] }), say: 'Kalengnya lebih jauh. Ketuk patok tebakanmu dulu.' },
+      { lock: true, proj: ['kelereng'], make: () => ({ cans: [4, 8] }), ex: () => ({ cans: [3, 7] }), say: 'Dua kaleng! Tarik pendek untuk dekat, panjang untuk jauh.' },
       { lock: true, proj: ['kelereng'], make: () => ({ cans: [R(3, 9)] }), say: 'Sekarang tanpa titik pemandu. Kamu pasti bisa!' },
       { lock: true, predictAll: true, proj: ['kelereng'], make: () => ({ cans: [R(3, 8)] }), say: 'Setiap tembakan, tebak dulu. Lihat selisihnya!' },
       { lock: true, proj: ['kelereng'], make: () => ({ cans: [R(2, 3), R(5, 6), R(8, 9)] }), say: 'Tiga kaleng berurutan. Mulai dari yang dekat!' },
@@ -200,17 +200,71 @@
       { proj: ['batu', 'kertas', 'kelereng'], inOrder: true, make: () => Object.assign(mangoSetup(1, true), { cans: [R(4, 5), R(2, 3)] }), say: 'Tantangan! Batu, lalu bola kertas, lalu kelereng.' }
     ],
     k4: [
-      { terrace: true, showDeg: true, hint: true, fixedPull: 1.5, table: 'deg', proj: ['kelereng'], make: () => ({ mats: [rangeNow('kelereng', 1.5, 45) - 0.05] }), say: 'Tarikan selalu sama. Sudut mana paling jauh?' },
-      { terrace: true, lock: true, notch: NOTCH, table: 'pull', proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', NOTCH, 45), rangeNow('kelereng', 2 * NOTCH, 45)] }), say: 'Coba tarikan 1 dan tarikan 2. Catat jaraknya!' },
-      { terrace: true, lock: true, notch: NOTCH, table: 'pull', prefill: [1, 2], proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', 1.5 * NOTCH, 45)] }), say: 'Pakai tabelmu. Tarikan berapa untuk kaleng ini?' },
+      { terrace: true, showDeg: true, hint: true, fixedPull: 1.5, table: 'deg', proj: ['kelereng'], make: () => ({ mats: [rangeNow('kelereng', 1.5, 45) - 0.05] }), ex: () => ({ mats: [Math.round(rangeNow('kelereng', 1.5, 30) * 10) / 10] }), say: 'Tarikan selalu sama. Sudut mana paling jauh?' },
+      { terrace: true, lock: true, notch: NOTCH, table: 'pull', proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', NOTCH, 45), rangeNow('kelereng', 2 * NOTCH, 45)] }), ex: () => ({ cans: [rangeNow('kelereng', 2 * NOTCH, 45)] }), say: 'Coba tarikan 1 dan tarikan 2. Catat jaraknya!' },
+      { terrace: true, lock: true, notch: NOTCH, table: 'pull', prefill: [1, 2], proj: ['kelereng'], make: () => ({ cans: [rangeNow('kelereng', 1.5 * NOTCH, 45)] }), ex: () => ({ cans: [rangeNow('kelereng', 2 * NOTCH, 45)] }), say: 'Pakai tabelmu. Tarikan berapa untuk kaleng ini?' },
       { terrace: true, showDeg: true, table: 'deg', staged: true, angles: [[10, 40], [50, 78]], proj: ['kelereng'], make: () => { const p = R(5, 7); return { cans: [p, p] }; }, say: 'Satu kaleng: sudut rendah dulu, lalu sudut tinggi.' },
       { terrace: true, showDeg: true, proj: ['kelereng'], make: () => mangoSetup(1, true, highMango()), say: 'Mangga tinggi dan jauh. Atur sudut dan tarikan!' },
-      { terrace: true, showDeg: true, table: 'deg', proj: ['kertas'], make: () => ({ mats: [bestRange('kertas', PULL_MAX) - 0.3] }), say: 'Bola kertas ditahan udara. Cari sudut terbaik!' },
+      { terrace: true, showDeg: true, table: 'deg', proj: ['kertas'], make: () => ({ mats: [bestRange('kertas', PULL_MAX) - 0.3] }), ex: () => ({ mats: [Math.round((bestRange('kertas', PULL_MAX) - 1.3) * 10) / 10] }), say: 'Bola kertas ditahan udara. Cari sudut terbaik!' },
       { terrace: true, showDeg: true, proj: ['batu', 'kertas'], inOrder: true, make: () => ({ cans: [R(3, 4)], mats: [Math.round((bestRange('kertas', PULL_MAX) - 0.5) * 10) / 10] }), say: 'Batu dulu, lalu bola kertas. Cari sudut terbaik!' },
       { terrace: true, showDeg: true, proj: ['batu', 'kertas', 'kelereng'], inOrder: true, make: () => Object.assign(mangoSetup(1, true, highMango()), { cans: [R(3, 4)], mats: [2.2] }), say: 'Tantangan! Batu, bola kertas, lalu kelereng.' }
     ]
   };
   const LEVELS = TIERS[TIER] || TIERS.k1;
+  /* Worked examples (docs/CONTOH.md), one per level: key = level type, auto: false for
+   * levels without a new mechanic, say = Si Cil's opening thought, deg = preferred angle,
+   * after = line once the in-level kelereng shot has landed (k3 "lihat dulu"). */
+  const EXAMPLES = {
+    tk: [
+      { key: 'tarik', say: 'Kalengnya dekat. Tarik sedikit saja.' },
+      { key: 'jauh', say: 'Kalengnya jauh. Tarik lebih kuat.' },
+      { key: 'dua', auto: false, say: 'Dua kaleng. Yang dekat dulu.' },
+      { key: 'tanpa-titik', auto: false, say: 'Tanpa titik bantu. Kira-kira saja.' },
+      { key: 'mangga', say: 'Kena mangganya, jatuh ke keranjang.' },
+      { key: 'tiga', auto: false, say: 'Banyak kaleng. Yang dekat dulu.' }
+    ],
+    k1: [
+      { key: 'tebak', say: 'Tebak dulu jatuhnya, lalu tarik karetnya.' },
+      { key: 'jauh', auto: false, say: 'Kalengnya jauh. Tarik lebih panjang.' },
+      { key: 'dua', auto: false, say: 'Kaleng yang dekat dulu. Tarik pendek.' },
+      { key: 'tanpa-titik', auto: false, say: 'Tanpa titik pemandu. Lihat patoknya.' },
+      { key: 'selisih', say: 'Setiap tembakan, tebak dulu. Lalu lihat selisihnya.' },
+      { key: 'tiga', auto: false, say: 'Mulai dari kaleng yang paling dekat.' },
+      { key: 'acak', auto: false, say: 'Lihat patoknya, lalu bidik.' },
+      { key: 'tantangan', auto: false, say: 'Satu per satu, bidik dengan teliti.' }
+    ],
+    k2: [
+      { key: 'arah', deg: 55, say: 'Ada pohon kecil. Arah tarikan bisa diubah.' },
+      { key: 'mangga', say: 'Kena mangganya, nanti jatuh ke keranjang.' },
+      { key: 'mangga2', auto: false, say: 'Dua mangga. Yang dekat dulu.' },
+      { key: 'setengah', say: 'Kalengnya di antara dua patok. Itu setengah meter.' },
+      { key: 'lempar-tinggi', deg: 70, say: 'Pohonnya tinggi. Lempar tinggi melewatinya.' },
+      { key: 'dobel', say: 'Karet dobel lebih kuat. Patoknya sampai 15.' },
+      { key: 'campuran', auto: false, say: 'Satu per satu. Kaleng dulu.' },
+      { key: 'tantangan', auto: false, deg: 70, say: 'Pohonnya tinggi. Lempar tinggi melewatinya.' }
+    ],
+    k3: [
+      { key: 'massa', say: 'Kelereng dulu. Tebak dulu jatuhnya.' },
+      { key: 'kertas', say: 'Bola kertas ditahan udara. Jadi tidak jauh.' },
+      { key: 'pilih', say: 'Kalengnya jauh. Proyektil mana yang sampai?' },
+      { key: 'urutan', auto: false, say: 'Pertama pakai batu. Batu itu berat.' },
+      { key: 'lihat-dulu', say: 'Lihat kelereng dulu, ya.', after: 'Batu lebih berat. Jatuhnya lebih dekat.' },
+      { key: 'setengah', say: 'Pakai batu. Kalengnya di setengah meter.' },
+      { key: 'urutan2', auto: false, say: 'Bola kertas dulu. Ringan sekali.' },
+      { key: 'tantangan', auto: false, say: 'Batu dulu. Batu itu berat.' }
+    ],
+    k4: [
+      { key: 'sudut', deg: 30, say: 'Tarikannya selalu sama. Hanya sudutnya yang berubah.' },
+      { key: 'tabel-tarikan', say: 'Aku coba tarikan 2. Jaraknya masuk tabel.' },
+      { key: 'pakai-tabel', say: () => 'Lihat tabel. Tarikan 2 sampai ' + fmt(S.rows[1].dist) + ' meter. Kalengnya di situ!' },
+      { key: 'dua-sudut', deg: 28, say: 'Satu kaleng. Sudut rendah dulu.' },
+      { key: 'mangga-tinggi', deg: 60, say: 'Mangganya tinggi. Pakai sudut besar.' },
+      { key: 'kertas-sudut', say: 'Bola kertas ditahan udara. Cari sudut yang pas.' },
+      { key: 'campuran', auto: false, say: 'Batu dulu. Atur sudut dan tarikan.' },
+      { key: 'tantangan', auto: false, say: 'Batu dulu. Atur sudut dan tarikan.' }
+    ]
+  };
+  const EXS = EXAMPLES[TIER] || EXAMPLES.k1;
   function mangoSetup(n, far, one) {
     const mangoes = [];
     if (one) mangoes.push(one);
@@ -224,7 +278,7 @@
   const svg = document.getElementById('stage');
   const dock = document.getElementById('dock');
   const hud = GS.hud({ gameId: GAME, title: 'Ketapel Mangga', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: buildLevel });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: demoSpec });
   const art = GS.art || {};
 
   const defs = GS.el('defs', null, svg);
@@ -277,7 +331,8 @@
   function geoWorld(targets, solids, canopies) {
     return { targets, solids: (GEO.box ? [GEO.box] : []).concat(solids || []), canopies: canopies || [], LH: GEO.LH, drop: GEO.drop, kmul: GEO.kmul, xmax: GEO.xmax };
   }
-  function buildLevel(i) {
+  let exSig = '', exP0 = 0;     // the example's numbers; the child's own level must differ
+  function buildLevel(i, demo) {
     token++;
     if (S) S.timers.forEach(clearTimeout);
     stopAll();
@@ -294,9 +349,11 @@
     GEO.xmax = (L.n || 10) + 2.9;
     world.setAttribute('transform', GEO.z === 1 ? '' : `translate(0 ${GY * (1 - GEO.z)}) scale(${GEO.z})`);
     S = null;
-    const setup = L.make();
+    let setup = demo && L.ex ? L.ex() : L.make();
+    for (let k = 0; !demo && k < 20 && i + JSON.stringify(setup) === exSig; k++) setup = L.make();
+    if (demo) exSig = i + JSON.stringify(setup);
     S = {
-      i, L, timers: [], shots: 0, hits: 0, phase: 'intro', won: false,
+      i, L, timers: [], shots: 0, hits: 0, misses: 0, phase: 'intro', won: false, ex: !!demo,
       targets: [], solids: [], canopies: [], trails: [], predicted: null, predictedProj: null,
       pull: 0, deg: 45, kbd: false, projKey: L.proj[0], lastFlight: null, rows: [], angRange: null
     };
@@ -330,7 +387,7 @@
     if (L.fixedPull) S.pull = L.fixedPull;
     loadProjectile(false);
     hud.mood('happy');
-    GS.say(L.say);
+    if (!demo) GS.say(L.say);
     if (L.demo) { S.phase = 'demo'; later(runDemo, 2600); }
     else startPredictOrAim(true);
     updateMarker();
@@ -693,16 +750,28 @@
     // top-right: on phones the caption bubble covers the top-left, the bottom-right is free for the dock
     const cw = (S.L.choose || S.L.proj).length > 1 ? 400 : 344;
     S.cardX = 1262 - cw;
-    const g = GS.el('g', { transform: `translate(${S.cardX} 14)`, 'pointer-events': S.L.choose ? null : 'none' }, uiRoot);
+    S.cardY = exCardY(cw);
+    const g = GS.el('g', { transform: `translate(${S.cardX} ${S.cardY})`, 'pointer-events': S.L.choose ? null : 'none' }, uiRoot);
     S.picker = g;
     renderPicker();
     if (S.L.choose) {
       // tap the card to switch projectile (k3 "pilih proyektil")
       const hit = GS.el('rect', { x: 0, y: 0, width: cw, height: 128, rx: 26, fill: 'transparent', style: 'cursor:pointer', tabindex: 0, role: 'button', 'aria-label': 'Ganti proyektil', 'data-hit': 'kartu' }, uiRoot);
-      hit.setAttribute('transform', `translate(${S.cardX} 14)`);
+      hit.setAttribute('transform', `translate(${S.cardX} ${S.cardY})`);
       hit.addEventListener('click', () => chooseNext());
       hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); chooseNext(); } });
     }
+  }
+  // During an example the "Contoh" bar sits top-right on phones. When the card says something
+  // the example talks about (another projectile, or the card to tap), move it just below the bar.
+  function exCardY(cw) {
+    const seq = S.L.choose || S.L.proj;
+    if (!S.ex || (seq.length < 2 && seq[0] === 'kelereng')) return 14;
+    const bar = document.querySelector('.gs-demo-bar');
+    if (!bar) return 14;
+    const r = bar.getBoundingClientRect(), a = GS.svgPoint(svg, r.left, r.top), b = GS.svgPoint(svg, r.right, r.bottom);
+    const overlaps = b.y > 14 && a.x < S.cardX + cw && b.x > S.cardX;
+    return overlaps ? Math.round(b.y + 14) : 14;
   }
   function weightIcon(heavy) {
     if (heavy) {
@@ -758,7 +827,7 @@
 
   /* ---------------- shot table (k4) ---------------- */
   function drawTable() {
-    S.tableG = GS.el('g', { transform: 'translate(918 154)', 'pointer-events': 'none' }, uiRoot);
+    S.tableG = GS.el('g', { transform: `translate(918 ${S.cardY > 14 ? S.cardY + 140 : 154})`, 'pointer-events': 'none' }, uiRoot);
     if (S.L.prefill) S.L.prefill.forEach(n => { const p = n * NOTCH; S.rows.push({ pull: p, deg: 45, dist: rangeNow(S.projKey, p, 45), old: true }); });
     renderTable();
   }
@@ -799,7 +868,9 @@
 
   /* ---------------- demo shot (k3: heavier projectile, same pull) ---------------- */
   function runDemo() {
-    const P0 = R(125, 140) / 100;
+    let P0 = R(125, 140) / 100;
+    for (let k = 0; !S.ex && k < 20 && P0 === exP0; k++) P0 = R(125, 140) / 100;
+    if (S.ex) exP0 = P0;
     S.demoPull = P0;
     S.projKey = S.L.demo.proj; renderPicker(); loadProjectile(true);
     GS.say('Lihat! Kelereng dengan tarikan ini.');
@@ -961,8 +1032,8 @@
       const line = S.L.demo ? 'Tarikan sama. Batu jatuh di mana? Ketuk tebakanmu.'
         : S.L.predictAll && S.shots > 0 ? 'Tebak lagi: jatuh di patok mana?'
         : S.shots === 0 && S.hits === 0 ? `Ketuk patok: di mana ${P.name} akan jatuh?` : `Sekarang ${P.name}. Tebak dulu, jatuh di patok mana?`;
-      if (quiet) later(() => { if (S.phase === 'predict') GS.say(line); }, 3600);
-      else GS.say(line);
+      if (quiet) { if (!S.ex) later(() => { if (S.phase === 'predict') GS.say(line); }, 3600); }
+      else if (!S.ex) GS.say(line);
     } else toAim();
   }
   function nudgePredict() {
@@ -978,7 +1049,7 @@
     S.plates.forEach(p => p.classList.remove('kt-plate-pulse'));
     GS.sfx.count(Math.round(mk.n));
     plantFlag(mk.x);
-    GS.say(`Tebakanmu ${markWords(mk)}. Sekarang tarik karetnya!`);
+    if (!S.ex) GS.say(`Tebakanmu ${markWords(mk)}. Sekarang tarik karetnya!`);
     if (S.demoPending) revealDemoTarget();
     toAim();
   }
@@ -998,7 +1069,7 @@
   function toAim() {
     S.phase = 'aim';
     hud.mood('point');
-    if (S.shots === 0 && S.L.hint) showHint();
+    if (S.shots === 0 && S.L.hint && !S.ex) showHint();
     if (S.L.choose && S.shots === 0) GS.fx(S.picker, 'gs-pulse', 2400);
   }
   function showHint() {
@@ -1279,7 +1350,7 @@
       }
       S.predicted = null;
     }
-    if (allHit()) {
+    if (allHit() || (S.ex && hitNow > 0)) {   // an example plays one round: the first hit solves it
       S.won = true; S.phase = 'done';
       if (S.marker) { S.marker.remove(); S.marker = null; }
       hud.mood('cheer');
@@ -1305,6 +1376,7 @@
     // miss: feedback from the world (target wobbles) + an informative hint
     GS.sfx.oops();
     hud.mood('oops');
+    if (!S.ex && ++S.misses === 2) run.offerDemo();
     const tgt = S.order.find(t => t.active && !t.hit);
     if (tgt) wobbleTarget(tgt);
     const hint = missHint(res, tgt);
@@ -1426,6 +1498,122 @@
     S.track.setAttribute('opacity', 0);
     S.kbd = false;
     releaseShot();
+  }
+
+  /* ---------------- worked example (GS.demo, SOP docs/CONTOH.md) ----------------
+   * The ghost hand taps the patok it predicts, then pulls the real pouch with a drag
+   * (through the same GS.drag handlers as a finger). Physics is deterministic, so the aim
+   * is searched with the real simulator, robust to a pixel of finger error, and the
+   * prediction is where that exact shot lands. One round: the first hit solves it. */
+  function demoSpec(i) {
+    const ex = EXS[i] || { key: 'L' + (i + 1), say: '' };
+    return {
+      key: ex.key,
+      auto: ex.auto !== false,
+      build: () => buildLevel(i, true),
+      script: async d => {
+        const until = async (fn, ms) => { const end = performance.now() + ms; while (!fn()) { if (performance.now() > end) throw new Error('ketapel example: phase timeout'); await d.wait(100); } };
+        const tk = TIER === 'tk';
+        await d.wait(900);
+        const intro = typeof ex.say === 'function' ? ex.say() : ex.say;
+        if (intro) await d.say(intro);
+        if (S.L.demo) {                       // k3 "lihat dulu": the level's own kelereng shot plays first
+          await until(() => S.phase === 'predict', 30000);
+          await d.wait(1200);
+          if (ex.after) await d.say(ex.after);
+        }
+        if (S.L.choose) {                     // tap the card until the projectile can reach the can
+          const tgt = S.order.find(t => t.active && !t.hit);
+          for (let k = 0; k < S.L.choose.length && bestRange(S.projKey, PULL_MAX) < tgt.x - 0.6; k++) {
+            await d.say(cap(PROJ[S.projKey].name) + ' tidak sampai. Ganti!');
+            await d.tap(() => uiRoot.querySelector('[data-hit="kartu"]'));
+            await d.wait(1300);
+          }
+          await d.say(cap(PROJ[S.projKey].name) + ' bisa sampai!');
+        }
+        let aim = null;
+        if (S.phase === 'predict') {
+          let mk;
+          if (S.demoPending != null) { const m = markAt(S.demoPending); mk = m === 'far' ? S.marks[S.marks.length - 1] : m || S.marks[0]; }
+          else { aim = exAim(ex.deg); if (!aim) throw new Error('ketapel example: no aim'); mk = aim.mark; }
+          await d.say(tk ? 'Aku tebak patok ' + mk.n + '.' : 'Aku tebak jatuh di ' + markWords(mk) + '.');
+          await d.tap(() => toCanvas(sx(mk.x), FY + 50));
+          await until(() => S.phase === 'aim', 4000);
+        }
+        if (!aim) aim = exAim(ex.deg, S.L.demo ? S.demoPull : 0);
+        if (!aim) throw new Error('ketapel example: no aim');
+        await d.say(S.L.demo ? 'Tarikannya sama seperti kelereng.' : aimLine(aim));
+        const a = aim.deg * Math.PI / 180, z = GEO.z, from = toCanvas(REST.x, REST.y);
+        await d.drag(from, { x: from.x - Math.cos(a) * aim.pull * 100 * z, y: from.y + Math.sin(a) * aim.pull * 100 * z }, 1500);
+        await d.success(30000);
+      }
+    };
+  }
+  // world (possibly zoomed, k2 karet dobel) -> canvas coordinates
+  function toCanvas(x, y) { const z = GEO.z; return { x: x * z, y: y * z + GY * (1 - z) }; }
+  function aimLine(aim) {
+    const deg = Math.round(aim.deg);
+    if (S.L.fixedPull) return 'Aku coba sudut ' + deg + ' derajat.';
+    if (S.L.notch) return 'Tarikan ' + tarikanWords(aim.pull) + ', lalu lepas.';
+    const how = aim.pull < 0.55 ? 'sedikit' : aim.pull < 1.05 ? 'sedang' : 'kuat';
+    if (S.L.showDeg) return 'Sudut ' + deg + ' derajat, tarik ' + how + '.';
+    if (!S.L.lock) return deg > 55 ? 'Tarik ke bawah, supaya terbang tinggi.' : deg < 35 ? 'Tarik mendatar, supaya terbang rendah.' : 'Tarik serong ke belakang, lalu lepas.';
+    return how === 'sedikit' ? 'Tarik sedikit saja, lalu lepas.' : how === 'sedang' ? 'Tarik sedang, lalu lepas.' : 'Tarik kuat-kuat, lalu lepas!';
+  }
+  /** An aim {pull, deg, mark} that hits the next target even if the finger is a pixel off,
+   * and lands on a real patok (so the example's prediction is right). Same simulator. */
+  function exAim(prefDeg, prefPull) {
+    const tgt = S.order.find(t => t.active && !t.hit);
+    if (!tgt) return null;
+    const W = simWorld(), proj = S.projKey;
+    const shot = (p, g) => simulate(W, proj, p, g);
+    const hits = r => r.events.some(e => e.type === 'hit' && e.id === tgt.id);
+    const markOf = r => r.landing ? markAt(r.landing.x) : 'far';
+    const lim = angLimits();
+    let degs = [45];
+    if (!S.L.lock) {
+      degs = [];
+      for (let g = Math.ceil(lim[0] + 1); g <= Math.floor(lim[1] - 1); g++) degs.push(g);
+      const pd = prefDeg || 45;
+      degs.sort((a, b) => Math.abs(a - pd) - Math.abs(b - pd));
+    }
+    // synthetic pointer events keep fractional pixels, so a small margin is enough
+    const dP = S.L.notch || S.L.fixedPull ? 0 : 0.004, dG = S.L.lock ? 0 : 0.15;
+    const robust = (p, g, strict) => {
+      const r = shot(p, g);
+      if (!hits(r)) return null;
+      const mk = markOf(r);
+      if (strict && (!mk || mk === 'far')) return null;
+      for (const [a, b] of [[-dP, 0], [dP, 0], [0, -dG], [0, dG]]) {
+        if (!a && !b) continue;
+        const q = shot(p + a, g + b);
+        if (!hits(q) || markOf(q) !== mk) return null;
+      }
+      return { pull: p, deg: g, res: r, mark: mk === 'far' ? S.marks[S.marks.length - 1] : mk || S.marks[0] };
+    };
+    for (const strict of [true, false]) {
+      for (const g of degs) {
+        const mp = maxPull(g);
+        let pulls = [];
+        if (S.L.fixedPull) pulls = [S.L.fixedPull];
+        else if (S.L.notch) for (let p = S.L.notch / 2; p <= mp + 1e-9; p += S.L.notch / 2) pulls.push(p);
+        else {
+          // every hitting pull, nearest the middle of its hit window first (or nearest prefPull)
+          let win = [], nWin = 0;
+          const flush = () => {
+            if (!win.length) return;
+            const mid = (win[0] + win[win.length - 1]) / 2;
+            win.forEach(p => pulls.push({ p, k: prefPull ? Math.abs(p - prefPull) : nWin * 10 + Math.abs(p - mid) }));
+            nWin++; win = [];
+          };
+          for (let p = 0.2; p <= mp + 1e-9; p += 0.005) { if (hits(shot(p, g))) win.push(p); else flush(); }
+          flush();
+          pulls = pulls.sort((a, b) => a.k - b.k).map(o => o.p);
+        }
+        for (const p of pulls) { const r = robust(p, g, strict); if (r) return r; }
+      }
+    }
+    return null;
   }
 
   /* ---------------- debug / test hook ---------------- */
