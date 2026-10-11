@@ -395,8 +395,10 @@ button { font: inherit; color: inherit; }
 @keyframes gs-offer { 50% { scale: 1.12; background: var(--sun); } }
 @media (max-height: 500px) and (orientation: landscape) {
   .gs-demo-bar { top: calc(env(safe-area-inset-top, 0px) + 8px); left: auto; right: max(12px, env(safe-area-inset-right, 0px)); translate: 0 0; } /* caption owns the top-left here */
-  .gs-demo-tag { font-size: 20px; }
-  .gs-demo-skip { min-height: 48px; font-size: 20px; }
+  .gs-demo-bar { gap: 6px; padding: 4px 4px 4px 8px; }
+  .gs-demo-tag b { display: none; } /* compact on phones: the yellow frame already says "contoh" */
+  .gs-demo-tag svg { width: 26px; height: 26px; }
+  .gs-demo-skip { min-height: 46px; padding: 0 14px; font-size: 19px; }
   .gs-demo-hand { width: 60px; height: 60px; }
 }
 @media (prefers-reduced-motion: reduce) { .gs-demo-btn.gs-offer { animation: none; background: var(--sun); } }
