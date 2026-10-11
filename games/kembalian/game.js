@@ -112,7 +112,7 @@
   /* ============================== layers ============================== */
   const LEVELS = buildLevels(TIER);
   const hud = GS.hud({ gameId: GAME, title: 'Warung Kembalian', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: buildLevel });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: i => demoSpec(i) });
   // Captions show "Rp7.000" while speech says "tujuh ribu rupiah": spoken -> caption map.
   const CAP = {};
   if (typeof GS._bubble === 'function') { const ob = GS._bubble; GS._bubble = t => ob(CAP[t] || t); }
@@ -315,7 +315,7 @@
     Object.assign(S, {
       timers: [], busy: false, over: false, tries: 0, notMinimal: false, money: null, tray: [], cells: {},
       solver: null, drag: null, dockMode: null, round: 0, rounds: [], live: false, roundFails: 0,
-      person: null, items: [], qtyN: 0, strip: null, marks: [], selected: null
+      person: null, items: [], qtyN: 0, strip: null, marks: [], selected: null, pickKind: null, demo: false
     });
     L = {
       pips: el('g', null, world), bubble: el('g', null, world), mat: el('g', null, world),
@@ -325,10 +325,26 @@
     };
   }
   let LV = null;
-  function buildLevel(i) {
+  let demoSig = '';           // the example's task; the child's own task must differ
+  // signature of a round's numbers (names and people do not count)
+  const sigR = R => JSON.stringify(R, (k, v) => (k === 'name' || k === 'person' || k === 'item' ? undefined : v));
+  function buildLevel(i, demo) {
     cleanup();
     LV = LEVELS[i];
-    S.rounds = LV.rounds();
+    if (demo) {
+      // the example plays ONE round: pick a short, clear one (about 2-4 pieces)
+      let best = null, bs = 1e9;
+      for (let k = 0; k < 10; k++) {
+        const R = demoRound(LV.rounds()), sc = demoScore(R);
+        if (sc < bs) { bs = sc; best = R; }
+      }
+      S.rounds = [best];
+      demoSig = sigR(best);
+    } else {
+      S.rounds = LV.rounds();
+      for (let k = 0; k < 12 && S.rounds.some(R => sigR(R) === demoSig); k++) S.rounds = LV.rounds();
+    }
+    S.demo = !!demo;
     mood('happy');
     playLevel(S.gen);
   }
@@ -366,6 +382,7 @@
   }
   function fail() {
     S.tries++; S.roundFails++;
+    if (S.tries === 2) run.offerDemo();
     if (S.roundFails >= 2) S.live = true;
   }
 
@@ -381,7 +398,7 @@
     showBubble(R);
     showItems(R.items, R.qtyItem);
     if (R.paid) showPaid(R.paid);
-    say(r === 0 ? LV.say : (R.say || defaultSay(R)), r === 0 ? LV.spoken : R.spoken);
+    if (!(S.demo && r === 0)) say(r === 0 ? LV.say : (R.say || defaultSay(R)), r === 0 ? LV.spoken : R.spoken);
     if (R.pick) { await pickPhase(R, gen); alive(gen); }
     await moneyPhase(R, gen);
     alive(gen);
@@ -944,6 +961,7 @@
     M.strip = !TK && TIER !== 'k1' && !M.share && (singleLine || R.stripOk) && M.goal > M.start;
     M.minPieces = M.minimal ? (decompose(M.goal - M.start - (M.qty ? 0 : 0), R.denoms) || []).length : 0;
     S.money = M;
+    S.pickKind = null;
     S.tray = [];
     drawTrayArt(M);
     drawDrawer(R.denoms, R.type === 'change' ? 'laci' : 'dompet');
@@ -1228,6 +1246,7 @@
   /* ============================== pick phases (before money) ============================== */
   function pickPhase(R, gen) {
     const P = R.pick;
+    S.pickKind = P.kind;
     drawDrawer(R.denoms, R.type === 'change' ? 'laci' : 'dompet');
     drawerEnabled(false);
     drawTrayArt({ mats: [matRects(1)[0]] });
@@ -1571,6 +1590,199 @@
       actionBtn('Cukup', 'km-wide', () => S.estimate && S.estimate(true), S.busy);
       actionBtn('Tidak cukup', 'alt', () => S.estimate && S.estimate(false), S.busy);
     }
+  }
+
+  /* ============================== worked example ("Contoh", docs/CONTOH.md) ==============================
+   * The ghost hand plays ONE round with other prices than the child's task, through the real
+   * input: it taps the goods cards, drags money from the drawer onto the tray (repeats of the same
+   * piece may be tapped, which the game also accepts) and presses Bayar!/Berikan. Si Cil thinks
+   * aloud: the sum of the goods, then the running total piece by piece, largest piece first.
+   * Challenge and mixed levels replay on request only (auto: false). */
+  const DEMO_KEYS = {
+    tk: ['slot', 'slot', 'titik', 'mahal', 'duaBarang', '!tantangan'],
+    k1: ['bayar', 'campur', 'campur', 'kembalian', 'duaBarang', 'kembalian', 'sedikit', '!tantangan'],
+    k2: ['bayar', 'kembalian', 'kembalian', 'sedikit', 'tigaBarang', 'pilihDua', 'keranjang', '!tantangan'],
+    k3: ['bayar', 'kembalian', 'kali', 'patungan', 'banyakBarang', 'sedikit', 'tukar', '!tantangan'],
+    k4: ['ratusan', 'kira', 'hemat', 'kaliBesar', 'anggaran', 'pensil', '!campuran', '!tantangan']
+  };
+  function demoSpec(i) {
+    const k = (DEMO_KEYS[TIER] || DEMO_KEYS.k1)[i] || 'L' + (i + 1), auto = k[0] !== '!';
+    return { key: auto ? k : k.slice(1), auto, build: () => buildLevel(i, true), script: d => demoScript(d) };
+  }
+  /** Which round of a multi-round level the example shows: for "Cukupkah?" the one that is enough, else the shortest. */
+  function demoRound(rounds) {
+    const est = rounds.find(R => R.pick && R.pick.kind === 'estimate' && priceOfItems(R.items) <= R.pick.budget);
+    if (est) return est;
+    return rounds.reduce((a, R) => (demoScore(R) < demoScore(a) ? R : a), rounds[0]);
+  }
+  function demoScore(R) { const c = demoCost(R); return c < 2 ? 4 - c : Math.max(0, c - 3); }
+  /** Roughly how many hand moves the round needs (the example prefers 2-4). */
+  function demoCost(R) {
+    const tot = priceOfItems(R.items || []), dn = (v, keys) => (decompose(v, keys) || []).length;
+    const P = R.pick;
+    if (P) {
+      if (P.kind === 'estimate') return dn(P.budget - tot, R.denoms) + 1;
+      if (P.kind === 'pricier') return Math.max(...P.options.map(o => o.price / 1000));
+      if (P.kind === 'basket') { const t = P.baskets.map(b => priceOfItems(b.items)); return dn(Math.abs(t[0] - t[1]), R.denoms) + 1; }
+      if (P.kind === 'offer') return dn(Math.min(3 * P.unit, P.pack), R.denoms) + 1;
+      return 3;
+    }
+    const more = Math.max(0, (R.items || []).length - 1) * 0.5;
+    if (R.qtyItem) { const g = sumKeys(R.paid), n = Math.floor(g / R.qtyItem.price); return n + dn(g - n * R.qtyItem.price, R.denoms); }
+    if (R.type === 'share') return R.kids * dn(tot / R.kids, R.denoms) / 2;
+    if (R.type === 'pay') return dn(tot - sumKeys(R.pre), R.denoms) + more;
+    return R.exchange ? dn(sumKeys(R.paid), R.denoms) / 3 : dn(sumKeys(R.paid) - tot, R.denoms) + more;
+  }
+  /** Speak a line: f(money, number, spoken) builds it; captions show "Rp7.000", the voice says "tujuh ribu". */
+  async function dsay(d, f, ms) {
+    const cap = f(rp, String, false), spk = f(words, words, true);
+    if (spk !== cap) CAP[spk] = cap;
+    await d.say(spk, ms);
+  }
+  async function until(d, pred, what) {
+    const end = performance.now() + 20000;
+    while (!pred()) {
+      if (performance.now() > end) throw new Error('kembalian demo: waiting for ' + what);
+      await d.wait(80);
+    }
+  }
+  const dockBtn = k => () => dock.querySelectorAll('.gs-action')[k || 0];
+  async function demoScript(d) {
+    await until(d, () => S.person && !S.busy && (S.money || (S.pickKind && (L.cards.childElementCount || S.dockMode === 'estimate'))), 'round');
+    await d.wait(300);
+    if (!/^(Tantangan|Campuran)/.test(LV.say)) { if (LV.spoken) CAP[LV.spoken] = LV.say; await d.say(LV.spoken || LV.say); }
+    const R = S.rounds[0];
+    if (R.pick) {
+      await demoPick(d, R);
+      await until(d, () => S.money && !S.busy && dock.querySelector('.gs-action'), 'money');
+      await d.wait(500);
+    }
+    await demoMoney(d, !!R.pick);
+    await d.success(40000);
+  }
+
+  async function demoPick(d, R) {
+    const P = R.pick, cardEl = i => () => L.cards.children[i];
+    // point just under a card so the hand does not cover what Si Cil is talking about
+    const under = (x, w, y) => ({ x: x + w / 2 - 40, y });
+    if (P.kind === 'pricier') {
+      const o = P.options, best = o[0].price > o[1].price ? 0 : 1;
+      for (let i = 0; i < 2; i++) { await d.point(under(262 + i * 310, 290, 576)); await dsay(d, (m, n) => 'Ini ' + n(o[i].price / 1000) + ' titik.'); }
+      await dsay(d, () => 'Titiknya lebih banyak, lebih mahal.');
+      await d.tap(cardEl(best));
+    } else if (P.kind === 'basket') {
+      const B = P.baskets, t = B.map(b => priceOfItems(b.items)), best = t[0] > t[1] ? 0 : 1;
+      for (let i = 0; i < 2; i++) {
+        await d.point(under(256 + i * 314, 296, 590));
+        await dsay(d, (m, n, s) => (i ? 'B: ' : 'A: ') + m(B[i].items[0].price) + (s ? ' tambah ' : ' + ') + m(B[i].items[1].price) + (s ? ', jadi ' : ' = ') + m(t[i]) + '.');
+      }
+      await dsay(d, () => 'Keranjang ' + (best ? 'B' : 'A') + ' lebih mahal.');
+      await d.tap(cardEl(best));
+    } else if (P.kind === 'offer') {
+      const t = [3 * P.unit, P.pack], best = t[0] < t[1] ? 0 : 1;
+      await d.point(under(256, 296, 590));
+      await dsay(d, (m, n, s) => 'Satuan: ' + (s ? 'tiga kali ' : '3 × ') + m(P.unit) + (s ? ', jadi ' : ' = ') + m(t[0]) + '.');
+      await d.point(under(570, 296, 590));
+      await dsay(d, m => 'Paket isi tiga: ' + m(P.pack) + '.');
+      await dsay(d, () => (best ? 'Paket' : 'Satuan') + ' lebih hemat.');
+      await d.tap(cardEl(best));
+    } else if (P.kind === 'select') {
+      const o = P.options;
+      let pick = [];
+      if (P.count) {
+        let bv = -1;
+        for (let a = 0; a < o.length; a++) for (let b = a + 1; b < o.length; b++) { const v = o[a].price + o[b].price; if (v <= P.budget && v > bv) { bv = v; pick = [a, b]; } }
+        await dsay(d, () => 'Cari dua barang yang cukup.');
+      } else {
+        let t = 0;
+        o.map((_, i) => i).sort((a, b) => o[a].price - o[b].price).forEach(i => { if (t + o[i].price <= P.budget) { pick.push(i); t += o[i].price; } });
+        await dsay(d, () => 'Pilih dari yang paling murah dulu.');
+      }
+      let sum = 0;
+      for (const i of pick) { await d.tap(cardEl(i)); sum += o[i].price; if (!P.count) await dsay(d, m => m(sum) + '.', 1300); }
+      if (P.count) await dsay(d, (m, n, s) => m(o[pick[0]].price) + (s ? ' tambah ' : ' + ') + m(o[pick[1]].price) + (s ? ', jadi ' : ' = ') + m(sum) + '. Cukup!');
+      else await dsay(d, m => 'Sisanya ' + m(P.budget - sum) + '. Tidak cukup lagi.');
+      await d.tap(dockBtn(0));
+    } else if (P.kind === 'estimate') {
+      const ups = R.items.map(it => Math.ceil(it.price / 1000) * 1000), est = ups.reduce((a, b) => a + b, 0), ok = priceOfItems(R.items) <= P.budget;
+      await d.point({ x: 720, y: 304 });
+      await dsay(d, m => 'Bulatkan dulu: ' + ups.map(m).join(', ') + '.');
+      await dsay(d, m => 'Kira-kira ' + m(est) + '. ' + (ok ? 'Cukup!' : 'Tidak cukup.'));
+      await d.tap(dockBtn(ok ? 0 : 1));
+      if (!ok) {
+        await until(d, () => !S.busy && L.items.querySelector('[data-hit^="kembalikan"]'), 'put back');
+        let mx = 0;
+        R.items.forEach((it, k) => { if (it.price > R.items[mx].price) mx = k; });
+        await d.tap(() => L.items.querySelector('[data-hit="kembalikan-' + (mx + 1) + '"]'));
+      }
+    }
+  }
+
+  async function demoMoney(d, picked) {
+    const M = S.money, R = M.R, its = R.items || [];
+    const cell = k => () => S.cells[k].g;
+    const drop = i => { const m = M.mats[i]; return { x: m.x + m.w / 2, y: m.y + m.h / 2 + LIFT - 6 }; };
+    const commitWord = S.dockMode === 'give' ? 'Berikan' : 'Bayar';
+    /** Put pieces on mat i: drag each (repeats of one piece are tapped when there are many), saying the running total. */
+    const place = async (keys, i, r0, speak) => {
+      let r = r0;
+      const many = keys.length > 6;
+      for (let j = 0; j < keys.length; j++) {
+        const k = keys[j];
+        if (many && j > 0 && keys[j - 1] === k) await d.tap(cell(k));
+        else await d.drag(cell(k), drop(i), 520);
+        r += DEN[k].v;
+        if (TK) await dsay(d, (m, n) => n(j + 1) + '.', 700);
+        else if (speak && !many) await dsay(d, m => m(r) + '.', 1000);
+      }
+    };
+    if (TK) {
+      const n = Math.round((M.goal - M.start) / 1000);
+      if (its.length > 1) { await d.point({ x: 720, y: 300 }); await dsay(d, (m, c) => c(its[0].price / 1000) + ' titik dan ' + c(its[1].price / 1000) + ' titik.'); }
+      if (M.slotsOn && !picked) await dsay(d, () => 'Satu koin untuk setiap titik.');
+      else { await d.point({ x: 720, y: 300 }); await dsay(d, (m, c) => 'Ada ' + c(n) + ' titik. Jadi ' + c(n) + ' koin.'); }
+      await place(decompose(M.goal - M.start, M.denoms) || [], 0, M.start, false);
+      await dsay(d, () => 'Tekan Bayar.');
+      await d.tap(dockBtn(0));
+      return;
+    }
+    // the goods first: add, or multiply (split into tens and ones for big counts)
+    if (!picked && !M.qty) {
+      if (its.length > 1) await dsay(d, (m, n, s) => its.map(it => m(it.price)).join(s ? ' tambah ' : ' + ') + (s ? ', jadi ' : ' = ') + m(priceOfItems(its)) + '.');
+      else if (its[0] && its[0].qty >= 10) {
+        const q = its[0].qty, p = its[0].price;
+        await dsay(d, (m, n) => n(10) + ' botol ' + m(10 * p) + '. ' + n(q - 10) + ' botol ' + m((q - 10) * p) + '.');
+        await dsay(d, m => 'Jumlahnya ' + m(q * p) + '.');
+      } else if (its[0] && its[0].qty > 1) await dsay(d, (m, n, s) => n(its[0].qty) + (s ? ' kali ' : ' × ') + m(its[0].price) + (s ? ', jadi ' : ' = ') + m(its[0].qty * its[0].price) + '.');
+    }
+    if (M.share) {
+      await dsay(d, (m, n, s) => m(M.total) + (s ? ' dibagi tiga' : ' : 3') + '. Tiap anak ' + m(M.goal) + '.');
+      const per = decompose(M.goal, M.denoms) || [];
+      for (let i = 0; i < M.mats.length; i++) await place(per, i, 0, false);
+      await dsay(d, () => 'Semua sama. Tekan Bayar.');
+      await d.tap(dockBtn(0));
+      return;
+    }
+    let start = M.start;
+    if (M.qty) {
+      const p = M.qty.price, n = Math.floor(M.goal / p);
+      await dsay(d, m => 'Uangnya ' + m(M.goal) + '. Satu pensil ' + m(p) + '.');
+      const jar = () => L.items.querySelector('[data-hit="pensil-tambah"]');
+      for (let k = 1; k <= n; k++) { await d.tap(jar); await dsay(d, m => m(k * p) + '.', 850); }
+      await dsay(d, (m, c) => c(n) + ' pensil. Sisanya ' + m(M.goal - n * p) + ', itu kembaliannya.');
+      start = n * p;
+    } else if (R.exchange) {
+      await dsay(d, m => m(M.goal) + ' ditukar koin ' + m(DEN[R.denoms[0]].v) + '.');
+      await dsay(d, m => 'Tambah koin sampai ' + m(M.goal) + '.');
+    } else if (M.type === 'change') {
+      await dsay(d, m => (its.length > 1 ? 'Hitung lanjut dari ' + m(start) : 'Harganya ' + m(start) + '. Hitung lanjut') + ' sampai ' + m(M.goal) + '.');
+    } else if (start > 0) await dsay(d, m => 'Sudah ada ' + m(start) + '. Tambah sampai ' + m(M.goal) + '.');
+    const price1 = M.type === 'pay' && !start && its.length === 1 && (its[0].qty || 1) === 1 ? (m => 'Harganya ' + m(M.goal) + '. ') : () => '';
+    if (M.minimal) await dsay(d, m => price1(m) + 'Supaya sedikit, pakai uang terbesar yang muat.');
+    else if (M.type === 'pay') await dsay(d, m => price1(m) + 'Mulai dari uang yang besar.');
+    await place(decompose(M.goal - start, M.denoms) || [], 0, start, true);
+    await dsay(d, () => 'Sudah pas. Tekan ' + commitWord + '.');
+    await d.tap(dockBtn(0));
   }
 
   /* ============================== levels per tier (docs/KURIKULUM.md) ============================== */
