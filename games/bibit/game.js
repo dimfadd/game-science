@@ -347,8 +347,187 @@
   };
   const LEVELS = LV[TIER] || LV.k1;
 
+  /* ================= worked examples ("Contoh", GS.demo, SOP docs/CONTOH.md) =================
+   * One round of the same kind with OTHER numbers, played by the ghost hand through the real
+   * handlers: seedlings dragged/tapped from tray, bundles or basket, the corner handle and the
+   * ropes dragged, fence poles taken, buttons tapped. Tantangan/campuran levels: auto: false. */
+  const DT = {
+    tk: [
+      () => ({ kind: 'place', rows: 1, cols: 2, cells: rect(1, 2), tray: 4, auto: true }),
+      () => tkBasket(2, 3, [[0, 0], [0, 2], [1, 1]], '', 8),
+      () => pairsRound(3, 6, 1),
+      () => ({ kind: 'compare', a: 7, b: 5 }),
+      () => ({ kind: 'place', rows: 2, cols: 1, cells: rect(2, 1), tray: 4, auto: true }),
+      () => tkBasket(2, 2, rect(2, 2), '', 8)
+    ],
+    k1: [
+      () => ({ kind: 'place', rows: 1, cols: 5, cells: rect(1, 5), pre: rect(1, 1), tray: 6, auto: true, done: () => ['1 + 4 = 5'] }),
+      () => basketRect(2, 4, { tray: 12, done: () => ['4 + 4 = 8'] }),
+      () => pairsRound(3, 7, 1),
+      () => dobel(2),
+      () => polyRound(8, 2, 3),
+      () => evenOdd(5),
+      () => completeRound(2, 4, 5),
+      () => completeRound(2, 6, 4)
+    ],
+    k2: [
+      () => lockCRound(9, 3),
+      () => orderRound(2, 3),
+      () => orderRound(2, 4, { rotate: true, maxR: 6, maxC: 8 }),
+      () => basketRect(3, 4, { tray: 9, bundles: 4, bundle: 5, done: () => [mulS(3, 4), addS(3, 4)] }),
+      () => divRound(10, 5),
+      () => ({ kind: 'grid', N: 6, maxR: 6, maxC: 8, start: [1, 1], arr: { need: 2 }, live: 'mul', demoShapes: [[2, 3], [1, 6]] }),
+      () => ({ kind: 'grid', N: 18, stack: [2, 3], maxR: 6, maxC: 3, start: [1, 3], live: 'stack', done: () => ['2 × 3 + 4 × 3 = 18', '6 × 3 = 18'] }),
+      () => freeRound(15)
+    ],
+    k3: [
+      () => orderRound(4, 8, { maxR: 10, maxC: 10 }),
+      () => lockRRound(12, 2),
+      () => ({ kind: 'grid', N: 10, maxR: 12, maxC: 12, start: [1, 1], arr: { need: 1, given: [1, 10] }, live: 'mul', demoShapes: [[2, 5]] }),
+      () => splitRound(6, 3),
+      () => remRound(14, 3),
+      () => areaRound(4, 6),
+      () => fenceRound(2, 5),
+      () => orderRound(5, 6, { maxR: 10, maxC: 10 })
+    ],
+    k4: [
+      () => split2Round(11, 14),
+      () => ({ kind: 'grid', N: 0, fence: 16, need: 2, maxR: 9, maxC: 9, start: [2, 3], live: null, demoShapes: [[2, 6], [3, 5]] }),
+      () => primeRound(8),
+      () => lcmRound(2, 3),
+      () => ceilRound(17, 5),
+      () => lShape(5, 6, 2, 2, true),
+      () => split2Round(11, 14),
+      () => lShape(5, 6, 2, 2, true)
+    ]
+  };
+  const DEMO = DT[TIER] || DT.k1;
+  const DEMO_REPLAY = { tk: [5], k1: [7], k2: [7], k3: [7], k4: [6, 7] };   // tantangan / campuran: button only
+  function demoSpec(i) {
+    return {
+      key: 'L' + (i + 1),
+      auto: (DEMO_REPLAY[TIER] || []).indexOf(i) < 0,
+      build: () => buildLevel(i, true),
+      script: demoScript
+    };
+  }
+  const idle = async d => { while (busy) await d.wait(120); };
+  const dropAt = p => ({ x: p.x, y: p.y + LIFT * 0.6 });   // where a finger lets go so the item lands on p
+  async function demoScript(d) {
+    await d.wait(700);
+    const c = C;
+    if (S.mode === 'place') {
+      const free = S.holes.filter(h => !h.filled);
+      if (c.check === 'pairs') {
+        await d.say(TK ? 'Atas ada ' + c.a + '. Bawah harus ' + c.a + ' juga.' : 'Baris atas ' + c.a + ' bibit. Baris bawah harus sama.');
+        const bot = free.filter(h => h.r === 1).slice(0, c.a - S.holes.filter(h => h.r === 1 && h.filled).length);
+        await d.drag(S.tray.at(), dropAt(bot[0].at()));
+        for (let k = 1; k < bot.length; k++) await d.tap(S.tray.at());
+        await d.say(TK ? 'Sekarang cek pasangannya.' : 'Sudah sama? Kita cek.');
+        await d.tap(() => btnMain);
+      } else {
+        await d.say(c.pre ? 'Sudah ada ' + c.pre.length + '. Isi sampai penuh.' : 'Satu lubang, satu bibit.');
+        await d.drag(S.tray.at(), dropAt(free[0].at()));
+        for (let k = 1; k < free.length; k++) await d.tap(S.tray.at());
+      }
+    } else if (S.mode === 'basket') {
+      const H = S.holes.filter(h => !h.filled).length, need = c.fence ? 2 * (c.rows + c.cols) : H;
+      if (TK) await d.say('Ada ' + need + ' lubang. Ambil ' + need + ' bibit.');
+      else if (c.fence) await d.say('Keliling: ' + c.cols + ' + ' + c.rows + ' + ' + c.cols + ' + ' + c.rows + ' = ' + need + ' batang.', 3600);
+      else if (c.shape === 'L') {
+        const A = c.rows * (c.cols - c.L.cc), B = (c.rows - c.L.cr) * c.L.cc;
+        await d.say('Dua bagian: ' + c.rows + ' × ' + (c.cols - c.L.cc) + ' = ' + A + ', dan ' + (c.rows - c.L.cr) + ' × ' + c.L.cc + ' = ' + B + '.', 4200);
+        await d.say(A + ' + ' + B + ' = ' + need + ' petak.');
+      } else if (c.labels) await d.say('Luasnya ' + c.rows + ' × ' + c.cols + ' = ' + need + ' petak.');
+      else if (c.pre) await d.say('Sudah ada ' + c.pre.length + ' bibit. Kurang ' + need + ' lagi.');
+      else if (c.done) await d.say(c.done()[0].replace(/ = \d+$/, '') + ' = ' + need + ' lubang.');
+      else await d.say('Ada ' + need + ' lubang. Ambil ' + need + ' bibit.');
+      let left = need, first = true;
+      const take = async src => {
+        if (first) { first = false; await d.drag(src.at(), dropAt(S.basket.at())); } else await d.tap(src.at());
+      };
+      if (S.bundles) {
+        const nb = Math.floor(need / S.bundles.size);
+        if (nb) await d.say('Satu ikat isi ' + S.bundles.size + '. Ambil ' + nb + ' ikat.');
+        for (let k = 0; k < nb; k++) { await take(S.bundles); left -= S.bundles.size; }
+        if (left) await d.say('Lalu ' + left + ' lagi.', 1400);
+      }
+      while (left-- > 0) await take(S.tray);
+      await d.say(TK ? 'Pas! Ayo tanam.' : 'Pas ' + need + '. Ayo ' + (c.fence ? 'pasang!' : 'tanam!'), 1600);
+      await d.tap(() => btnMain);
+    } else if (S.mode === 'poly') {
+      const H = S.holes.length, extra = c.basketN - H;
+      await d.say('Lubangnya ' + H + '. Sisa ' + extra + ' bibit masuk polybag.');
+      for (let k = 0; k < extra; k++) {
+        if (!k) await d.drag(S.basket.at(), dropAt(S.poly.slot(0))); else await d.tap(S.basket.at());
+      }
+      await d.say(c.basketN + ' − ' + extra + ' = ' + H + '. Ayo tanam!');
+      await d.tap(() => btnMain);
+    } else if (S.mode === 'grid') {
+      const N = c.N;
+      let shapes = c.demoShapes, line = null;
+      if (!shapes) {
+        let r, cc;
+        if (c.order) { [r, cc] = c.order; line = 'Pesanannya ' + r + ' baris, isi ' + cc + '.'; }
+        else if (c.stack) { cc = c.stack[1]; r = (N - c.stack[0] * cc) / cc; line = 'Atas ' + c.stack[0] + ' × ' + cc + ' = ' + c.stack[0] * cc + '. Kurang ' + r * cc + ', jadi ' + r + ' baris lagi.'; }
+        else if (c.lockR && c.poly) { r = 2; cc = Math.floor(N / 2); line = N + ' bibit berpasangan: ' + cc + ' pasang, sisa ' + (N % 2) + '.'; }
+        else if (c.lockR) { r = c.lockR; cc = N / r; line = 'Bagi ' + N + ' ke ' + r + ' baris: tiap baris ' + cc + '.'; }
+        else if (c.ceil) { cc = c.lockC; r = Math.ceil(N / cc); line = N + ' bibit, isi ' + cc + '. ' + Math.floor(N / cc) + ' baris penuh, sisa ' + (N % cc) + '. Jadi ' + r + ' baris.'; }
+        else if (c.poly) { cc = c.lockC; r = Math.floor(N / cc); line = N + ' bibit, isi ' + cc + ': ' + r + ' baris, sisa ' + (N % cc) + ' ke polybag.'; }
+        else if (c.lockC) { cc = c.lockC; r = N / cc; line = 'Tiap baris ' + cc + '. ' + Array.from({ length: r }, (_, k) => (k + 1) * cc).join(', ') + '. Jadi ' + r + ' baris.'; }
+        else {
+          for (let rr = 2; rr <= c.maxR && !r; rr++) if (N % rr === 0 && N / rr <= c.maxC && N / rr >= 2) { r = rr; cc = N / rr; }
+          line = N + ' = ' + r + ' × ' + cc + '. ' + r + ' baris, isi ' + cc + '.';
+        }
+        shapes = [[r, cc]];
+      }
+      if (c.prime) line = N + ' = 2 × 4. Bisa persegi panjang!';
+      if (c.fence) await d.say('Ada ' + c.fence + ' batang pagar. Coba bentuk lahan.');
+      else if (c.arr) await d.say(c.arr.need > 1 ? 'Ada ' + N + ' bibit. Cari dua susunan.' : 'Ada ' + N + ' bibit. 1 × ' + N + ' sudah dicatat.');
+      for (let k = 0; k < shapes.length; k++) {
+        const [r, cc] = shapes[k];
+        if (k) await idle(d);
+        if (line && !k) await d.say(line, Math.max(2200, line.length * 66));
+        else if (c.fence) await d.say(r + ' baris isi ' + cc + ': kelilingnya ' + 2 * (r + cc) + '.');
+        else if (c.arr) await d.say(r + ' baris isi ' + cc + '.');
+        await d.drag(() => handlePos(), () => handlePosFor(r, cc), 1500 + 140 * (Math.abs(r - S.r) + Math.abs(cc - S.c)));
+        if (c.prime) { await d.say('Kalau tidak bisa, ketuk 1 baris.'); await d.point(() => btnAlt); }
+        await d.tap(() => btnMain);
+      }
+    } else if (S.mode === 'split') {
+      const parts = partsOf(c.s, c.t), n = parts.map(p => p.rows * p.cols);
+      if (c.t == null) {
+        await d.say('Keranjang biru ' + n[0] + ' bibit. ' + n[0] + ' = ' + c.s + ' × ' + c.C + '.');
+        await d.drag(() => ropePos(S.ropeH), () => ({ x: S.g.x - 66, y: S.g.y + c.s * S.g.cell }), 1600);
+        await d.say('Sisanya ' + (c.R - c.s) + ' × ' + c.C + ' = ' + n[1] + '. Pas!');
+      } else {
+        await d.say(c.R + ' = ' + c.s + ' + ' + (c.R - c.s) + '. Tali pertama di ' + c.s + '.');
+        await d.drag(() => ropePos(S.ropeH), () => ({ x: S.g.x - 66, y: S.g.y + c.s * S.g.cell }), 1800);
+        await d.say(c.C + ' = ' + c.t + ' + ' + (c.C - c.t) + '. Tali kedua di ' + c.t + '.');
+        await d.drag(() => ropePos(S.ropeV), () => ({ x: S.g.x + c.t * S.g.cell, y: S.g.y + S.g.h + 66 }), 1800);
+        await d.say('Empat bagian, empat keranjang.');
+      }
+      await d.tap(() => btnMain);
+    } else if (S.mode === 'compare') {
+      const more = c.a > c.b ? 0 : 1, t = S.trays[more];
+      await d.say('Mana yang lebih banyak? Jangan lihat panjangnya.');
+      await d.say(more ? 'Yang bawah lebih banyak.' : 'Yang atas rapat, tapi lebih banyak.');
+      await d.tap({ x: t.x + t.w / 2, y: t.y + t.h / 2 });
+      await d.say('Kita tanam untuk membuktikan.', 1600);
+      await d.tap(() => btnMain);
+    } else if (S.mode === 'lcm') {
+      const L = lcm(c.a, c.b);
+      const seq = n => Array.from({ length: L / n }, (_, k) => (k + 1) * n).join(', ');
+      await d.say('Isi ' + c.a + ': ' + seq(c.a) + '. Isi ' + c.b + ': ' + seq(c.b) + '.', 3600);
+      await d.say(L + ' pas untuk keduanya. Tambah ' + L + ' bibit.');
+      for (let k = 0; k < L; k++) await d.tap(S.plus);
+      await d.tap(() => btnMain);
+    }
+    await d.success(60000);
+  }
+
   const hud = GS.hud({ gameId: GAME, title: 'Kebun Bibit', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i) });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: demoSpec });
 
   /* ================= state ================= */
   let rounds = [], ri = 0, C = null, S = {}, LS = {};
@@ -356,9 +535,18 @@
   const layers = {};
   let btnMain = null, btnAlt = null;
 
-  function buildLevel(i) {
+  let demoMode = false, demoSig = '';   // the example's round; the child's rounds must differ from it
+  const sigOf = c => [c.kind, c.rows, c.cols, c.N, c.a, c.b, c.R, c.C, c.basketN, (c.cells || []).length, (c.pre || []).length,
+    c.order && c.order.join('x'), c.lockC, c.lockR, c.fence, c.stack && c.stack.join('x')].join('|');
+  function miss() { tries++; if (tries === 2) run.offerDemo(); }
+  function buildLevel(i, demo) {
     tries = 0; ri = 0; LS = {};
-    rounds = LEVELS[i]();
+    demoMode = !!demo;
+    if (demo) { rounds = [DEMO[i]()]; demoSig = sigOf(rounds[0]); }
+    else {
+      rounds = LEVELS[i]();
+      for (let k = 0; k < 12 && rounds.some(r => sigOf(r) === demoSig); k++) rounds = LEVELS[i]();
+    }
     startRound();
   }
   function startRound() {
@@ -372,7 +560,7 @@
     ({ place: buildPlace, basket: buildBasket, grid: buildGrid, split: buildSplit, compare: buildCompare, lcm: buildLcm })[C.kind]();
     updateDock();
     hud.mood('happy');
-    GS.say(C.say);
+    if (!demoMode) GS.say(C.say);
   }
   function nextRound() {
     ri++;
@@ -530,11 +718,13 @@
     if (TK || !lines || !lines.length) return;
     const fs = lines.length > 1 ? 44 : 52;
     const w = Math.max(240, Math.max.apply(null, lines.map(l => l.length)) * fs * 0.56 + 70);
-    const h = lines.length > 1 ? 126 : 86, x = BOARD_X - w / 2, y = 14;
+    // during an example the "Contoh" bar sits top-right on phones: keep the board left of it
+    const bx = demoMode ? Math.min(BOARD_X, 790 - w / 2) : BOARD_X;
+    const h = lines.length > 1 ? 126 : 86, x = bx - w / 2, y = 14;
     let s = '<path d="M' + n1(x + 46) + ' -20V' + y + 'M' + n1(x + w - 46) + ' -20V' + y + '" stroke="#8A5A36" stroke-width="5"/>' +
       '<rect x="' + n1(x) + '" y="' + y + '" width="' + n1(w) + '" height="' + h + '" rx="18" fill="#A8673A" stroke="' + OL + '" stroke-width="3.5"/>' +
       '<rect x="' + n1(x + 9) + '" y="' + (y + 9) + '" width="' + n1(w - 18) + '" height="' + (h - 18) + '" rx="12" fill="' + CREAM + '" stroke="#7E4A27" stroke-width="2"/>';
-    lines.forEach((l, i) => { s += Tc(BOARD_X, y + 9 + (h - 18) * (i + 0.5) / lines.length, l, fs, { fill: done ? '#0B6E60' : '#6B5444' }); });
+    lines.forEach((l, i) => { s += Tc(bx, y + 9 + (h - 18) * (i + 0.5) / lines.length, l, fs, { fill: done ? '#0B6E60' : '#6B5444' }); });
     GS.markup(g, s);
     if (done) GS.fx(g, 'gs-pulse', 900);
   }
@@ -936,7 +1126,7 @@
     lonely.forEach(h => { const b = baseOf(g, h.r, h.c); GS.markup(layers.fx, '<circle class="bb-glow" cx="' + n1(b.x) + '" cy="' + n1(b.y - k * 0.3) + '" r="' + n1(k * 0.42) + '" fill="none" stroke="#F2A900" stroke-width="6"/>'); });
     hud.mood('oops'); GS.sfx.oops();
     GS.say(top.length > bot.length ? (TK ? 'Ada bibit atas yang belum punya teman.' : 'Baris bawah masih kurang. Ada yang belum punya pasangan.') : (TK ? 'Ada bibit bawah yang tidak punya teman.' : 'Baris bawah kebanyakan. Ada yang tidak punya pasangan.'));
-    tries++;
+    miss();
     await wait(2000);
     if (my !== tok) return;
     clearFx(); busy = false; updateDock(); hud.mood('think');
@@ -1028,7 +1218,7 @@
     if (my !== tok) return;
     holes.slice(0, k).forEach(h => { h.filled = false; plantAt(h.g, h.r, h.c, null); });
     B.out = 0; B.wilt = false; B.render();
-    clearFx(); tries++;
+    clearFx(); miss();
     if (tries >= 2 && C.hideGrid && !S.helped) { S.helped = true; layers.soil.innerHTML = ''; GS.markup(layers.soil, C.shape === 'L' ? lMarkup(S.g, C.rows, C.cols, C.L.cr, C.L.cc, true) + lGrid() : regionMarkup(S.g, 0, 0, C.rows, C.cols, { noHoles: true })); }
     busy = false; updateDock(); hud.mood('think');
   }
@@ -1046,7 +1236,7 @@
     const res = await buildFence(g, 0, 0, C.rows, C.cols, n, B);
     if (my !== tok) return;
     if (res.ok) { await success([], { lines: C.done(), say: 'Pagarnya pas, ' + res.P + ' batang! Kebun aman.', noHarvest: true }); return; }
-    tries++;
+    miss();
     await wait(2200);
     if (my !== tok) return;
     layers.fx.innerHTML = '';
@@ -1164,11 +1354,12 @@
     liveBoard();
   }
   const HOFF = 30;
-  function handlePos() {
-    const g = S.g, k = g.cell, rows = C.stack ? C.stack[0] + S.r : S.r;
-    if (C.stack || C.lockC) return { x: g.x + S.c * k / 2, y: g.y + rows * k + HOFF };
-    if (C.lockR) return { x: g.x + S.c * k + HOFF, y: g.y + S.r * k / 2 };
-    return { x: g.x + S.c * k + HOFF * 0.75, y: g.y + S.r * k + HOFF * 0.75 };
+  const handlePos = () => handlePosFor(S.r, S.c);
+  function handlePosFor(r, c) {
+    const g = S.g, k = g.cell, rows = C.stack ? C.stack[0] + r : r;
+    if (C.stack || C.lockC) return { x: g.x + c * k / 2, y: g.y + rows * k + HOFF };
+    if (C.lockR) return { x: g.x + c * k + HOFF, y: g.y + r * k / 2 };
+    return { x: g.x + c * k + HOFF * 0.75, y: g.y + r * k + HOFF * 0.75 };
   }
   function placeHandle(p) {
     p = p || handlePos();
@@ -1250,7 +1441,7 @@
     if (exact && C.order && (r !== C.order[0] || c !== C.order[1])) {
       hud.mood('think'); GS.sfx.oops();
       GS.say('Bibitnya pas, tapi ini ' + r + ' baris isi ' + c + '. Pesanannya ' + C.order[0] + ' baris isi ' + C.order[1] + '.');
-      tries++;
+      miss();
       await wait(2400);
       if (my !== tok) return;
       resetGrid(cells.slice(0, k));
@@ -1269,7 +1460,7 @@
     const empty = cells.slice(k);
     await showFail(left, miss, empty, B, C.ceil && left === 0 ? 'row' : null);
     if (my !== tok) return;
-    if (!(C.prime && isPrime(N))) tries++;
+    if (!(C.prime && isPrime(N))) miss();
     resetGrid(cells.slice(0, k));
   }
   function resetGrid(planted) {
@@ -1343,7 +1534,7 @@
     if (!isPrime(N)) {
       hud.mood('think'); GS.sfx.oops();
       GS.say(N + ' bisa dibuat persegi panjang, lho. Coba di lahan.');
-      tries++;
+      miss();
       await wait(1800);
       if (my !== tok) return;
       busy = false; updateDock();
@@ -1370,14 +1561,14 @@
   function drawPrimeNotes() { drawCatatan(LS.prime.map(p => ({ t: p.t, r: p.r === 1 ? 1 : p.r, c: p.r === 1 ? 8 : p.c, fs: 38 })), 'Catatan', 54); }
   function drawFenceNotes() {
     const e = LS.found.slice().sort((a, b) => b.r * b.c - a.r * a.c).map(f => ({ t: f.r + ' × ' + f.c, r: f.r, c: f.c, note: 'luas ' + f.r * f.c, fs: 38 }));
-    drawCatatan(e.slice(0, 4), 'Pagar 20 batang', 54);
+    drawCatatan(e.slice(0, 4), 'Pagar ' + C.fence + ' batang', 54);
   }
   async function fenceAttempt() {
     const my = tok, r = S.r, c = S.c, B = S.basket;
     const res = await buildFence(S.g, 0, 0, r, c, C.fence, B);
     if (my !== tok) return;
     if (!res.ok) {
-      tries++;
+      miss();
       await wait(2200);
       if (my !== tok) return;
       if (S.goat) { S.goat.remove(); S.goat = null; }
@@ -1393,6 +1584,13 @@
     setBoard([r + ' × ' + c + ' = ' + r * c + ' petak'], true);
     const isNew = !LS.found.some(f => f.key === key);
     if (isNew) { LS.found.push({ key, r, c }); drawFenceNotes(); GS.sfx.star(LS.found.length - 1); }
+    if (C.need && LS.found.length >= C.need) {   // worked example: two shapes are enough
+      GS.say('Luasnya ' + r * c + ' petak. Lebih luas!');
+      await wait(2000);
+      if (my !== tok) return;
+      nextRound();
+      return;
+    }
     const best = LS.found.some(f => f.key === '5x5');
     if (best && LS.found.length >= 3) {
       GS.say('5 × 5 paling luas: 25 petak! Kelilingnya sama, luasnya beda.');
@@ -1524,7 +1722,7 @@
     wl.forEach(x => { x.B.wilt = true; x.B.render(); });
     for (const x of ml) for (const cl of x.cells.slice(x.k)) weedAt(cl.g, cl.r, cl.c);
     GS.say(wl.length && ml.length ? 'Ada keranjang yang sisa, ada bagian yang kosong.' : wl.length ? 'Ada bibit yang sisa di keranjang. Layu, deh.' : 'Ada lubang kosong. Rumput tumbuh di situ.');
-    tries++;
+    miss();
     await wait(2400);
     if (my !== tok) return;
     clearPlants(); clearFx();
@@ -1601,7 +1799,7 @@
       GS.markup(layers.fx, '<circle class="bb-glow" cx="' + n1(b.x) + '" cy="' + n1(b.y - k * 0.3) + '" r="' + n1(k * 0.42) + '" fill="none" stroke="#0F8C7A" stroke-width="6"/>');
     }
     if (S.choice === more) { GS.sfx.star(0); hud.mood('cheer'); GS.say('Betul! Baris ini lebih banyak. Lihat, ada yang tidak punya pasangan.'); }
-    else { hud.mood('surprise'); GS.sfx.oops(); GS.say('Ternyata baris ini yang lebih banyak. Lihat pasangannya.'); tries++; }
+    else { hud.mood('surprise'); GS.sfx.oops(); GS.say('Ternyata baris ini yang lebih banyak. Lihat pasangannya.'); miss(); }
     await wait(2600);
     if (my !== tok) return;
     clearFx();
@@ -1697,7 +1895,7 @@
       [S.gA, S.gB].forEach(g => { if (N % g.cols) { const r = Math.floor(N / g.cols); for (let c = N % g.cols; c < g.cols; c++) weedAt(g, r, c); } });
       GS.say(!fullA && !fullB ? 'Dua lahan, baris terakhirnya belum penuh. Rumput tumbuh.' : 'Satu lahan baris terakhirnya belum penuh.');
     }
-    tries++;
+    miss();
     await wait(2200);
     if (my !== tok) return;
     clearFx(); busy = false; updateDock(); hud.mood('think');
