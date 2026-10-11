@@ -34,7 +34,7 @@
   const LEVELS = tierLevels(TIER);
 
   const hud = GS.hud({ gameId: GAME, title: 'Timbangan Pasar', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: buildLevel });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: demoSpec });
 
   const bg = el('g', { class: 'bg' }, svg);
   const world = el('g', { class: 'world' }, svg);
@@ -90,7 +90,7 @@
   function ctm(g) { const a = svg.getScreenCTM(), b = g.getScreenCTM(); return a && b ? a.inverse().multiply(b) : null; }
   function toSvg(g, x, y) { const m = ctm(g); return m ? { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f } : { x, y }; }
   function fromSvg(g, x, y) { const m0 = ctm(g); if (!m0) return { x, y }; const m = m0.inverse(); return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f }; }
-  function say(t) { GS.say(t); }
+  function say(t) { if (S.quiet) S.quietLine = t; else GS.say(t); }
   function mood(m) { try { hud.mood(m); } catch (e) { /* no mascot */ } }
 
   /* ============================== art wrappers ============================== */
@@ -294,7 +294,19 @@
     };
   }
 
-  function buildLevel(i) {
+  /* Example mode (Contoh, docs/CONTOH.md): DEMO is true while the example's level is built and
+   * played. The child's level is re-rolled until its signature differs from the example's. */
+  let DEMO = false, demoSig = '';
+  const levelSig = () => S.items.filter(it => it.c).map(it => it.kind + ':' + it.w + (it.glyph || '') + '@' + it.c.name + it.c.bins.indexOf(it.bin)).join('|');
+  function buildLevel(i, demo) {
+    DEMO = !!demo;
+    S.quiet = true; S.quietLine = null;
+    for (let k = 0; k < 12; k++) { buildOnce(i); if (demo || levelSig() !== demoSig) break; }
+    S.quiet = false;
+    if (demo) demoSig = levelSig();
+    else if (S.quietLine) say(S.quietLine);
+  }
+  function buildOnce(i) {
     cleanup();
     const L = LEVELS[i];
     S.mode = L.mode;
@@ -308,6 +320,7 @@
     const defs = { rounds: 1, round: 0, predictNow: false, revealed: false, near: true, fade: false };
     for (const k in defs) if (!(k in lv)) lv[k] = defs[k];
     lv.round = 0;
+    if (DEMO) lv.rounds = 1;
     roundPips();
     lv.setup(0);
     refresh();
@@ -811,6 +824,7 @@
   }
   function unbalanced(r, msg) {
     S.tries++; S.roundFails++;
+    if (S.tries === 2) run.offerDemo();
     GS.sfx.oops(); mood('oops');
     later(1800, () => mood('think'));
     let m = msg;
@@ -1346,7 +1360,7 @@
 
   /* ============================== LEVEL: Mana lebih berat? ============================== */
   function L1(cfg) {
-    const pairs = (cfg && cfg.pairs) || [['kapas', 0.05, 'batu', 1.2], ['balon', 0.01, 'gembok', 0.4], ['bantal', 0.3, 'baut', 0.15]];
+    const pairs = DEMO ? [['balon', 0.01, 'baut', 0.15]] : (cfg && cfg.pairs) || [['kapas', 0.05, 'batu', 1.2], ['balon', 0.01, 'gembok', 0.4], ['bantal', 0.3, 'baut', 0.15]];
     const size = { kapas: 104, batu: 46, balon: 132, gembok: 52, bantal: 80, baut: 50 };
     let cur = null;
     const o = { rounds: pairs.length, predictNow: true, near: false, pause: 2400 };
@@ -1370,6 +1384,7 @@
       say(ok ? `Tebakanmu benar! ${nm.charAt(0).toUpperCase() + nm.slice(1)} lebih berat` + (small ? ', padahal kecil.' : '.') : `Ternyata ${nm} lebih berat` + (small ? ', padahal kecil.' : '.'));
       await nextRound();
     };
+    o.plan = () => { const r = evaluate(), heavy = r.dir === 'L' ? cur[0] : cur[1]; return [{ say: `Mana yang lebih berat? Aku tebak ${label(heavy.kind)}.` }, { pred: r.dir }, { release: 1 }]; };
     o.winText = () => 'Kecil belum tentu ringan!';
     o.solve = async () => { const r = evaluate(); pickPrediction(r.dir); await release(); };
     return o;
@@ -1389,6 +1404,11 @@
       say(TIER === 'tk' ? 'Buat sama banyak, ya!' : 'Buat timbangan seimbang, ya!');
     };
     o.fullMsg = 'Piringnya sudah penuh.';
+    o.plan = () => {
+      const Lc = pan(0).count(), Rc = pan(1).count();
+      return [{ say: `Kiri ${Lc}, kanan ${Rc}. Tambah yang kanan.` }]
+        .concat(S.tray.items().slice(0, Lc - Rc).map((it, k) => ({ drag: it, to: pan(1), count: Rc + k + 1 })), [{ say: `Sama-sama ${Lc}!` }, { release: 1 }]);
+    };
     o.result = async r => { if (r.balanced) { say('Seimbang! Sama banyak.'); finish('Seimbang! Sama banyak.'); } else unbalanced(r); };
     o.solve = async () => {
       const Lc = pan(0).count(), Rc = pan(1).count();
@@ -1456,6 +1476,7 @@
         S.busy = false; dockRender();
       } else {
         S.tries++; S.roundFails++;
+        if (S.tries === 2) run.offerDemo();
         GS.sfx.oops(); mood('oops');
         wobbleItem(card);
         await wait(420);
@@ -1467,6 +1488,7 @@
       }
     }
     o.result = async r => { await check(r); };
+    o.plan = () => { const gl = a > b ? '>' : a < b ? '<' : '='; return [{ say: `Kiri ${a}, kanan ${b}. ${a} ${outcomeWord(a, b)} ${b}.`, ms: 3000 }, { drag: cards.find(x => x.glyph === gl), to: slot }, { release: 1 }]; };
     o.winText = () => 'Hebat! Kamu paham tanda < = >';
     o.solve = async () => {
       const r = evaluate();
@@ -1480,7 +1502,7 @@
 
   /* ============================== LEVEL: Pasangan bilangan ============================== */
   function L4(cfg) {
-    const ns = (cfg && cfg.ns) || [6, 10];
+    const ns = DEMO ? [6] : (cfg && cfg.ns) || [6, 10];
     const o = { rounds: ns.length, near: true };
     let n = ns[0], found = [], kar = null, given = 0;
     const rack = el('g', { transform: 'translate(1100 110)' }, S.layers.ui);
@@ -1533,7 +1555,7 @@
       if (!GS.reducedMotion) GS.tween(380, e => chip.setAttribute('transform', `translate(${slotPos.x} ${slotPos.y}) scale(${n1(e * 100) / 100}) translate(${-slotPos.x} ${-slotPos.y})`), 'outBack');
       GS.sfx.coin();
       say(`Pasangan baru: ${x} dan ${y}!`);
-      if (found.length >= 3) {
+      if (found.length >= 3 || DEMO) {
         await wait(1600);
         if (o.round < o.rounds - 1) {
           o.round++;
@@ -1543,6 +1565,11 @@
           S.roundFails = 0; roundPips(); o.setup(o.round); refresh();
         } else finish(ns.length > 1 ? `Hebat! Banyak cara membuat ${ns.join(' dan ')}.` : `Hebat! Banyak cara membuat ${n}.`);
       } else { await wait(1300); say('Cari pasangan lain!'); relock(); }
+    };
+    o.plan = () => {
+      const x = 2, its = S.tray.items(), bins = pan(1).bins;
+      return [{ say: `Karung isinya ${n}. ${x} di keranjang ini, ${n - x} di sana.`, ms: 3200 }]
+        .concat(its.slice(0, n).map((it, k) => ({ drag: it, to: pan(1), bin: bins[k < x ? 0 : 1], count: k < x ? k + 1 : k - x + 1 })), [{ release: 1 }]);
     };
     o.solve = async () => {
       let x = 1; while (x < n && (found.indexOf([x, n - x].sort((p, q) => p - q).join('+')) >= 0)) x++;
@@ -1581,6 +1608,7 @@
       else unbalanced(r, r.dir === 'R' ? 'Kanan turun. Coba yang lebih ringan.' : 'Kanan naik. Coba yang lebih berat.');
     };
     o.winText = () => 'Hebat! Kamu bisa menjumlah.';
+    o.plan = () => [{ say: `${a} tambah ${b} sama dengan ${s}.` }, { drag: S.items.find(x => x.kind === 'weight' && x.w === s), to: pan(1) }, { release: 1 }];
     o.solve = async () => { const it = S.items.find(x => x.kind === 'weight' && x.w === s); if (it.c !== pan(1)) moveItem(it, pan(1)); await waitLocked(); await release(); };
     return o;
   }
@@ -1614,6 +1642,8 @@
       else unbalanced(r, r.dir === 'L' ? `Kanan masih kurang. Hitung lanjut dari ${m}.` : 'Kanan terlalu berat. Ambil satu.');
     };
     o.winText = () => 'Hebat! Kamu menemukan bilangan hilang.';
+    o.plan = () => [{ say: `Karung isinya ${m}. Dari ${m} sampai ${n}, kurang ${n - m}.`, ms: 3400 }]
+      .concat(pickSum(S.tray.items(), n - m).map(it => ({ drag: it, to: pan(1), bin: pan(1).bins[1] })), [{ release: 1 }]);
     o.solve = async () => {
       pan(1).bins[1].items.slice().forEach(it => moveItem(it, S.tray));
       greedyFill(pan(1), n - m, pan(1).bins[1]);
@@ -1686,6 +1716,8 @@
       }
     };
     o.winText = () => 'Sama dengan artinya sama berat!';
+    o.plan = () => [{ say: `Kiri ${a} tambah ${b}, jadi ${a + b}. Kanan sudah ada ${c}.`, ms: 3600 }, { say: `${c} tambah ${x} sama dengan ${a + b}.` },
+      { drag: S.items.find(q => q.kind === 'weight' && !q.fixed && q.w === x), to: pan(1), bin: pan(1).bins[0] }, { release: 1 }];
     o.solve = async () => {
       if (o.round === 0) { const it = S.items.find(q => q.kind === 'weight' && !q.fixed && q.w === x); if (it.c !== pan(1)) moveItem(it, pan(1), pan(1).bins[0]); }
       else pickPrediction(evaluate().dir);
@@ -1703,11 +1735,12 @@
       if (cfg.big) {
         const a = rand(4, 9), b = rand(2, 9), c = rand(1, a - 1), d = rand(0, b - 1);
         n = 10 * a + b; m = 10 * c + d;
+        if (DEMO) m = 10 * (a - 1) + b - rand(1, Math.min(3, b));
         setPanBins(0, pileBins([10, 1], -90, 90, 14, {}, 1.3));
         trayPiles([10, 1]);
         spawn(stockOf([10, 1], [a, b]), pan(0), { stagger: 30 });
       } else {
-        n = rand(cfg.n[0], cfg.n[1]); m = rand(cfg.m[0], Math.min(cfg.m[1], n - 2));
+        n = rand(cfg.n[0], cfg.n[1]); m = DEMO ? n - rand(2, 4) : rand(cfg.m[0], Math.min(cfg.m[1], n - 2));
         setPanBins(0, [{ x0: -100, x1: 100, y: 14, cap: 20 }]);
         spawn(Array.from({ length: n }, () => ramb({ h: rambH(n) })), pan(0), { stagger: 30 });
       }
@@ -1724,6 +1757,8 @@
       else unbalanced(r, r.dir === 'L' ? 'Kiri masih lebih berat. Ambil lagi.' : 'Kiri jadi terlalu ringan. Kembalikan satu.');
     };
     o.winText = () => 'Hebat! Kamu bisa mengurangi.';
+    o.plan = () => [{ say: `Kiri ${n}, kanan ${m}. Ambil ${n - m} dari kiri.`, ms: 3000 }]
+      .concat(pickSum(pan(0).items(), n - m).map((it, k) => ({ drag: it, to: S.tray, count: cfg.big ? null : k + 1 })), [{ release: 1 }]);
     o.solve = async () => {
       S.tray.items().slice().forEach(it => moveItem(it, pan(0)));
       let need = n - m;
@@ -1740,11 +1775,15 @@
     const o = { rounds: 1, fade: !cfg.big };
     let n;
     o.setup = () => {
-      n = rand(cfg.n[0], cfg.n[1]);
+      n = DEMO ? rand(11, 12) : rand(cfg.n[0], cfg.n[1]);
       [0, 1].forEach(i => { setPanBins(i, cfg.big ? pileBins([10, 1], -78, 78, -2, {}, 1.3) : [{ x0: -78, x1: 78, y: -2, stack: 0.55 }]); clearPanDecor(i); sackDecor(i); });
       if (cfg.big) { trayPiles([10, 1]); spawn(stockOf([10, 1], [2 * Math.floor(n / 10), 2 * (n % 10)]), S.tray, { stagger: 25 }); }
       else spawn(Array.from({ length: 2 * n }, () => marb()), S.tray);
       say(cfg.big ? `Bagi ${2 * n} ke dua kantong, sama berat.` : `Bagi ${2 * n} kelereng ke dua kantong, sama banyak.`);
+    };
+    o.plan = () => {
+      const its = S.tray.items().slice().sort((p, q) => q.w - p.w);
+      return [{ say: `Satu untuk kiri, satu untuk kanan.` }].concat(its.map((it, k) => ({ drag: it, to: pan(k % 2) })), [{ release: 1 }]);
     };
     o.strip = () => [{ t: 'n', v: 2 * n }, { t: 'sign', v: '=' }, { t: 'blank', v: pan(0).sum() || null, side: -1 }, { t: 'op', v: '+' }, { t: 'blank', v: pan(1).sum() || null, side: 1 }];
     o.canRelease = () => pan(0).count() + pan(1).count() > 0;
@@ -1776,7 +1815,7 @@
     let cur;
     const bp = () => (cfg.buildSide < 0 ? 0 : 1), tp = () => 1 - bp();
     o.setup = r => {
-      cur = cfg.gen(r);
+      cur = demoPick(() => cfg.gen(DEMO ? 1 : r), c => pieces(stockList(c.denoms, c.stock), c.target.v - (c.given || 0)));
       const bs = bp();
       const bins = [];
       if (cur.given != null) bins.push({ x0: -106, x1: -40, y: 14, accept: it => it.kind === 'karung' });
@@ -1807,6 +1846,11 @@
     o.strip0 = o.strip;
     o.strip = () => o.final || o.strip0();
     o.winText = () => cfg.win || 'Hebat! Bilangannya tersusun.';
+    o.plan = () => {
+      const need = cur.target.v - (cur.given || 0), u = cfg.unit ? ' gram' : '';
+      return [{ say: `Perlu ${fmt(need)}${u}. Mulai dari yang besar.`, ms: 3000 }]
+        .concat(pickSum(S.tray.items(), need).map(it => ({ drag: it, to: pan(bp()) })), [{ release: 1 }]);
+    };
     o.solve = async () => {
       built().slice().forEach(it => moveItem(it, S.tray));
       greedyFill(pan(bp()), cur.target.v - (cur.given || 0));
@@ -1815,6 +1859,21 @@
     const setup0 = o.setup;
     o.setup = r => { o.final = null; setup0(r); };
     return o;
+  }
+  /** Greedy pick (largest first) of items whose weights add up to `need`; `.ok` says it is exact. */
+  function pickSum(items, need) {
+    const out = [];
+    items.slice().sort((p, q) => q.w - p.w).forEach(it => { if (it.w <= need) { out.push(it); need -= it.w; } });
+    out.ok = need === 0;
+    return out;
+  }
+  const pieces = (list, need) => { const r = pickSum(list, need); return r.ok ? r.length : 99; };
+  const stockList = (denoms, counts) => denoms.reduce((a, d, i) => a.concat(Array.from({ length: counts[i] }, () => ({ w: d }))), []);
+  /** In example mode re-roll a generator until the example needs at most `max` moves (10 to 25 s). */
+  function demoPick(gen, cost, max) {
+    let c = gen();
+    if (DEMO) for (let k = 0; k < 400 && cost(c) > (max || 6); k++) c = gen();
+    return c;
   }
   const digitsOf = (n, denoms) => denoms.map(d => Math.floor(n / d) % 10);
   /** chips for "a + b + c" from per-denomination sums, blanks when empty */
@@ -1831,7 +1890,7 @@
     let cur;
     const prod = () => cur.g * cur.k;
     o.setup = r => {
-      cur = cfg.gen(r); o.final = null;
+      cur = demoPick(() => cfg.gen(r), c => cfg.mode === 'pick' ? 1 : pieces(stockList([10, 1], [9, 9]), c.g * c.k)); o.final = null;
       setPanBins(0, [{ x0: -104, x1: 104, y: 14, pack: 0.9, stack: 0.62 }]);
       if (cfg.mode === 'pick') setPanBins(1, [{ x0: -60, x1: 60, y: 14, cap: 1, swap: true, accept: it => it.kind === 'weight' }]);
       else { setPanBins(1, pileBins([10, 1], -90, 90, 14, {}, 1.3)); trayPiles([10, 1]); }
@@ -1867,6 +1926,11 @@
       } else unbalanced(r, cfg.mode === 'pick' ? (r.dir === 'R' ? 'Kanan turun. Coba yang lebih ringan.' : 'Kanan naik. Coba yang lebih berat.') : buildMsg(r, 1));
     };
     o.winText = () => cfg.win || 'Hebat! Kelompok sama banyak.';
+    o.plan = () => {
+      const p = prod();
+      if (cfg.mode === 'pick') return [{ say: `${Array(cur.k).fill(cur.g).join(' tambah ')} sama dengan ${p}.`, ms: 3200 }, { drag: S.items.find(x => x.kind === 'weight' && x.w === p), to: pan(1) }, { release: 1 }];
+      return [{ say: `${cur.k} kali ${cur.g} sama dengan ${p}.` }].concat(pickSum(S.tray.items(), p).map(it => ({ drag: it, to: pan(1) })), [{ release: 1 }]);
+    };
     o.solve = async () => {
       if (cfg.mode === 'pick') { const it = S.items.find(x => x.kind === 'weight' && x.w === prod()); if (it.c !== pan(1)) moveItem(it, pan(1)); }
       else { pan(1).items().slice().forEach(it => moveItem(it, S.tray)); greedyFill(pan(1), prod()); }
@@ -1885,7 +1949,7 @@
     const tpl = () => pan(tp).bins[0].items;
     const s = () => tpl().reduce((a, it) => a + it.w, 0);
     o.setup = r => {
-      cur = cfg.gen(r); o.final = null;
+      cur = demoPick(() => cfg.gen(r), c => c.items === 'ramb' ? c.answer + 2 : pieces(c.stock.map(v => ({ w: v })), c.answer)); o.final = null;
       tp = cfg.tside < 0 ? 0 : 1; op = 1 - tp;
       const k = cur.k, hasX = cur.extra != null;
       const x0 = -104, x1 = hasX ? 48 : 104, bw = (x1 - x0) / k;
@@ -1934,6 +1998,10 @@
       else unbalanced(r, buildMsg(r, cfg.tside));
     };
     o.winText = () => cfg.win || 'Hebat!';
+    o.plan = () => {
+      const its = cur.items === 'ramb' ? S.tray.items().slice(0, cur.answer) : pickSum(S.tray.items(), cur.answer);
+      return [{ say: cfg.think(cur), ms: 3600 }].concat(its.map((it, k) => ({ drag: it, to: pan(tp), bin: pan(tp).bins[0], count: cur.items === 'ramb' ? k + 1 : null })), [{ say: 'Bu Ani mengisi yang lain sama persis.' }, { release: 1 }]);
+    };
     o.solve = async () => {
       tpl().slice().forEach(it => moveItem(it, S.tray));
       const need = cur.answer;
@@ -2002,12 +2070,15 @@
       const wrong = cands.filter(it => !!it.sel !== it.truth);
       if (!wrong.length) { mood('happy'); say(`Semua benar! Kiri lebih berat kalau bebannya kurang dari ${t}.`); finish('Hebat! Kamu menemukan semua beban.'); return; }
       S.tries++; GS.sfx.oops(); mood('oops');
+      if (S.tries === 2) run.offerDemo();
       wrong.forEach(wobbleItem);
       say('Lihat tanda di bawah beban. Pilih lagi, ya.');
       S.busy = false; dockRender();
     };
     o.result = async () => {};
     o.winText = () => 'Hebat! Kamu menemukan semua beban.';
+    o.plan = () => [{ say: `Kiri ${Lv}, karung ${rv}. Bebannya harus kurang dari ${t}.`, ms: 3600 }]
+      .concat(cands.filter(it => it.w < t).sort((p, q) => p.w - q.w).map(it => ({ tap: it })), [{ release: 1 }]);
     o.solve = async () => { cands.forEach(it => { it.sel = it.w < t; drawMark(it); }); await waitLocked(); await release(); };
     return o;
   }
@@ -2022,8 +2093,8 @@
     let kids = [];
     const idx = GS.shuffle([0, 1, 3, 4, 6, 7]);
     o.setup = () => {
-      kids = [spawn([person(idx[0], 1, 112, { fixed: true, home: S.homes[0] })], notch(-1, 3))[0],
-        spawn([person(idx[1], 1, 112, { fixed: true, home: S.homes[1] })], notch(1, 1), { delay: 150 })[0]];
+      kids = [spawn([person(idx[0], 1, 112, { fixed: true, home: S.homes[0] })], notch(-1, DEMO ? 2 : 3))[0],
+        spawn([person(idx[1], 1, 112, { fixed: true, home: S.homes[1] })], notch(1, DEMO ? 3 : 1), { delay: 150 })[0]];
       o.phase = 0;
       say('Sama berat. Sisi mana yang turun?');
     };
@@ -2033,7 +2104,7 @@
         const ok = S.pred === r.dir;
         if (ok) bonus();
         mood(ok ? 'happy' : 'surprise');
-        say((ok ? 'Benar! ' : 'Lihat! ') + 'Kiri turun. Jaraknya lebih jauh.');
+        say((ok ? 'Benar! ' : 'Lihat! ') + (r.dir === 'L' ? 'Kiri' : 'Kanan') + ' turun. Jaraknya lebih jauh.');
         await wait(2600);
         o.phase = 1; o.predictNow = false; S.pred = null;
         kids.forEach(k => setFixed(k, false));
@@ -2043,6 +2114,11 @@
       }
       if (r.balanced) { say('Seimbang! Jaraknya sama.'); finish('Jarak juga penting!'); }
       else unbalanced(r, seesawResultMsg(r));
+    };
+    o.plan = () => {
+      const r = evaluate(), down = r.dir === 'L' ? 'Kiri' : 'Kanan', dl = kids[0].c.d, dr = kids[1].c.d;
+      if (o.phase === 0) return [{ say: `Sama berat. ${down} lebih jauh, jadi ${down.toLowerCase()} turun.`, ms: 3200 }, { pred: r.dir }, { release: 1 }];
+      return [{ say: `Jaraknya harus sama. Geser ke pasak ${dr}.` }, { drag: kids[0], to: notch(-1, dr) }, { release: 1 }].filter(() => dl !== dr);
     };
     o.solve = async () => {
       if (o.phase === 0) { pickPrediction(evaluate().dir); await release(); return; }
@@ -2058,7 +2134,10 @@
     let fixedP, mover;
     const kIdx = rand(0, 1) ? 0 : 7, aIdx = rand(0, 1) ? 3 : 4;
     o.setup = r => {
-      if (r === 0) {
+      if (DEMO) {
+        fixedP = spawn([person(aIdx, 1, 100, { fixed: true })], notch(1, 2))[0];
+        mover = spawn([person(kIdx, 2, 134, { home: S.homes[1] })], S.homes[1], { delay: 200 })[0];
+      } else if (r === 0) {
         fixedP = spawn([person(kIdx, 2, 134, { fixed: true, keep: false })], notch(1, 1))[0];
         mover = spawn([person(aIdx, 1, 100, { home: S.homes[1] })], S.homes[1], { delay: 200 })[0];
         say('Kakak lebih berat. Di mana adik duduk?');
@@ -2076,7 +2155,8 @@
       else unbalanced(r, seesawResultMsg(r));
     };
     o.winText = () => 'Berat kali jarak sama, jadi seimbang!';
-    o.solve = async () => { moveItem(mover, o.round === 0 ? notch(-1, 2) : notch(1, 1)); await waitLocked(); await release(); };
+    o.solve = async () => { moveItem(mover, DEMO ? notch(-1, 1) : o.round === 0 ? notch(-1, 2) : notch(1, 1)); await waitLocked(); await release(); };
+    o.plan = () => [{ say: 'Adik beratnya 1, duduk di jarak 2.' }, { say: 'Kakak beratnya 2. Jadi kakak di jarak 1.' }, { drag: mover, to: notch(-1, 1) }, { release: 1 }];
     return o;
   }
 
@@ -2086,7 +2166,8 @@
     let mover, answer;
     const variant = Math.random() < 0.5;
     o.setup = r => {
-      if (r === 0) {
+      if (DEMO) { spawn([wt(3, { fixed: true, h: 70 })], notch(-1, 2)); mover = spawn([wt(2, { h: 70, home: S.homes[1] })], S.homes[1], { delay: 200 })[0]; answer = notch(1, 3); }
+      else if (r === 0) {
         if (variant) { spawn([wt(3, { fixed: true, h: 70 })], notch(1, 2)); mover = spawn([wt(2, { h: 70, home: S.homes[1] })], S.homes[1], { delay: 200 })[0]; answer = notch(-1, 3); }
         else { spawn([wt(2, { fixed: true, h: 70 })], notch(-1, 3)); mover = spawn([wt(3, { h: 70, home: S.homes[1] })], S.homes[1], { delay: 200 })[0]; answer = notch(1, 2); }
         say('Taruh beban di pasak yang pas.');
@@ -2116,6 +2197,7 @@
     };
     o.winText = () => '2 + 2 + 2 = 3 + 3. Seimbang!';
     o.solve = async () => { moveItem(mover, answer); await waitLocked(); await release(); };
+    o.plan = () => [{ say: '3 kali 2 sama dengan 6.' }, { say: `Beban 2 harus di jarak 3. 2 kali 3 juga 6.`, ms: 3000 }, { drag: mover, to: answer }, { release: 1 }];
     return o;
   }
 
@@ -2164,6 +2246,7 @@
     };
     o.winText = () => 'Yang lebih banyak, lebih berat!';
     o.solve = async () => { o.panTap(a > b ? 0 : 1); await release(); };
+    o.plan = () => [{ say: `Kiri ${a}, kanan ${b}.` }, { say: `${a > b ? 'Kiri' : 'Kanan'} lebih banyak.` }, { tapPan: a > b ? 0 : 1 }, { release: 1 }];
     return o;
   }
 
@@ -2189,6 +2272,7 @@
     };
     o.winText = () => 'Yang lebih berat, turun!';
     o.solve = async () => { pickPrediction(evaluate().dir); await release(); };
+    o.plan = () => [{ say: 'Kakak lebih berat dari adik.' }, { say: 'Aku tebak sisi kakak turun.' }, { pred: evaluate().dir }, { release: 1 }];
     return o;
   }
 
@@ -2219,6 +2303,11 @@
       else unbalanced(r, seesawResultMsg(r));
     };
     o.winText = () => cfg.win || 'Hebat! Pengungkitnya seimbang.';
+    o.plan = () => {
+      const M = cur.fixed.filter(f => f.side < 0).reduce((a, f) => a + f.w * f.d, 0);
+      return [{ say: `Kiri: ${cur.fixed.filter(f => f.side < 0).map(f => f.w + ' kali ' + f.d).join(' tambah ')}, jadi ${M}. Kanan juga harus ${M}.` + cur.fixed.filter(f => f.side > 0).map(f => ` Kanan sudah ada ${f.w} kali ${f.d}.`).join(''), ms: 4200 }]
+        .concat(movers.map((m, i) => ({ drag: m, to: notch(cur.sol[i].side, cur.sol[i].d) })), [{ release: 1 }]);
+    };
     o.solve = async () => {
       movers.forEach(m => { if (m.c && m.c.isNotch) moveItem(m, m.home); });
       movers.forEach((m, i) => moveItem(m, notch(cur.sol[i].side, cur.sol[i].d)));
@@ -2294,18 +2383,22 @@
     // k3 building blocks
     const k3Bags = () => Bags({ rounds: 2, mode: 'build', strip: 'mul', gen: () => ({ g: rand(3, 9), k: rand(3, 5) }), win: 'Hebat! Perkalian kelompok sama.' });
     const k3Div = () => Template({ rounds: 2, tside: 1, gen: r => { const k = r ? 4 : 3, sv = rand(2, r ? 4 : 6), n = k * sv; return { k, target: { kind: 'karung', v: n }, items: 'ramb', stock: 8, answer: sv, say: `Bagi ${n} rambutan ke ${k} keranjang sama berat. Isi keranjang biru.`, ok: x => `${n} dibagi ${k} sama dengan ${x}!` }; },
+      think: c => `${c.target.v} dibagi ${c.k} keranjang. Satu keranjang isi ${c.answer}.`,
       strip: (cur, sv) => [{ t: 'n', v: cur.target.v, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.k, side: 1 }, { t: 'op', v: '×', side: 1 }, { t: sv ? 'n' : 'blank', v: sv, side: 1 }],
       final: (cur, sv) => [{ t: 'n', v: cur.target.v }, { t: 'op', v: '÷' }, { t: 'n', v: cur.k }, { t: 'sign', v: '=' }, { t: 'n', v: sv }], win: 'Hebat! Pembagian sama rata.' });
     const k3Factor = () => Template({ rounds: 2, tside: -1, gen: () => { const k = rand(3, 4), sv = rand(2, 6), n = k * sv; return { k, target: { kind: 'weight', v: n }, items: 'w', stock: [5, 2, 2, 1, 1], answer: sv, say: `${k} keranjang sama berat. Berapa isi satu keranjang?`, ok: x => `${k} kali ${x} sama dengan ${n}!` }; },
+      think: c => `${c.k} kali berapa sama dengan ${c.target.v}? ${c.k} kali ${c.answer}.`,
       strip: (cur, sv) => [{ t: 'n', v: cur.k, side: -1 }, { t: 'op', v: '×', side: -1 }, { t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.target.v, side: 1 }],
       final: (cur, sv) => [{ t: 'n', v: cur.k }, { t: 'op', v: '×' }, { t: 'n', v: sv }, { t: 'sign', v: '=' }, { t: 'n', v: cur.target.v }], win: 'Hebat! Faktor hilangnya ketemu.' });
     const k3Frac = () => Template({ rounds: 2, tside: 1, gen: r => { const k = r ? 4 : 2, N = rand(2, 6) * 4; return { k, target: { kind: 'karung', v: N, label: N + ' kg' }, items: 'w', stock: [10, 5, 2, 2, 1, 1], answer: N / k, say: r ? `Bagi ${N} kilogram jadi empat sama berat.` : `Bagi ${N} kilogram jadi dua sama berat.`, ok: x => `${r ? 'Seperempat' : 'Setengah'} dari ${N} kilogram adalah ${x} kilogram!` }; },
+      think: c => `${c.target.v} kilogram dibagi ${c.k}. Satu bagian ${c.answer} kilogram.`,
       strip: (cur, sv) => { const out = [{ t: 'n', v: cur.target.label, side: -1 }, { t: 'sign' }]; for (let i = 0; i < cur.k; i++) { if (i) out.push({ t: 'op', v: '+', side: 1 }); out.push({ t: sv ? 'n' : 'blank', v: sv, side: 1 }); } return out; },
       final: (cur, sv) => [{ t: 'txt', v: (cur.k === 2 ? '½' : '¼') + ' dari' }, { t: 'n', v: cur.target.label }, { t: 'sign', v: '=' }, { t: 'n', v: sv + ' kg' }], win: 'Hebat! Setengah dan seperempat.' });
     const k3Hundreds = () => Compose({ rounds: 2, buildSide: 1, gen: () => { const n = rand(101, 999); const [h, tn, on] = digitsOf(n, [100, 10, 1]); return { target: { kind: 'karung', v: n }, denoms: [100, 10, 1], stock: [9, 9, 9], say: 'Pakai anak timbangan 100, 10, dan 1.', ok: `${n} sama dengan ${h * 100} tambah ${tn * 10} tambah ${on}!` }; },
       strip: (cur, tot, by) => [{ t: 'n', v: cur.target.v, side: -1 }, { t: 'sign' }].concat(placeTokens([100, 10, 1], by, 1)), win: 'Hebat! Ratusan, puluhan, satuan.' });
     // k4 building blocks
     const k4Mystery = () => Template({ rounds: 2, tside: -1, decor: 'box', gen: () => { const sv = rand(2, 9), c = rand(1, 9), n = 2 * sv + c; return { k: 2, extra: c, target: { kind: 'weight', v: n }, items: 'w', stock: [5, 2, 2, 1, 1], answer: sv, say: 'Dua kotak misteri sama berat. Isi kotak pertama.', ok: x => `Kotak misteri beratnya ${x}!` }; },
+      think: c => `${c.target.v} kurang ${c.extra} sama dengan ${2 * c.answer}. Dibagi dua, ${c.answer}.`,
       strip: (cur, sv) => [{ t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: sv ? 'n' : 'blank', v: sv, side: -1 }, { t: 'op', v: '+', side: -1 }, { t: 'n', v: cur.extra, side: -1 }, { t: 'sign' }, { t: 'n', v: cur.target.v, side: 1 }],
       final: (cur, sv) => [{ t: 'txt', v: 'kotak' }, { t: 'sign', v: '=' }, { t: 'n', v: sv }], win: 'Hebat! Kotak misterinya terpecahkan.' });
     const k4Kg = () => Compose({ rounds: 2, buildSide: 1, unit: ' g', gen: r => { const p = r ? rand(1, 6) * 100 : null; return { target: { kind: 'weight', v: 1000, label: '1 kg' }, given: p, givenLabel: p ? p + ' g' : null, denoms: [500, 200, 100], stock: [1, 3, 3], say: r ? `Karung ${p} gram. Tambah sampai 1 kilogram.` : '1 kilogram. Seimbangkan dengan gram.', ok: '1 kilogram sama dengan seribu gram!' }; },
@@ -2316,54 +2409,125 @@
       strip: (cur, tot, by) => [{ t: 'n', v: fmt(cur.target.v), side: -1 }, { t: 'sign' }].concat(placeTokens([1000, 100, 10, 1], by, 1)), win: 'Hebat! Ribuan tersusun.' });
 
     if (t === 'tk') return [
-      { title: 'Berat atau ringan?', mode: DAC, make: () => L1({ pairs: [['kapas', 0.05, 'batu', 1.2], ['bantal', 0.3, 'baut', 0.15]] }) },
-      { title: 'Berat atau ringan?', mode: DAC, make: () => L1({ pairs: [['balon', 0.01, 'gembok', 0.4], ['kapas', 0.05, 'gembok', 0.4]] }) },
-      { title: 'Sama banyak', mode: DAC, make: () => L2({ a: [2, 3], b: [1, 1], tray: 3, cap: 5, h: 48 }) },
-      { title: 'Sama banyak', mode: DAC, make: () => L2({ a: [4, 5], b: [1, 2], tray: 4, cap: 5, h: 48 }) },
-      { title: 'Lebih banyak', mode: DAC, make: TKMore },
-      { title: 'Jungkat-jungkit', mode: SEE, make: TKSee }
+      { title: 'Berat atau ringan?', key: 'berat', mode: DAC, make: () => L1({ pairs: [['kapas', 0.05, 'batu', 1.2], ['bantal', 0.3, 'baut', 0.15]] }) },
+      { title: 'Berat atau ringan?', key: 'berat', mode: DAC, make: () => L1({ pairs: [['balon', 0.01, 'gembok', 0.4], ['kapas', 0.05, 'gembok', 0.4]] }) },
+      { title: 'Sama banyak', key: 'samaBanyak', mode: DAC, make: () => L2({ a: [2, 3], b: [1, 1], tray: 3, cap: 5, h: 48 }) },
+      { title: 'Sama banyak', key: 'samaBanyak', mode: DAC, make: () => L2({ a: [4, 5], b: [1, 2], tray: 4, cap: 5, h: 48 }) },
+      { title: 'Lebih banyak', key: 'lebihBanyak', mode: DAC, make: TKMore },
+      { title: 'Jungkat-jungkit', key: 'jungkit', mode: SEE, make: TKSee }
     ];
     if (t === 'k2') return [
-      { title: 'Puluhan dan satuan', mode: DAC, make: k2Compose },
-      { title: 'Bilangan hilang', mode: DAC, make: k2Missing },
-      { title: 'Pengurangan', mode: DAC, make: k2Sub },
-      { title: 'Setengah', mode: DAC, make: () => L9({ big: true, n: [6, 20] }) },
-      { title: 'Penjumlahan berulang', mode: DAC, make: k2Bags },
-      { title: 'Sama dengan', mode: DAC, make: () => L7({ big: true }) },
-      { title: 'Jungkat-jungkit', mode: SEE, make: L10 },
-      { title: 'Campuran', mode: DAC, make: () => Mix(pick3([k2Compose, k2Missing, k2Sub, k2Bags]), 'Hebat! Campuran selesai.') }
+      { title: 'Puluhan dan satuan', key: 'puluhan', mode: DAC, make: k2Compose },
+      { title: 'Bilangan hilang', key: 'hilang', mode: DAC, make: k2Missing },
+      { title: 'Pengurangan', key: 'kurang', mode: DAC, make: k2Sub },
+      { title: 'Setengah', key: 'setengah', mode: DAC, make: () => L9({ big: true, n: [6, 20] }) },
+      { title: 'Penjumlahan berulang', key: 'kantong', mode: DAC, make: k2Bags },
+      { title: 'Sama dengan', key: 'samaDengan', mode: DAC, make: () => L7({ big: true }) },
+      { title: 'Jungkat-jungkit', key: 'jarak', mode: SEE, make: L10 },
+      { title: 'Campuran', key: 'campuran', auto: false, mode: DAC, make: () => Mix(pick3([k2Compose, k2Missing, k2Sub, k2Bags]), 'Hebat! Campuran selesai.') }
     ];
     if (t === 'k3') return [
-      { title: 'Perkalian', mode: DAC, make: k3Bags },
-      { title: 'Pembagian', mode: DAC, make: k3Div },
-      { title: 'Faktor hilang', mode: DAC, make: k3Factor },
-      { title: 'Pecahan berat', mode: DAC, make: k3Frac },
-      { title: 'Kakak dan adik', mode: SEE, make: L11 },
-      { title: 'Tenaga putar', mode: SEE, make: L12 },
-      { title: 'Ratusan', mode: DAC, make: k3Hundreds },
-      { title: 'Campuran', mode: DAC, make: () => Mix(pick3([k3Bags, k3Div, k3Factor, k3Hundreds]), 'Hebat! Campuran selesai.') }
+      { title: 'Perkalian', key: 'kali', mode: DAC, make: k3Bags },
+      { title: 'Pembagian', key: 'bagi', mode: DAC, make: k3Div },
+      { title: 'Faktor hilang', key: 'faktor', mode: DAC, make: k3Factor },
+      { title: 'Pecahan berat', key: 'pecahan', mode: DAC, make: k3Frac },
+      { title: 'Kakak dan adik', key: 'kakakAdik', mode: SEE, make: L11 },
+      { title: 'Tenaga putar', key: 'tenagaPutar', mode: SEE, make: L12 },
+      { title: 'Ratusan', key: 'ratusan', mode: DAC, make: k3Hundreds },
+      { title: 'Campuran', key: 'campuran', auto: false, mode: DAC, make: () => Mix(pick3([k3Bags, k3Div, k3Factor, k3Hundreds]), 'Hebat! Campuran selesai.') }
     ];
     if (t === 'k4') return [
-      { title: 'Kotak misteri', mode: DAC, make: k4Mystery },
-      { title: 'Kilogram dan gram', mode: DAC, make: k4Kg },
-      { title: 'Pertidaksamaan', mode: DAC, make: Ineq },
-      { title: 'Banyak beban', mode: SEE, notches: 4, make: () => Lever({ rounds: 2, gen: leverMulti }) },
-      { title: 'Pengungkit', mode: SEE, notches: 4, make: () => Lever({ rounds: 2, gen: leverSlide }) },
-      { title: 'Perkalian dua angka', mode: DAC, make: k4Bags },
-      { title: 'Ribuan', mode: DAC, make: k4Thousands },
-      { title: 'Tantangan', mode: DAC, make: () => Mix(pick3([k4Mystery, k4Kg, k4Bags, k4Thousands]), 'Hebat! Tantangan selesai.') }
+      { title: 'Kotak misteri', key: 'misteri', mode: DAC, make: k4Mystery },
+      { title: 'Kilogram dan gram', key: 'kilogram', mode: DAC, make: k4Kg },
+      { title: 'Pertidaksamaan', key: 'pertidaksamaan', mode: DAC, make: Ineq },
+      { title: 'Banyak beban', key: 'bebanBanyak', mode: SEE, notches: 4, make: () => Lever({ rounds: 2, gen: leverMulti }) },
+      { title: 'Pengungkit', key: 'pengungkit', mode: SEE, notches: 4, make: () => Lever({ rounds: 2, gen: leverSlide }) },
+      { title: 'Perkalian dua angka', key: 'kaliDua', mode: DAC, make: k4Bags },
+      { title: 'Ribuan', key: 'ribuan', mode: DAC, make: k4Thousands },
+      { title: 'Tantangan', key: 'campuran', auto: false, mode: DAC, make: () => Mix(pick3([k4Mystery, k4Kg, k4Bags, k4Thousands]), 'Hebat! Tantangan selesai.') }
     ];
     // k1 (default)
     return [
-      { title: 'Mana lebih berat?', mode: DAC, make: () => L1() },
-      { title: 'Sama banyak', mode: DAC, make: () => L2() },
-      { title: 'Tanda < = >', mode: DAC, make: () => L3({ lo: 5, hi: 20 }) },
-      { title: 'Pasangan 10', mode: DAC, make: () => L4({ ns: [10] }) },
-      { title: 'Penjumlahan', mode: DAC, make: () => L5({ a: [3, 9], b: [3, 9] }) },
-      { title: 'Bilangan hilang', mode: DAC, make: () => L6({ n: [11, 20], m: [5, 10], stock: [5, 5, 2, 2, 1, 1] }) },
-      { title: 'Pengurangan', mode: DAC, make: () => L8({ n: [12, 20], m: [5, 11] }) },
-      { title: 'Sama dengan', mode: DAC, make: () => L7({ max: 18 }) }
+      { title: 'Mana lebih berat?', key: 'berat', mode: DAC, make: () => L1() },
+      { title: 'Sama banyak', key: 'samaBanyak', mode: DAC, make: () => L2() },
+      { title: 'Tanda < = >', key: 'tanda', mode: DAC, make: () => L3({ lo: 5, hi: 20 }) },
+      { title: 'Pasangan 10', key: 'pasangan', mode: DAC, make: () => L4({ ns: [10] }) },
+      { title: 'Penjumlahan', key: 'jumlah', mode: DAC, make: () => L5({ a: [3, 9], b: [3, 9] }) },
+      { title: 'Bilangan hilang', key: 'hilang', mode: DAC, make: () => L6({ n: [11, 20], m: [5, 10], stock: [5, 5, 2, 2, 1, 1] }) },
+      { title: 'Pengurangan', key: 'kurang', mode: DAC, make: () => L8({ n: [12, 20], m: [5, 11] }) },
+      { title: 'Sama dengan', key: 'samaDengan', mode: DAC, make: () => L7({ max: 18 }) }
     ];
+  }
+
+  /* ============================== worked example (Contoh, docs/CONTOH.md) ==============================
+   * Every level type has o.plan(): the moves a child would make, computed from the live state
+   * (drag an item to a pan/notch/tray, tap a prediction, tap a pan or weight, press Lepas!).
+   * The ghost hand plays the plan through the real pointer handlers. Levels with a second phase
+   * (jungkat-jungkit: predict, then move) get a fresh plan once the beam has settled. */
+  function demoSpec(i) {
+    const L = LEVELS[i];
+    return { key: L.key, auto: L.auto !== false, build: () => buildLevel(i, true), script: demoScript };
+  }
+  async function demoUntil(d, fn, ms) {
+    const t0 = performance.now();
+    while (!fn()) { if (performance.now() - t0 > (ms || 20000)) throw new Error('timbangan demo: timeout'); await d.wait(80); }
+  }
+  /** A canvas point where `it` is the topmost thing a finger would touch. */
+  function grabPoint(it) {
+    const h = it.h * (it.sx || 1), w = it.fw || 40;
+    const offs = [[0, -0.5], [0, -0.3], [0, -0.7], [-0.3, -0.5], [0.3, -0.5], [0, -0.1]];
+    for (const [fx, fy] of offs) {
+      const p = toSvg(it.g, fx * w, fy * h), c = clientOf(p.x, p.y);
+      const top = document.elementsFromPoint(c.x, c.y).find(e => !e.closest('.gs-demo'));
+      const g = top && top.closest && top.closest('g.item'), o = g && S.items.find(x => x.g === g);
+      // the same thing (or an identical one from the same pile) is under the finger
+      if (o && (o === it || (o.c === it.c && o.kind === it.kind && o.w === it.w && !o.fixed && !it.fixed))) return p;
+    }
+    return toSvg(it.g, 0, -h / 2);
+  }
+  /** Pointer point that drops a dragged item into bin `bin` of container `c` (see dragEnd/findTarget). */
+  function dropPoint(c, bin) {
+    // wide pile rows can run past the pan's drop zone; piles only take their own weight anyway
+    const x = (bin.x0 + bin.x1) / 2, p = toSvg(c.g, c.isPan ? clamp(x, -120, 120) : x, bin.y - 50);
+    return { x: p.x, y: p.y + 40 };
+  }
+  const idle = () => !S.busy && !S.relocking;
+  async function demoAct(d, a) {
+    if (a.say) return d.say(a.say, a.ms);
+    if (a.drag) {
+      // the hand may have picked up an identical item from the same pile: take one still there
+      let it = a.drag;
+      if (a.from && it.c !== a.from) it = a.from.items().find(x => x.kind === it.kind && x.w === it.w && !x.fixed) || it;
+      const c = a.to, bin = a.bin || c.bins.find(b => binFits(b, it)) || c.bins[0];
+      await demoUntil(d, idle);
+      await d.drag(() => grabPoint(it), () => dropPoint(c, bin), 800);
+      if (a.count) await d.say(String(a.count), 500);
+      return;
+    }
+    if (a.tap) { await demoUntil(d, idle); return d.tap(() => grabPoint(a.tap)); }
+    if (a.tapPan != null) return d.tap(() => toSvg(S.pans[a.tapPan].body, 0, -30));
+    if (a.pred) {
+      await demoUntil(d, () => dock.querySelectorAll('.tp-pred').length === 3);
+      await d.tap(() => dock.querySelectorAll('.tp-pred')[{ L: 0, B: 1, R: 2 }[a.pred]]);
+      return d.wait(900);
+    }
+    if (a.release) {
+      await demoUntil(d, () => { const b = dock.querySelector('.gs-action'); return S.locked && idle() && b && !b.disabled; });
+      await d.wait(500);
+      await d.tap(() => dock.querySelector('.gs-action'));
+      await demoUntil(d, () => S.over || idle(), 40000);
+    }
+  }
+  async function demoScript(d) {
+    await d.wait(1300);                      // let the items drop in
+    for (let step = 0; step < 3 && !S.over; step++) {
+      await demoUntil(d, idle, 30000);
+      if (S.over) break;
+      const plan = lv.plan();
+      plan.forEach(a => { if (a.drag) a.from = a.drag.c; });
+      for (const a of plan) await demoAct(d, a);
+    }
+    await d.success(20000);
   }
 
   /* ============================== debug hook ============================== */
