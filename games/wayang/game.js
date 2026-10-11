@@ -511,7 +511,9 @@
   }
   function drawTargetLabels() {
     const lab = RD.label || (RD.targets || []).map(t => t.label).filter(Boolean)[0];
-    if (lab) GS.markup(kelirUI, `<g class="wy-tlabel">${pill(PCX, 26, lab, 44, { cls: lab.match(/\d/) ? '' : 't-body' })}</g>`);
+    // during an example the "Contoh" pill sits top-right on phones: move the label to the kelir's left edge
+    const lw = Math.max(44 * 1.6, String(lab).length * 44 * .56 + 44 * .9);
+    if (lab) GS.markup(kelirUI, `<g class="wy-tlabel">${pill(DEMO ? KX0 + 6 + lw / 2 : PCX, 26, lab, 44, { cls: lab.match(/\d/) ? '' : 't-body' })}</g>`);
   }
   function render() {
     if (!RD) return;
@@ -583,6 +585,7 @@
   /* ================= state ================= */
   let LV = null, RI = 0, RD = null, LAMPS = [], PUPS = [], TGTS = [], light = true, helpRays = false;
   let tries = 0, rTries = 0, busy = false, tok = 0;
+  let DEMO = false;   // building/playing the worked example ("Contoh"): other numbers, one round only
   let MK = null, TRAYS = [], BOARDS = [], MIRRORS = [], BLOCKS = [], TB = null, TREE = null, STEP = null;
   const canInput = () => !!RD && !busy;
 
@@ -660,6 +663,7 @@
   function fail(sayText, keepBusy) {
     tries++; rTries++;
     if (rTries >= 2) helpRays = true;
+    if (tries === 2) run.offerDemo();
     GS.sfx.oops(); hud.mood('oops');
     GS.say(sayText);
     GS.fx(shadowG, 'wy-shake', 450);
@@ -676,7 +680,7 @@
     confettiAt(PCX, 260);
     await wait(1600);
     if (my !== tok) return;
-    if (RI + 1 < LV.rounds.length) startRound(RI + 1);
+    if (!DEMO && RI + 1 < LV.rounds.length) startRound(RI + 1);
     else run.win(tries === 0 ? 3 : tries <= 2 ? 2 : 1, LV.win || 'Pertunjukan wayangmu hebat!');
   }
 
@@ -859,6 +863,9 @@
     }
     MK.ghost = el('g', {}, MK.g);
     MK.tab = el('g', { class: 'wy-tab' }, MK.g);
+    // art is redrawn on every move; the hit rect stays the same element (the pressed one keeps its events)
+    MK.art = el('g', {}, MK.tab);
+    MK.hit = el('rect', { width: RD.variant === 'lift' ? 108 : 120, height: 116, rx: 18, fill: 'transparent' }, MK.tab);
     GS.drag(MK.tab, {
       svg,
       onStart(p) { if (!canInput()) return false; MK.dy = MK.y - p.y; GS.sfx.pick(); clearHints(); kelirUI.querySelectorAll('.wy-meas').forEach(n => n.remove()); if (RD.variant === 'height' && light) { light = false; } return true; },
@@ -881,15 +888,15 @@
     const P = PUPS[0];
     if (RD.variant === 'lift') {
       MK.ghost.innerHTML = `<g transform="translate(${n1(PCX)} ${n1(MK.y)}) rotate(${P.rot}) scale(${n1(MK.sc * 1000) / 1000})"><use href="#wy-ol-${P.shape}" fill="#F2A900" fill-opacity=".16" stroke="#E07B00" stroke-width="5" stroke-dasharray="12 9" vector-effect="non-scaling-stroke"/></g>`;
-      MK.tab.innerHTML = line(`M${SX - 6} ${n1(MK.y)}H${KX0 + 30}`, 4, '#E07B00') + Rc(782, MK.y - 52, 96, 104, 18, solid('#FFE08A', 3)) +
-        Pa(`M830 ${n1(MK.y - 42)}l-14 16h28Z`, fill(OUT)) + Pa(`M830 ${n1(MK.y + 42)}l-14 -16h28Z`, fill(OUT)) + txt(830, MK.y + 11, 'tebak', 32, { cls: 't-body', w: 700 }) +
-        Rc(776, MK.y - 58, 108, 116, 18, fill('transparent'));
+      MK.art.innerHTML = line(`M${SX - 6} ${n1(MK.y)}H${KX0 + 30}`, 4, '#E07B00') + Rc(782, MK.y - 52, 96, 104, 18, solid('#FFE08A', 3)) +
+        Pa(`M830 ${n1(MK.y - 42)}l-14 16h28Z`, fill(OUT)) + Pa(`M830 ${n1(MK.y + 42)}l-14 -16h28Z`, fill(OUT)) + txt(830, MK.y + 11, 'tebak', 32, { cls: 't-body', w: 700 });
+      MK.hit.setAttribute('x', 776); MK.hit.setAttribute('y', n1(MK.y - 58));
     } else {
       MK.ghost.innerHTML = line(`M${KX0 + 8} ${n1(MK.y)}H${KX1 - 50}`, 5, '#E07B00') + line(`M${KX0 + 8} ${n1(MK.y)}H${KX1 - 50}`, 2, '#FFE08A');
-      MK.tab.innerHTML = line(`M${SX - 6} ${n1(MK.y)}H${KX0 + 20}`, 4, '#E07B00') + Rc(768, MK.y - 54, 112, 108, 18, solid('#FFE08A', 3)) +
+      MK.art.innerHTML = line(`M${SX - 6} ${n1(MK.y)}H${KX0 + 20}`, 4, '#E07B00') + Rc(768, MK.y - 54, 112, 108, 18, solid('#FFE08A', 3)) +
         txt(824, MK.y + 4, String(MK.cm), 44, { w: 600 }) + txt(824, MK.y + 40, 'cm', 32, { cls: 't-body', w: 700 }) +
-        Pa(`M824 ${n1(MK.y - 64)}l-12 10h24Z`, fill('#FFE08A')) + Pa(`M824 ${n1(MK.y + 64)}l-12 -10h24Z`, fill('#FFE08A')) +
-        Rc(764, MK.y - 58, 120, 116, 18, fill('transparent'));
+        Pa(`M824 ${n1(MK.y - 64)}l-12 10h24Z`, fill('#FFE08A')) + Pa(`M824 ${n1(MK.y + 64)}l-12 -10h24Z`, fill('#FFE08A'));
+      MK.hit.setAttribute('x', 764); MK.hit.setAttribute('y', n1(MK.y - 58));
     }
   }
   async function goMarker() {
@@ -988,7 +995,7 @@
       await tw(420, e => { P.x = from.x + (TEST.x - from.x) * e; P.y = from.y + (TEST.y - from.y) * e; render(); }, 'inOutCubic');
       if (my !== tok) return;
       GS.say(cap(MAT[P.mat].name) + ': ' + (MAT[P.mat].kind === 'bening' ? 'hampir tidak berbayang.' : MAT[P.mat].kind === 'samar' ? 'bayangannya samar.' : 'bayangannya pekat.'));
-      await wait(1000);
+      await wait(DEMO ? 500 : 1000);   // the example already tested each one
       if (my !== tok) return;
       const good = MAT[P.mat].kind === T.kind;
       if (good) {
@@ -1255,12 +1262,12 @@
   }
   function startPredictRow() {
     const used = TB.rows.map(r => r.d).concat(TB.d ? [TB.d] : []);
-    TB.d = pick([1.2, .8, 2.4, 1.25].filter(d => !used.some(u => Math.abs(u - d) < .01)));
+    TB.d = DEMO ? 2.4 : pick([1.2, .8, 2.4, 1.25].filter(d => !used.some(u => Math.abs(u - d) < .01)));
     TB.phase = 'predict'; TB.guess = RD.H;
     const P = PUPS[0], L = LAMPS[0];
     P.locked = true; P.x = L.x + TB.d * UM; light = false;
     kelirUI.querySelectorAll('.wy-meas').forEach(n => n.remove());
-    GS.say('Wayang di ' + dec(TB.d) + ' m. Tebak tinggi bayangannya!');
+    if (!DEMO) GS.say('Wayang di ' + dec(TB.d) + ' m. Tebak tinggi bayangannya!');
     setDock(); render();
   }
 
@@ -1294,6 +1301,8 @@
     // two tape measures: drag the yellow case to the tip of each shadow (0.5 m grid)
     [[T.sx, 'tongkat'], [T.tx, 'pohon']].forEach(([x0, who], i) => {
       const tp = { x0, x: x0 + 40 + i * 20, who, g: el('g', {}, outG), case: el('g', {}, outG) };
+      tp.art = el('g', {}, tp.case);
+      tp.hit = el('rect', { width: 112, height: 112, rx: 12, fill: 'transparent' }, tp.case);   // stable hit element
       tp.case.style.cursor = 'grab';
       GS.drag(tp.case, {
         svg,
@@ -1314,7 +1323,8 @@
     T.tapes.forEach((tp, i) => {
       const len = (tp.x - tp.x0) / TU, y = GY + 34 + i * 4;
       tp.g.innerHTML = Rc(tp.x0, y - 7, tp.x - tp.x0, 14, 3, solid('#FFE08A', 2.4)) + Array.from({ length: Math.floor(len * 2) + 1 }, (_, j) => line(`M${n1(tp.x0 + j * TU / 2)} ${y - 7}v${j % 2 ? 7 : 12}`, 2)).join('');
-      tp.case.innerHTML = Rc(tp.x - 28, y - 28, 56, 56, 12, solid('#F2A900', 3)) + Ci(tp.x - 4, y, 10, solid('#FFF3DC', 2.4)) + Pa(`M${n1(tp.x + 12)} ${y - 10}l12 10l-12 10Z`, fill(OUT)) + Rc(tp.x - 56, y - 56, 112, 112, 12, fill('transparent'));
+      tp.art.innerHTML = Rc(tp.x - 28, y - 28, 56, 56, 12, solid('#F2A900', 3)) + Ci(tp.x - 4, y, 10, solid('#FFF3DC', 2.4)) + Pa(`M${n1(tp.x + 12)} ${y - 10}l12 10l-12 10Z`, fill(OUT));
+      tp.hit.setAttribute('x', n1(tp.x - 56)); tp.hit.setAttribute('y', y - 56);
       tp.len = Math.round(len * 2) / 2;
     });
     const a = T.tapes[0].len, b = T.tapes[1].len;
@@ -1326,6 +1336,7 @@
     c += txt(X + cw[0] + cw[1] / 2, 108, dec(T.hs) + ' m', 40, { w: 600 }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 108, dec(a) + ' m', 40, { w: 600 });
     c += Rc(X + cw[0] + 10, 130, cw[1] - 20, 44, 10, fill('#FFE08A')) + txt(X + cw[0] + cw[1] / 2, 165, dec(STEP.v) + ' m', 40, { w: 600, fill: '#215F98' }) + txt(X + cw[0] + cw[1] + cw[2] / 2, 166, dec(b) + ' m', 40, { w: 600 });
     T.card.innerHTML = c;
+    if (DEMO) T.card.setAttribute('transform', 'translate(-40 130)');   // clear of the "Contoh" pill
   }
   async function checkTree() {
     if (!canInput()) return;
@@ -1372,7 +1383,8 @@
     helpRays = true; render();
     await wait(2600);
     if (my !== tok) return;
-    startRound(RI + 1);
+    if (DEMO) run.win(3, '');
+    else startRound(RI + 1);
   }
 
   /* ================= dock ================= */
@@ -1444,7 +1456,8 @@
   /** Size only: the wayang slides along the lamp axis. */
   function fSize(o) {
     return () => {
-      const L = lamp0(o.lamp), shape = o.shape || pick(o.shapes || SHAPES_TALL), k = o.k || .7;
+      // fixed ratio (2x, 3x): the example uses another lamp spot, so its answer is not the child's
+      const L = lamp0(DEMO && o.m[0] === o.m[1] ? { x: ((o.lamp && o.lamp.x) || 320) + 50 } : o.lamp), shape = o.shape || pick(o.shapes || SHAPES_TALL), k = o.k || .7;
       const m = mFit(shape, k, L, L.y, 0, o.m[0], o.m[1]), m0 = o.m0 ? mFit(shape, k, L, L.y, 0, o.m0[0], o.m0[1]) : mFar(m, shape, k, L, L.y, 0);
       return {
         kind: 'match', say: o.say, dark: o.dark, label: o.label, steps: o.steps, rays: o.rays, tolS: o.tolS, winSay: o.winSay, lamps: [L],
@@ -1502,8 +1515,8 @@
   /** Pick the right wayang from the rack: by shape (TK) or by material (k1). */
   function fChoose(o) {
     return () => {
-      const L = lamp0(), k = o.k || .66;
-      const set = shuffle(o.mats ? o.mats.map(mt => ({ shape: o.shape || pick(['kucing', 'gunungan', 'burung']), mat: mt })) : (o.shapes || ['kucing', 'burung', 'pohon']).map(s => ({ shape: s, mat: 'kulit' })));
+      const L = lamp0(), k = o.k || .66, mats = DEMO && o.mats ? ['kayu', 'minyak', 'kaca'] : o.mats;
+      const set = shuffle(mats ? mats.map(mt => ({ shape: o.shape || pick(['kucing', 'gunungan', 'burung']), mat: mt })) : (o.shapes || ['kucing', 'burung', 'pohon']).map(s => ({ shape: s, mat: 'kulit' })));
       if (o.mats) set.forEach(it => { it.shape = set[0].shape; });
       const want = o.mats ? set.findIndex(it => MAT[it.mat].a > .6) : Math.floor(Math.random() * set.length);
       const m = mFit(set[want].shape, k, L, L.y, 0, o.m[0], o.m[1]);
@@ -1562,7 +1575,7 @@
     return () => {
       const L = lamp0(), shape = pick(['kucing', 'burung', 'gunungan']), k = .55, m = 2;
       const y0 = L.y - dir * 30;
-      return { kind: 'marker', variant: 'lift', dy: dir * 80, say: dir < 0 ? 'Wayang akan diangkat. Bayangannya ke mana? Geser tebakanmu!' : 'Wayang akan diturunkan. Tebak, bayangannya ke mana?', lamps: [L], pups: [{ shape, k, x: xFor(L, m), y: y0 }] };
+      return { kind: 'marker', variant: 'lift', dy: dir * (DEMO ? 60 : 80), say: dir < 0 ? 'Wayang akan diangkat. Bayangannya ke mana? Geser tebakanmu!' : 'Wayang akan diturunkan. Tebak, bayangannya ke mana?', lamps: [L], pups: [{ shape, k, x: xFor(L, m), y: y0 }] };
     };
   }
   const numPup = (H, d, o) => { const k = H * 2.2 / 200; return Object.assign({ shape: 'ksatria', k, x: 220 + d * UM, y: FOOT - 100 * k }, o || {}); };
@@ -1585,6 +1598,8 @@
   }
   function fSort(real) {
     return () => {
+      if (DEMO) return { kind: 'sort', say: '', lamps: [lamp0({ x: 400, y: 330 })],   // the example sorts other materials
+        items: (real ? [['kaca', 'plastik'], ['kain', 'kain'], ['papan', 'karton']] : [['gunungan', 'kaca'], ['kucing', 'kain'], ['burung', 'karton']]).map(([shape, mat]) => ({ shape, mat, k: real ? .58 : .55 })) };
       const items = real ? shuffle([['kaca', 'kaca'], ['kertas', 'minyak'], ['kain', 'kain'], ['papan', 'kayu'], ['daun', 'daun']]).map(([shape, mat]) => ({ shape, mat, k: .58 }))
         : (() => { const sh = shuffle(['kucing', 'burung', 'gunungan']); return shuffle(['plastik', 'minyak', 'kulit']).map((mat, i) => ({ shape: sh[i], mat, k: .55 })); })();
       return { kind: 'sort', say: real ? 'Uji tiap bahan di depan lampu, lalu taruh di keranjangnya.' : 'Uji di depan lampu. Bening, samar, atau pekat?', lamps: [lamp0({ x: 400, y: 330 })], items };
@@ -1602,19 +1617,20 @@
   function fMirror(variant) {
     return () => {
       let lamp, mirrors, blocks, target;
+      const dz = DEMO ? 1 : 0;   // the example uses shifted mirrors, so its angles are not the child's
       if (variant === 2) {
-        lamp = { x: 200, y: 170 }; target = { x: 790, y: Math.round(rr(440, 520)) };
-        const M1 = { x: 420, y: 610 }, M2 = { x: 640, y: 150 };
+        lamp = { x: 200, y: 170 + 40 * dz }; target = { x: 790, y: Math.round(rr(440, 520)) };
+        const M1 = { x: 420 - 20 * dz, y: 610 }, M2 = { x: 640 + 20 * dz, y: 150 };
         mirrors = [Object.assign(M1, { sol: mirrorFor(M1, lamp, M2) }), Object.assign(M2, { sol: mirrorFor(M2, M1, target) })];
         blocks = [{ kind: 'sketsel', x: 560, y: 340, w: 40, h: 308 }];
       } else if (variant === 'top') {
         lamp = { x: 230, y: 430 }; target = { x: 770, y: Math.round(rr(400, 470)) };
-        const M = { x: 500, y: 160 };
+        const M = { x: 500 + 30 * dz, y: 160 };
         mirrors = [Object.assign(M, { sol: mirrorFor(M, lamp, target) })];
         blocks = [{ kind: 'sketsel', x: 590, y: 330, w: 46, h: 318 }];
       } else {
-        lamp = { x: 230, y: 200 }; target = { x: 770, y: Math.round(rr(285, 360)) };
-        const M = { x: 470, y: 600 };
+        lamp = { x: 230 + 20 * dz, y: 200 - 10 * dz }; target = { x: 770, y: Math.round(rr(285, 360)) };
+        const M = { x: 470 - 30 * dz, y: 600 };
         mirrors = [Object.assign(M, { sol: mirrorFor(M, lamp, target) })];
         blocks = [{ kind: 'tirai', x: 590, y: 50, w: 50, h: 330 }];
       }
@@ -1629,7 +1645,7 @@
   }
   function fTable() {
     return () => {
-      const H = 40, marks = [.75, 1, 1.5, 2, 2.5];
+      const H = DEMO ? 60 : 40, marks = [.75, 1, 1.5, 2, 2.5];
       return {
         kind: 'table', numeric: true, H, marks, snapM: .25, rays: .35, say: 'Taruh wayang di tanda, lalu catat bayangannya. Tiga kali!',
         lamps: [lampN()], pups: [numPup(H, 2, { drag: 'x' })], targets: []
@@ -1638,7 +1654,8 @@
   }
   function fTree() {
     return () => {
-      const stick = pick([1, 2]), ratio = stick === 2 ? 1.5 : 2, tree = ratio === 1.5 ? pick([4, 5, 6]) : pick([4, 5]);
+      let stick, ratio, tree;
+      do { stick = pick([1, 2]); ratio = stick === 2 ? 1.5 : 2; tree = ratio === 1.5 ? pick([4, 5, 6]) : pick([4, 5]); } while (DEMO && tree > 5);
       return { kind: 'tree', stick, ratio, tree, say: 'Ukur bayangan dengan meteran. Berapa tinggi pohonnya?' };
     };
   }
@@ -1705,29 +1722,243 @@
 
   /* ================= flow ================= */
   const hud = GS.hud({ gameId: GAME, title: 'Wayang Bayangan', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i) });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: demoSpec });
   // Speech only: units and degrees read as words (the captions keep the symbols).
   if (GS.speakable && !GS.speakable.__wy) {
     const base = GS.speakable;
     GS.speakable = t => base(String(t).replace(/(\d)\s*cm\b/g, '$1 sentimeter').replace(/(\d)\s*m\b/g, '$1 meter').replace(/(\d)°/g, '$1 derajat'));
     GS.speakable.__wy = true;
   }
-  function buildLevel(i) {
-    tok++;
-    document.querySelectorAll('.gs-overlay.gs-win').forEach(o => o.remove());
-    LV = LEVELS[i]();
-    tries = 0;
-    startRound(0);
+  /** What makes a round's task (answers, not starting spots): the example and the child's task must differ. */
+  const sigOf = rd => rd.choose ? 'choose:' + rd.targets[0].shape + rd.pups.map(p => p.mat).join() : JSON.stringify(rd, function (k, v) {
+    if (this && (this.sol !== undefined || this.need != null) && (k === 'x' || k === 'y' || k === 'a' || k === 'h')) return undefined;
+    if (k === 'say' || k === 'winSay') return undefined;
+    return typeof v === 'number' ? Math.round(v / 6) : v;
+  });
+  let demoSig = '', kidSig = '';
+  function demoTweak(rd) {
+    // TK level 1: the example brings the tree wayang (the child gets the cat)
+    if (DEMO && rd.auto === 'place' && rd.rack) {
+      const rp = rackPos(0, 'pohon', .7);
+      Object.assign(rd.pups[0], { shape: 'pohon', x: rp.x, y: rp.y, sol: { x: 620, y: LY0 } });
+      rd.winSay = 'Muncul bayangan pohon!';
+    }
+    return rd;
   }
-  function startRound(ri) {
+  function buildLevel(i, demo) {
+    tok++;
+    DEMO = !!demo;
+    document.querySelectorAll('.gs-overlay.gs-win').forEach(o => o.remove());
+    const avoid = DEMO ? kidSig : demoSig;
+    let rd;
+    for (let n = 0; n < 16; n++) { LV = LEVELS[i](); rd = demoTweak(LV.rounds[0]()); if (sigOf(rd) !== avoid) break; }
+    if (DEMO) demoSig = sigOf(rd); else kidSig = sigOf(rd);
+    tries = 0;
+    startRound(0, false, rd);
+  }
+  function startRound(ri, retry, rd) {
     tok++;
     RI = ri; rTries = 0; busy = false;
     clearStage();
-    RD = LV.rounds[ri]();
+    RD = rd || LV.rounds[ri]();
     ({ match: setupMatch, marker: setupMarker, sort: setupSort, holes: setupHoles, mirror: setupMirror, table: setupTable, tree: setupTree, ask: setupAsk })[RD.kind]();
     render(); setDock();
     hud.mood('think');
-    GS.say(RD.say);
+    if (!DEMO) GS.say(RD.say);
+  }
+
+  /* ================= worked examples (GS.demo, SOP docs/CONTOH.md) =================
+   * Si Cil plays the first round of the level with other numbers, through the real handles:
+   * it drags the wayang / lamp / boards / tape cases, turns the knob and mirrors along an arc,
+   * moves the guess marker BEFORE the light comes on, then presses the dock button. The true
+   * projection decides; the script only aims at the answer computed from the same geometry. */
+  const DK = {
+    tk: [['muncul', 1], ['besar', 1], ['kecil', 1], ['pilih', 1], ['lampu', 1], ['pas', 1]],
+    k1: [['ukuran', 1], ['naikturun', 1], ['jauhtinggi', 1], ['bahan', 1], ['dua', 1], ['putar', 1], ['campuran', 0], ['tantangan', 0]],
+    k2: [['duakali', 1], ['tigakali', 1], ['lampu', 1], ['sortir', 1], ['angkat', 1], ['dualampu', 1], ['campuran', 0], ['tantangan', 0]],
+    k3: [['lubang', 1], ['tinggi', 1], ['tajam', 1], ['bahannyata', 1], ['warna', 1], ['ukurgelap', 1], ['campuran', 0], ['tantangan', 0]],
+    k4: [['tabel', 1], ['ukurgelap', 1], ['cermin', 1], ['duacermin', 1], ['dekat', 1], ['pohon', 1], ['campuran', 0], ['tantangan', 0]]
+  };
+  function demoSpec(i) {
+    const k = (DK[TIER] || DK.k1)[i] || ['L' + (i + 1), 0];
+    return { key: k[0], auto: !!k[1], build: () => buildLevel(i, true), script: demoScript };
+  }
+  const TKD = TIER === 'tk';
+  const ACT = '#dock .gs-action';
+  const grabPt = P => ({ x: P.x, y: P.y + P.k * 55 });   // lower body: clear of the knob rod
+  async function dragPupTo(d, P, x, y, t) {
+    if (Math.abs(x - P.x) < 2 && Math.abs(y - P.y) < 2) return;
+    const g = grabPt(P);
+    await d.drag(g, { x: g.x + x - P.x, y: g.y + y - P.y }, t || 1300);
+  }
+  async function turnKnob(d, P, rot) {
+    if (P.rot === rot) return;
+    const R = P.k * -SH[P.shape].bb.y0 + 52, r0 = P.rot, pts = [];
+    for (let j = 0; j <= 10; j++) { const a = (r0 + (rot - r0) * j / 10) * RAD; pts.push({ x: P.x + Math.sin(a) * R, y: P.y - Math.cos(a) * R }); }
+    await d.path(pts, 1500);
+  }
+  async function demoScript(d) {
+    await d.wait(600);
+    const k = RD.kind;
+    if (k === 'match') await demoMatch(d);
+    else if (k === 'marker') await demoMarker(d);
+    else if (k === 'sort') await demoSort(d);
+    else if (k === 'holes') await demoHoles(d);
+    else if (k === 'mirror') await demoMirror(d);
+    else if (k === 'table') await demoTable(d);
+    else if (k === 'tree') await demoTree(d);
+    else if (k === 'ask') await demoAsk(d);
+    await d.success(60000);
+  }
+  function matchLines() {
+    const pi = RD.pups.findIndex(p => p.sol), P = PUPS[pi], S = RD.pups[pi].sol, t = TGTS[0], L = LAMPS[0];
+    const pr = proj(L, P), lab = t ? SH[t.shape].label : '';
+    if (RD.auto) return ['Wayang di depan lampu.', 'Lihat, ada bayangannya!'];
+    if (RD.lampChoice) return ['Lampu besar membuat tepi bayangan kabur.', 'Pilih lampu kecil, lalu atur jaraknya.'];
+    if (RD.choose && RD.label === 'pekat') return ['Bayangan harus pekat.', cap(MAT[P.mat].name) + ' tidak tembus cahaya. Pakai ini.'];
+    if (RD.choose) return ['Garisnya bentuk ' + lab + '.', 'Ambil wayang ' + lab + '.'];
+    if (RD.numeric) {
+      const T = Math.round(t.sc / P.k * RD.H), m = T / RD.H;
+      return ['Bayangan ' + T + ' cm, wayang ' + RD.H + ' cm. ' + T + ' ÷ ' + RD.H + ' = ' + dec(m) + '.', 'Jaraknya 3 m ÷ ' + dec(m) + ' = ' + dec(3 / m) + ' m.'];
+    }
+    if (LAMPS.some(q => q.drag)) {
+      const up = t.cy < pr.cy;
+      return TKD ? [up ? 'Bayangan harus naik.' : 'Bayangan harus turun.', up ? 'Lampu turun, bayangan naik.' : 'Lampu naik, bayangan turun.']
+        : [up ? 'Bayangannya harus naik.' : 'Bayangannya harus turun.', up ? 'Lampu turun, bayangan naik. Turunkan lampunya.' : 'Lampu naik, bayangan turun. Naikkan lampunya.'];
+    }
+    if (LAMPS.some(q => q.col)) {
+      const blue = t.colFill === '#4A8DE0';
+      return [blue ? 'Bayangan biru dibuat lampu jingga.' : 'Bayangan jingga dibuat lampu biru.', 'Cahaya lampu lain mewarnai bayangannya.'];
+    }
+    if (LAMPS.length > 1) return ['Dua lampu, dua bayangan.', 'Geser wayang sampai keduanya pas.'];
+    if (TGTS.length > 1) return ['Dua wayang, dua garis.', 'Atur satu per satu.'];
+    if (RD.dark && RD.label) {
+      const m = Math.round(t.m);
+      if (RD.steps) return [(m === 2 ? 'Dua' : 'Tiga') + ' kali tinggi wayang. Ada enam langkah.', (m === 2 ? 'Tiga' : 'Dua') + ' langkah dari lampu. Taruh di sini.'];
+      return [(m === 2 ? 'Dua' : 'Tiga') + ' kali tinggi wayang.', m === 2 ? 'Di tengah antara lampu dan kelir.' : 'Di sepertiga jalan dari lampu.'];
+    }
+    const lines = [];
+    if (P.drag !== 'y' && P.drag && Math.abs(S.x - P.x) > 2) {
+      const big = pr ? pr.sc > t.sc : (S.x - L.x) > (P.x - L.x);
+      if (!pr) lines.push(TKD ? 'Bawa ke depan lampu.' : 'Bawa wayang ke depan lampu.');
+      else lines.push(TKD ? (big ? 'Jauh dari lampu, bayangan kecil.' : 'Dekat lampu, bayangan besar.') : (big ? 'Kebesaran. Jauhkan dari lampu.' : 'Kekecilan. Dekatkan ke lampu.'));
+    }
+    if (P.drag === 'y' || P.drag === 'xy' || P.drag === 'free') if (Math.abs(S.y - P.y) > 2 && P.drag === 'y') lines.push(S.y < P.y ? 'Garisnya lebih tinggi. Naikkan wayangnya.' : 'Garisnya lebih rendah. Turunkan wayangnya.');
+    if ((P.drag === 'xy' || P.drag === 'free') && !TKD) lines.push('Naik turun juga, sampai pas garis.');
+    if (TKD && P.drag === 'free' && pr === null) lines.push('Atur sampai pas garis.');
+    if (P.rotate && (S.rot || 0) !== P.rot) lines.push('Garisnya miring. Putar tombol kuning.');
+    return lines.length ? lines : ['Cocokkan bayangan dengan garis.'];
+  }
+  async function demoMatch(d) {
+    const lines = matchLines();
+    await d.say(lines[0]);
+    if (RD.lampChoice && LAMPS[0].art !== 'kecil') await d.tap(() => uiG.querySelector('[data-hit="lampu-kecil"]'));
+    let li = 1;
+    const next = async () => { if (lines[li]) await d.say(lines[li++]); };
+    for (let i = 0; i < LAMPS.length; i++) {
+      const s = RD.lamps[i].sol, L = LAMPS[i];
+      if (L.drag && s && s.y != null && Math.abs(s.y - L.y) > 2) {
+        await next();
+        const g = { x: L.x - 40, y: L.y + 52 };
+        await d.drag(g, { x: g.x, y: g.y + s.y - L.y }, 1400);
+      }
+    }
+    for (let i = 0; i < PUPS.length; i++) {
+      const s = RD.pups[i].sol, P = PUPS[i];
+      if (!s) continue;
+      if (P.drag) {
+        if (TGTS.length > 1 || li < 2) await next();
+        await dragPupTo(d, P, P.drag === 'y' ? P.x : s.x, P.drag === 'x' ? P.y : s.y);
+      }
+      if (P.rotate && (s.rot || 0) !== P.rot) { await next(); await turnKnob(d, P, s.rot || 0); }
+    }
+    while (lines[li]) await next();
+    if (RD.auto) return;
+    await d.say(RD.dark ? (TKD ? 'Nyalakan lampunya!' : 'Sudah. Sekarang nyalakan lampunya!') : (TKD ? 'Pas! Tekan Cek.' : 'Bayangannya pas di garis. Cek!'), 1600);
+    await d.tap(ACT);
+  }
+  async function demoMarker(d) {
+    const P = PUPS[0], L = LAMPS[0], m = (SX - L.x) / (P.x - L.x);
+    if (RD.variant === 'lift') {
+      const ty = cyOf(L, P.y + RD.dy, m), up = RD.dy < 0;
+      await d.say(up ? 'Wayang akan naik. Bayangannya ikut naik.' : 'Wayang akan turun. Bayangannya ikut turun.');
+      await d.say('Kelir dua kali lebih jauh, jadi geraknya dua kali.');
+      await d.drag({ x: 830, y: MK.y }, { x: 830, y: ty }, 1300);
+      await d.say('Itu tebakanku. Sekarang lihat!', 1600);
+      await d.tap(ACT);
+      return;
+    }
+    const hs = Math.round(RD.H * m), dd = (P.x - L.x) / UM;
+    await d.say('Wayang ' + RD.H + ' cm, jaraknya ' + dec(dd) + ' m. Kelirnya 3 m.');
+    await d.say('3 ÷ ' + dec(dd) + ' = ' + dec(m) + '. Bayangan ' + RD.H + ' × ' + dec(m) + ' = ' + hs + ' cm.');
+    await d.drag({ x: 824, y: MK.y }, { x: 824, y: FOOT - hs * 2.2 }, 1400);
+    await d.say('Tebakanku ' + hs + ' cm. Nyalakan!', 1600);
+    await d.tap(ACT);
+  }
+  async function demoSort(d) {
+    await d.say('Uji tiap bahan di depan lampu.', 1700);
+    for (const P of PUPS.slice()) {
+      await dragPupTo(d, P, 620, 330, 900);
+      const kd = MAT[P.mat].kind;
+      await d.say(kd === 'bening' ? 'Hampir tanpa bayangan. Bening.' : kd === 'samar' ? 'Bayangannya samar.' : 'Bayangannya pekat.', 1200);
+      const T = TRAYS.find(q => q.kind === kd);
+      await dragPupTo(d, P, T.x, 700 - P.k * SH[P.shape].bb.y1, 800);
+    }
+    await d.tap(ACT);
+  }
+  async function demoHoles(d) {
+    await d.say('Cahaya merambat lurus.');
+    await d.say('Lubang karton harus segaris dengan lampu dan bintang.');
+    for (let i = 0; i < BOARDS.length; i++) {
+      const B = BOARDS[i], need = RD.boards[i].need;
+      await d.drag({ x: B.x, y: B.h + 64 }, { x: B.x, y: need + 64 }, 1100);
+    }
+    await d.say('Cahayanya sampai ke bintang. Cek!', 1500);
+    await d.tap(ACT);
+  }
+  async function demoMirror(d) {
+    await d.say(MIRRORS.length > 1 ? 'Cahaya ke cermin pertama, lalu cermin kedua.' : 'Cahaya memantul di cermin.');
+    await d.say('Sudut datang sama dengan sudut pantul.');
+    for (const M of MIRRORS) {
+      const a0 = M.y > 400 ? -90 : 90, da = Math.round(M.sol) - M.a, pts = [];
+      for (let j = 0; j <= 10; j++) { const a = (a0 + da * j / 10) * RAD; pts.push({ x: M.x + Math.cos(a) * 62, y: M.y + Math.sin(a) * 62 }); }
+      await d.path(pts, 1600);
+    }
+    await d.say('Cahayanya kena wayang. Cek!', 1500);
+    await d.tap(ACT);
+  }
+  async function demoTable(d) {
+    const P = PUPS[0], L = LAMPS[0];
+    await d.say('Wayang ' + RD.H + ' cm. Ukur di tiga jarak, lalu catat.');
+    for (const dd of [2, 1, 1.5]) {
+      if (Math.abs(distM(P) - dd) > .01) await dragPupTo(d, P, L.x + dd * UM, P.y, 1000);
+      await d.tap(ACT);
+      await d.wait(1300);
+    }
+    for (let n = 0; n < 60 && TB.phase !== 'predict'; n++) await d.wait(150);
+    const want = Math.round(RD.H * 3 / TB.d);
+    await d.say('Di ' + dec(TB.d) + ' m: 3 ÷ ' + dec(TB.d) + ' = ' + dec(3 / TB.d) + '.');
+    await d.say(RD.H + ' cm × ' + dec(3 / TB.d) + ' = ' + want + ' cm.');
+    for (let n = 0; n < 40 && TB.guess < want; n++) await d.tap(() => dock.querySelectorAll('.wy-step')[1]);
+    await d.tap(ACT);
+  }
+  async function demoTree(d) {
+    const T = TREE, a = T.hs * T.r, b = T.ht * T.r;
+    await d.say('Tongkat ' + dec(T.hs) + ' m. Ukur bayangannya.');
+    let tp = T.tapes[0];
+    await d.drag({ x: tp.x, y: GY + 34 }, { x: T.sx + a * TU, y: GY + 34 }, 1200);
+    await d.say('Bayangannya ' + dec(a) + ' m, ' + dec(T.r) + ' kali tingginya.');
+    tp = T.tapes[1];
+    await d.drag({ x: tp.x, y: GY + 38 }, { x: T.tx + b * TU, y: GY + 38 }, 1400);
+    await d.say('Bayangan pohon ' + dec(b) + ' m. ' + dec(b) + ' ÷ ' + dec(T.r) + ' = ' + dec(T.ht) + ' m.');
+    for (let n = 0; n < 30 && STEP.v < T.ht - .01; n++) await d.tap(() => dock.querySelectorAll('.wy-step')[1]);
+    await d.tap(ACT);
+  }
+  async function demoAsk(d) {
+    const near = PUPS[0].x < PUPS[1].x ? 0 : 1, lab = SH[PUPS[near].shape].label;
+    await d.say('Bayangan ' + lab + ' lebih besar.');
+    await d.say('Yang dekat lampu, bayangannya besar. Jadi ' + lab + '.');
+    await d.tap(() => coverG.querySelector('[data-hit="pilih-' + PUPS[near].shape + '"]'));
   }
 
   /* ================= test hook: solve() plays the current round through the real code paths ================= */

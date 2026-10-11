@@ -776,6 +776,10 @@
         const pts = points.map(demoPoint);
         await glide(pts[0], 650);
         const el = demoTarget(pts[0]);
+        // A real finger keeps its pointer capture even if the game redraws the pressed element;
+        // fall back to the drag holder when the pressed leaf is detached mid-drag.
+        const holder = (el.closest && el.closest('[data-gs-drag]')) || el;
+        const tgt = () => (el.isConnected ? el : holder);
         place(pts[0], true); fire(el, 'pointerdown', pts[0]); await sleep(220);
         const total = Math.max(1, (ms || 900 * (pts.length - 1)) / demo.speed);
         const seg = []; let len = 0;
@@ -788,13 +792,13 @@
           while (i < seg.length - 1 && dist > seg[i]) { dist -= seg[i]; i++; }
           const f = seg[i] ? dist / seg[i] : 1, a = pts[i], b = pts[i + 1];
           const p = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
-          place(p, true); fire(el, 'pointermove', p);
+          place(p, true); fire(tgt(), 'pointermove', p);
           if (k >= 1) break;
           await new Promise(r => requestAnimationFrame(r));
         }
         await sleep(160);
         const last = pts[pts.length - 1];
-        fire(el, 'pointerup', last); place(last); await sleep(380);
+        fire(tgt(), 'pointerup', last); place(last); await sleep(380);
       },
       /** Wait until the game reports the example solved (run.win called in example mode). */
       async success(timeout) {
