@@ -410,7 +410,7 @@
     set: (count, orders, say, win, extra) => Object.assign({ kind: 'set', count, plateScale: 0.8, say, win }, orders ? withOrders(orders) : { people: pickPeople(2) }, extra || {}),
     match: () => {
       const p = pickPeople(2);
-      return { kind: 'match', people: p, equalShares: true, tol: 0.12, plateScale: 0.9, say: p[1].name + ' mau sama besar dengan ' + p[0].name + '. Pilih yang pas!', win: 'Sama besar. Adil!' };
+      return { kind: 'match', people: p, eqSlot: GS.rand(0, 2), equalShares: true, tol: 0.12, plateScale: 0.9, say: p[1].name + ' mau sama besar dengan ' + p[0].name + '. Pilih yang pas!', win: 'Sama besar. Adil!' };
     }
   };
   const TK = { tol: 0.12 };
@@ -471,23 +471,31 @@
   function tierCount() { return (TIERS[TIER] || TIERS.k1).length; }
   function makeLevel(i, round) { return (TIERS[TIER] || TIERS.k1)[i](round || 0); }
   const hud = GS.hud({ gameId: GAME, title: 'Bagi Martabak', levelCount: tierCount(), onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: tierCount(), hud, start: i => buildLevel(i) });
+  const run = GS.runner({ gameId: GAME, count: tierCount(), hud, start: i => buildLevel(i), demo: demoSpec });
 
   function seatXs(n) {
+    // during an example the seats sit further left so the "Contoh" bar never hides an order card
+    if (demoMode) return { 1: [560], 2: [380, 720], 3: [290, 525, 760], 4: [200, 390, 580, 770], 6: [120, 250, 380, 510, 640, 770] }[n];
     return { 1: [640], 2: [430, 850], 3: [330, 640, 950], 4: [262, 514, 766, 1018], 6: [150, 346, 542, 738, 934, 1130] }[n];
   }
 
   /* ================= build ================= */
   let roundIdx = 0, keepTries = 0;
-  function buildLevel(i, nextRound) {
+  let demoSig = '', demoMode = false, offered = false;   // the example's task; the child's own must differ
+  const sigOf = c => JSON.stringify([c.kind, c.food, c.people.length, (c.orders || []).map(o => o.v.toFixed(3)).sort(), (c.ds || []).slice().sort(), c.count, (c.pair || []).map(o => o.v.toFixed(3)).sort(), c.hungry, c.eqSlot]);
+  function buildLevel(i, nextRound, demo) {
     tok++; solving = 0;
     roundIdx = nextRound ? roundIdx + 1 : 0;
     timers.forEach(t => clearTimeout(t)); timers.clear();
     world.innerHTML = ''; friendsG.innerHTML = ''; dock.innerHTML = '';
     pieces = []; friends = []; foods = [];
-    busy = false; tries = nextRound ? keepTries : 0; cutsMade = 0; hintedDrag = false; guidesShown = false;
-    artCache = {};
-    L = makeLevel(i, roundIdx);
+    busy = false; tries = nextRound ? keepTries : 0; cutsMade = 0; hintedDrag = !!demo; guidesShown = false;
+    artCache = {}; demoMode = !!demo; if (!nextRound) offered = false;
+    if (demo) { L = demoLevel(i); delete L.rounds; demoSig = sigOf(L); }
+    else {
+      L = makeLevel(i, roundIdx);
+      for (let k = 0; k < 12 && sigOf(L) === demoSig; k++) L = makeLevel(i, roundIdx);
+    }
     L.index = i;
     if (!L.plateScale) L.plateScale = 0.5;
 
@@ -512,7 +520,7 @@
     buildDock();
     updateButtons();
     hud.mood('think');
-    GS.say(L.say);
+    if (!demo) GS.say(L.say);
   }
 
   function buildFriends() {
@@ -1216,7 +1224,8 @@
     const rp = makePiece(ref, ref.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
     rp.locked = true; rp.el.style.cursor = 'default';
     putOnPlate(rp, friends[0].plate); layoutPlate(friends[0].plate, false);
-    const sizes = GS.shuffle([{ w: W, eq: true }, { w: Math.round(W * (0.5 + Math.random() * 0.1)) }, { w: Math.round(W * (1.5 + Math.random() * 0.15)) }]);
+    const sizes = GS.shuffle([{ w: Math.round(W * (0.5 + Math.random() * 0.1)) }, { w: Math.round(W * (1.5 + Math.random() * 0.15)) }]);
+    sizes.splice(L.eqSlot || 0, 0, { w: W, eq: true });
     [290, 510, 730].forEach((x, i) => {
       const f = makeFood('lapisKecil', x, c.y, { w: sizes[i].w, h: H, layers: 4 });
       const p = makePiece(f, f.poly.map(q => ({ x: q.x, y: q.y, cut: false })));
@@ -1348,7 +1357,7 @@
     if (busy) return;
     btnReset.classList.remove('mk-nudge');
     if (L.kind === 'cut') {
-      if (cutsMade > 0) tries++;
+      if (cutsMade > 0) { tries++; maybeOffer(); }
       pieces.slice().forEach(removePiece);
       friends.forEach(f => { f.plate.pieces = []; });
       const food = L.foodRef;
@@ -1416,8 +1425,10 @@
     unsulkAll();
     afterFail();
   }
+  function maybeOffer() { if (tries >= 2 && !offered && !demoMode) { offered = true; run.offerDemo(); } }
   function afterFail() {
     busy = false; updateButtons(); hud.mood('think');
+    maybeOffer();
     if (L.kind === 'cut' && knives === 0) { nudgeReset(); later(300, () => GS.say('Pisaunya habis. Tekan Ulang untuk potong lagi.')); }
     else if (tries >= 2 && L.kind === 'cut') showGuides();
   }
@@ -1649,6 +1660,198 @@
     if (!(await pause(1600))) return;
     tw(300, e => { gs.setAttribute('opacity', (1 - e).toFixed(2)); dim.setAttribute('opacity', (0.72 * (1 - e)).toFixed(2)); }).then(() => { gs.remove(); dim.remove(); });
     await pause(300);
+  }
+
+  /* ================= worked examples (GS.demo, SOP docs/CONTOH.md) =================
+   * Every level has an example with OTHER numbers or food than the child's task. The ghost
+   * hand swipes the knife across the real cutting zone (diameters through the centre, radii
+   * from the rim to the centre, straight lines across cakes), drags pieces onto the real
+   * plates and presses Bagikan!. Table rows: [key, auto, config()]; cut rows carry
+   * demoCuts: {d: deg} diameter, {r: deg} radius, {v: f} / {h: f} line at a fraction of the
+   * width / height. Mix and challenge levels replay the closest example (auto: false). */
+  const DM = (cfg, cuts) => Object.assign(cfg, { demoCuts: cuts });
+  const EQ = (food, n, cuts, win, extra) => DM(LV.cutEqual(food, n, cuts.length, '', win || 'Sama besar. Adil!', extra), cuts);
+  const OR = (food, orders, cuts, win, extra) => DM(LV.cutOrders(food, orders, cuts.length, '', win, extra), cuts);
+  const LBL = { labels: true, tagAfter: true };
+  const dPick = () => ({ kind: 'pick', people: pickPeople(2), orders: [F(1, 3), F(1, 3)], plateScale: 0.9, tagAfter: true, say: '', win: 'Sama-sama sepertiga!' });
+  const dK2orders = ['pesanan', true, () => OR('roti', [F(1, 2), F(1, 4), F(1, 4)], [{ v: 0.5 }, { h: 0.5 }])];
+  const dK3orders = ['pecahan', true, () => OR('lapis', [F(2, 3), F(1, 3)], [{ h: 1 / 3 }, { h: 2 / 3 }], 'Dua per tiga dan sepertiga. Pas!')];
+  const dK4sum = ['hitung', true, () => OR('martabak', [Ex([1, 2], '+', [1, 4]), F(1, 4)], [{ d: 0 }, { d: 90 }], 'Setengah tambah seperempat sama dengan tiga per empat!')];
+  const noAuto = row => [row[0], false, row[2]];
+  const DEMO = {
+    tk: [
+      ['bulat', true, () => EQ('martabakKecil', 2, [{ d: 90 }], null, TK)],
+      ['garis', true, () => EQ('lapis', 2, [{ v: 0.5 }], null, TK)],
+      ['garis', true, () => EQ('roti', 2, [{ v: 0.5 }], null, TK)],
+      ['sama', true, () => LV.match()],
+      ['klepon', true, () => LV.set(6, null, '', 'Tiga dan tiga. Sama banyak!', { tol: 0.12, ballR: 36 })],
+      ['bulat', false, () => EQ('martabakKecil', 2, [{ d: 90 }], null, TK)]
+    ],
+    k1: [
+      ['bulat', true, () => EQ('martabakKecil', 2, [{ d: 90 }])],
+      ['garis', true, () => EQ('roti', 2, [{ v: 0.5 }])],
+      ['bulat4', true, () => EQ('martabakKecil', 4, [{ d: 0 }, { d: 90 }], 'Empat bagian sama. Seperempat!')],
+      ['garis4', true, () => EQ('roti', 4, [{ v: 0.5 }, { h: 0.5 }], 'Empat bagian sama. Seperempat!')],
+      ['pilih', true, dPick],
+      ['lapar', true, () => LV.hungry()],
+      ['pesanan', true, () => OR('lapis', [F(1, 2), F(1, 2)], [{ v: 0.5 }], 'Setengah dan setengah. Pas!')],
+      ['pesanan', false, () => OR('martabakKecil', [F(1, 2), F(1, 2)], [{ d: 90 }], 'Setengah dan setengah. Pas!')]
+    ],
+    k2: [
+      ['tiga', true, () => EQ('martabakKecil', 3, [{ r: -90 }, { r: 30 }, { r: 150 }], 'Tiga bagian sama. Sepertiga!', LBL)],
+      ['urut', true, () => LV.sort(GS.shuffle([2, 4, 8]))],
+      dK2orders,
+      ['banyak', true, () => EQ('lapis', 4, [{ v: 0.5 }, { h: 0.5 }], 'Empat bagian sama. Seperempat!', LBL)],
+      ['urut', true, () => LV.sort(GS.shuffle([2, 4, 6, 8]))],
+      ['setengahDari', true, () => LV.set(4, [F(1, 2)], '', 'Setengah dari 4 adalah 2!')],
+      noAuto(dK2orders),
+      noAuto(dK2orders)
+    ],
+    k3: [
+      dK3orders,
+      ['senilai', true, () => Object.assign(OR('martabak', [F(1, 4), F(2, 8)], [{ d: 0 }, { d: 90 }, { d: 45 }], 'Dua per delapan sama dengan seperempat!'), { stackDemo: true, demoSay: 'Kita tumpuk. Sama besar!' })],
+      ['urut', true, () => LV.sort(GS.shuffle([3, 4, 5, 6, 8]).slice(0, 3))],
+      ['bagi', true, () => EQ('lapis', 4, [{ v: 0.5 }, { h: 0.5 }], 'Empat bagian sama. Seperempat!', LBL)],
+      ['setPecahan', true, () => LV.set(4, [F(1, 4), F(3, 4)], '', 'Seperempat dari 4 adalah 1!')],
+      ['banding', true, () => LV.compare([F(1, 2), F(1, 3)])],
+      noAuto(dK3orders),
+      noAuto(dK3orders)
+    ],
+    k4: [
+      ['senilai', true, () => Object.assign(OR('martabak', [F(1, 2), F(2, 4)], [{ d: 0 }, { r: 90 }], 'Setengah sama dengan dua per empat!'), { stackDemo: true, demoSay: 'Kita tumpuk. Sama besar!' })],
+      ['jumlah', true, () => Object.assign(OR('martabak', [Ex([1, 8], '+', [1, 8]), F(1, 4)], [{ d: 0 }, { d: 90 }, { d: 45 }], 'Seperdelapan tambah seperdelapan sama dengan seperempat!'), { stackDemo: true, demoSay: 'Kita tumpuk. Sama besar!' })],
+      dK4sum,
+      ['setPecahan', true, () => LV.set(6, [F(2, 3), F(1, 3)], '', 'Dua per tiga dari 6 adalah 4!')],
+      ['setengahLagi', true, () => OR('martabakKecil', [F(3, 4), F(3, 4)], [{ d: 90 }, { d: 0 }], 'Masing-masing tiga per empat. Pas!', { extraHalf: true, center: { x: 330, y: 560 } })],
+      ['banding', true, () => LV.compare([[F(2, 3), F(3, 5)], [F(3, 4), F(2, 3)], [F(3, 5), F(1, 2)], [F(5, 8), F(3, 4)], [F(2, 5), F(1, 3)]][GS.rand(0, 4)])],
+      ['pesanan', true, () => OR('lapis', [F(1, 2), F(1, 4), F(1, 4)], [{ v: 0.5 }, { h: 0.5 }])],
+      noAuto(dK4sum)
+    ]
+  };
+  const demoRows = () => DEMO[TIER] || DEMO.k1;
+  function demoLevel(i) { return demoRows()[i][2](); }
+  function demoSpec(i) {
+    const row = demoRows()[i];
+    if (!row) return null;
+    return { key: row[0], auto: row[1], build: () => buildLevel(i, false, true), script: demoScript };
+  }
+  /** A point on piece p that a finger can grab (not covered by another piece's grab area). */
+  function grabPoint(p) {
+    const m = svg.getScreenCTM(), c = toWorld(p, p.c);
+    const cands = [c];
+    p.poly.forEach(q => { const w = toWorld(p, q); [0.3, 0.55].forEach(k => cands.push({ x: c.x + (w.x - c.x) * k, y: c.y + (w.y - c.y) * k })); });
+    for (const w of cands) {
+      const sx = m.a * w.x + m.c * w.y + m.e, sy = m.b * w.x + m.d * w.y + m.f;
+      const el = document.elementsFromPoint(sx, sy).find(e => !e.closest('.gs-demo'));
+      if (el && el.closest('.mk-piece') === p.el) return w;
+    }
+    return c;
+  }
+  const dropPoint = f => ({ x: f.plate.x, y: PLATE_Y + LIFT - 8 });
+  /** Which board piece goes to which friend so every share is exact (small search). */
+  function planShares(list, targets) {
+    const vals = list.map(p => p.area / L.unit), sums = targets.map(() => 0), pick = [];
+    const go = k => {
+      if (k === vals.length) return sums.every((s, i) => Math.abs(s - targets[i]) < 0.01);
+      for (let f = -1; f < targets.length; f++) {
+        if (f >= 0 && sums[f] + vals[k] > targets[f] + 0.01) continue;
+        if (f >= 0) sums[f] += vals[k];
+        pick[k] = f;
+        if (go(k + 1)) return true;
+        if (f >= 0) sums[f] -= vals[k];
+      }
+      return false;
+    };
+    if (!go(0)) return [];
+    return list.map((p, k) => [p, pick[k]]).filter(x => x[1] >= 0).map(x => [x[0], friends[x[1]]]);
+  }
+  function swipePoints(c) {
+    const food = L.foodRef, def = food.def, O = { x: food.ox, y: food.oy };
+    if (c.d != null || c.r != null) {
+      const t = (c.d != null ? c.d : c.r) * Math.PI / 180, R = def.r + 40, u = { x: Math.cos(t), y: Math.sin(t) };
+      return c.d != null ? [{ x: O.x - u.x * R, y: O.y - u.y * R }, { x: O.x + u.x * R, y: O.y + u.y * R }]
+        : [{ x: O.x + u.x * R, y: O.y + u.y * R }, { x: O.x + u.x * 4, y: O.y + u.y * 4 }];
+    }
+    if (c.v != null) { const x = O.x - def.w / 2 + def.w * c.v; return [{ x, y: O.y - def.h / 2 - 50 }, { x, y: O.y + def.h / 2 + 50 }]; }
+    const y = O.y - def.h / 2 + def.h * c.h;
+    return [{ x: O.x - def.w / 2 - 60, y }, { x: O.x + def.w / 2 + 60, y }];
+  }
+  const tk = TIER === 'tk';
+  async function giveAll(d, plan) {
+    for (const [p, f] of plan) {
+      if (!pieces.includes(p)) continue;
+      await d.drag(() => grabPoint(p), dropPoint(f), 1100);
+      await d.wait(250);
+    }
+  }
+  async function demoScript(d) {
+    await d.wait(500);
+    const who = friends.map(f => f.name);
+    if (L.kind === 'cut') {
+      const n = friends.length;
+      if (L.orders) await d.say(friends.map(f => f.name + ' minta ' + orderWords(f.order)).join('. ') + '.');
+      else await d.say(tk ? 'Dua teman. Potong jadi dua, sama besar.' : cap(NUM[n]) + ' teman. Potong jadi ' + NUM[n] + ' sama besar.');
+      const said = {};
+      for (const c of L.demoCuts) {
+        const type = c.d != null ? 'd' : c.r != null ? 'r' : 'l';
+        if (!said[type]) {
+          said[type] = 1;
+          await d.say(type === 'd' ? 'Gesek pisau lewat tengah.' : type === 'r' ? 'Dari pinggir, gesek ke titik tengah.' : 'Gesek lurus melewati kuenya.', 1700);
+        }
+        await d.path(swipePoints(c), 1100);
+        await d.wait(450);
+      }
+      await d.say(tk ? 'Seret ke piring teman.' : 'Sekarang seret ke piring teman.', 1500);
+      const board = pieces.filter(p => !p.plate && !p.locked);
+      await giveAll(d, planShares(board, friends.map(f => (f.order ? f.order.v : 1 / n))));
+    } else if (L.kind === 'match') {
+      await d.say('Punya ' + who[0] + ' segini.', 1500);
+      await d.say('Cari yang sama besar untuk ' + who[1] + '.', 1800);
+      await giveAll(d, [[L.equalPiece, friends[1]]]);
+    } else if (L.kind === 'set') {
+      const t = targetsOf(), pool = pieces.filter(p => !p.plate), plan = [];
+      if (L.orders) await d.say(friends.map(f => f.name + ' minta ' + orderWords(f.order) + ' dari ' + L.count + ' klepon').join('. ') + '.');
+      else await d.say(tk ? 'Bagi satu-satu, sama banyak.' : 'Bagi satu-satu, sama banyak.');
+      const need = friends.map((f, k) => Math.round(t[k] * L.count));
+      for (let r = 0; need.some(x => x > 0); r++) friends.forEach((f, k) => { if (need[k] > 0) { need[k]--; plan.push([pool.shift(), f]); } });
+      await giveAll(d, plan);
+    } else if (L.kind === 'pick') {
+      await d.say(who[0] + ' dan ' + who[1] + ' minta sepertiga.');
+      await d.say('Kue ini dibagi tiga sama besar. Satu potong sepertiga.');
+      const strip3 = L.cakes.find(c => c.k === 'strip3').pieces;
+      await giveAll(d, [[strip3[0], friends[0]], [strip3[1], friends[1]]]);
+    } else if (L.kind === 'hungry') {
+      const fh = friends[L.hungry], fo = friends[1 - L.hungry];
+      let big, small;
+      if (L.pair) {
+        const [a, b] = L.pairPieces; big = a.area > b.area ? a : b; small = big === a ? b : a;
+        const bf = L.pair.find(x => Math.abs(x.v * L.unit - big.area) < 0.02 * L.unit) || L.pair[0];
+        const sf = L.pair.find(x => x !== bf) || L.pair[1];
+        await d.say(fh.name + ' lapar sekali. ' + cap(fracWords(bf.n, bf.d)) + ' lebih besar dari ' + fracWords(sf.n, sf.d) + '.');
+      } else {
+        big = L.half; small = L.quarter;
+        await d.say(fh.name + ' lapar sekali. Setengah lebih besar.');
+      }
+      await giveAll(d, [[big, fh]]);
+      await d.say('Yang kecil untuk ' + fo.name + '.', 1400);
+      await giveAll(d, [[small, fo]]);
+    } else if (L.kind === 'order') {
+      await d.say('Yang paling besar di kiri. Geser piringnya.');
+      const n = friends.length, xs = seatXs(n);
+      for (let k = 0; k < n; k++) {
+        const seated = xs.map(x => friends.find(f => f.x === x));
+        const want = seated.slice().sort((a, b) => shareOf(b) - shareOf(a))[k];
+        const i = seatIndex(want);
+        if (i !== k) { await d.drag({ x: xs[i], y: PLATE_Y - 10 }, { x: xs[k], y: PLATE_Y - 10 }, 1100); await d.wait(500); }
+      }
+      await d.say('Sudah urut. Tekan Cek!', 1300);
+      await d.tap(btnGo);
+      await d.success(40000);
+      return;
+    }
+    await d.say('Tekan Bagikan!', 1200);
+    await d.tap(btnGo);
+    await d.success(40000);
   }
 
   /* ================= debug / test hook ================= */
