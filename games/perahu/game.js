@@ -202,7 +202,7 @@
   const svg = document.getElementById('stage');
   const dock = document.getElementById('dock');
   const hud = GS.hud({ gameId: GAME, title: 'Rakit Terapung', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: buildLevel });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: demoSpec });
 
   const defs = el('defs', null, svg);
   defs.innerHTML =
@@ -217,6 +217,16 @@
   const world = el('g', { class: 'world' }, svg);
 
   let gen = 0, tries = 0, S = {};
+  // Worked example ("Contoh", docs/CONTOH.md): DEMO is true while the example level is built;
+  // demoSig is the example's task signature, the child's own task re-rolls until it differs.
+  let DEMO = false, demoSig = '';
+  function reroll(gen0, sigOf) {
+    let v = gen0();
+    if (DEMO) { demoSig = sigOf(v); return v; }
+    for (let k = 0; k < 20 && sigOf(v) === demoSig; k++) v = gen0();
+    return v;
+  }
+  function miss() { tries++; if (tries === 2) run.offerDemo(); }
 
   /* ---------------- small helpers ---------------- */
   const T = (ms, fn, ease) => GS.tween(DBG.fast ? Math.max(16, ms / 6) : ms, fn, ease);
@@ -555,7 +565,8 @@
   }
 
   /* ---------------- level dispatcher ---------------- */
-  function buildLevel(i) {
+  function buildLevel(i, demo) {
+    DEMO = !!demo;
     gen++;
     simReset();
     world.innerHTML = '';
@@ -565,9 +576,12 @@
     hud.mood('think');
     const L = LEVELS[i];
     ({ A: buildA, B: buildB, C: buildC, T: buildTwin, E: buildEgg, R: buildRank })[L.t](L, i);
+    DEMO = false;
+    S.demo = !!demo;
   }
   function finish(stars, text) {
     const my = gen;
+    S.won = true;
     hud.mood('cheer');
     W(300).then(() => { if (my === gen) run.win(stars, text); });
   }
@@ -654,7 +668,7 @@
     S.dragLayer = el('g', null, world);
     const baskets = { float: drawBasket(bLayer, 175, 592, 'float'), sink: drawBasket(bLayer, 478, 592, 'sink') };
     // Baskets list content in insertion order: re-append in back-to-front order.
-    const names = LV.names();
+    const names = reroll(DEMO ? () => demoNamesA(LV) : () => LV.names(), a => a.slice().sort().join());
     const n = names.length;
     const items = names.map((name, j) => {
       const m = MAT[name] || { size: 70 };
@@ -774,7 +788,8 @@
     }
 
     S.solve = () => { items.forEach(t => assign(t, t.floats ? 'float' : 'sink')); const s = S; setTimeout(() => { if (S === s) S.cemplung(); }, 300); };
-    say(LV.say, 'think');
+    S.ex = { items, baskets, btn, rhoW };
+    if (!DEMO) say(LV.say, 'think');
   }
 
   /* =====================================================================
@@ -792,18 +807,21 @@
   }
   function popc(m) { let c = 0; while (m) { c += m & 1; m >>= 1; } return c; }
   function genB(L) {
+    return reroll(() => genB0(L), P => P.K + '|' + P.ws.slice().sort((a, b) => a - b).join());
+  }
+  function genB0(L) {
     const pack = (K, ws, names) => Object.assign({ K, ws, names }, subsetInfo(ws, K));
     if (L.fruit) { const K = GS.rand(3, 5); return pack(K, Array(K + 2).fill(1), Array(K + 2).fill('kelapa')); }
     if (L.crates) {
       // n identical crates of w kg: the most that fits is floor(K / w) crates (multiplication).
-      const w = rndOf(L.crates), n = GS.rand(L.n[0], L.n[1]);
+      const w = rndOf(L.crates), n = DEMO ? 3 : GS.rand(L.n[0], L.n[1]); // example: fewer crates than any child task
       const K = n * w + GS.rand(1, w - 1);
       return pack(K, Array(n + 1).fill(w), Array(n + 1).fill('peti'));
     }
     if (L.kinds) {
       for (let tr = 0; tr < 400; tr++) {
         const w1 = GS.rand(9, 15), w2 = GS.rand(4, 8), ws = [w1, w1, w1, w1, w2, w2, w2, w2];
-        const K = GS.rand(30, 60), P = pack(K, ws, ws.map(w => (w === w1 ? 'peti' : 'karung')));
+        const K = DEMO ? GS.rand(20, 32) : GS.rand(30, 60), P = pack(K, ws, ws.map(w => (w === w1 ? 'peti' : 'karung')));
         if (P.best < K && P.best > K - 4 && P.bestMask !== 255) return P;
       }
       return pack(41, [12, 12, 12, 12, 7, 7, 7, 7], ['peti', 'peti', 'peti', 'peti', 'karung', 'karung', 'karung', 'karung']);
@@ -1080,7 +1098,7 @@
       if (l > K) { await overload(l); if (my !== gen) return; }
       else if ((exactLevel && l === K) || (!exactLevel && l === P.best)) { await cross(l); return; }
       else {
-        tries++;
+        miss();
         GS.sfx.oops();
         GS.fx(man.fxw, 'gs-wobble');
         if (fruit) await sayWait('Masih muat ' + U(K - l) + ' lagi.', 'oops');
@@ -1103,7 +1121,7 @@
     }
     async function overload(l) {
       const my = gen;
-      tries++;
+      miss();
       GS.sfx.creak();
       say('Wah, terlalu berat! Rakitnya tenggelam.', 'surprise');
       // the boatman pushes off; the overloaded raft goes under slowly
@@ -1205,7 +1223,8 @@
     else if (exactLevel) intro = 'Muat rakit tepat ' + K + ' kilo, lalu Dayung!';
     else intro = 'Muat sebanyak mungkin, asal tidak lewat ' + K + ' kilo.';
     if (hideSum) intro += ' Hitung sendiri, ya!';
-    say(intro, 'think');
+    S.ex = { P, K, cargo, btn, raft, exactLevel, fruit, grouped, hideSum, crates: !!LV.crates };
+    if (!DEMO) say(intro, 'think');
   }
 
   /* =====================================================================
@@ -1283,22 +1302,34 @@
   function buildC(LV) {
     const mode = LV.mode, L9 = mode === 'predict', MMs = LV.m || MM;
     const capOf = (s, m) => Math.floor((DSZ(s).V - DSZ(s).M) / m);
-    let shapes = [];
-    if (mode === 'predict' || mode === 'count') shapes = LV.shapes();
-    else if (mode === 'design') {
-      const caps = [1, 2, 3, 4, 5, 6].map(s => capOf(s, MMs));
-      const sMin = GS.rand(2, 5);
-      S.target = GS.rand(caps[sMin - 2] + 1, caps[sMin - 1]);
-      S.sMin = sMin;
-      shapes.push({ k: 'mangkuk', label: 'ukuran 1', s: 1 });
-    } else {
-      const nB = GS.rand(3, 5), nS = GS.rand(6, 8), nL = GS.rand(nS + 3, 12);
-      shapes.push({ k: 'bola', label: 'bola', N: 0 });
-      shapes.push({ k: 'perahu', label: 'perahu kecil', N: nB });
-      shapes.push({ k: 'kotak', label: 'kotak kecil', N: nS });
-      shapes.push({ k: 'mangkuk', label: 'mangkuk lebar', N: nL });
-      S.target = GS.rand(nS + 1, nL);
+    // The example uses smaller hulls (fewer marbles) than any child task, so it stays short.
+    function genC() {
+      const o = { shapes: [], target: 0, sMin: 0 };
+      if (mode === 'predict' || mode === 'count') {
+        o.shapes = LV.shapes();
+        if (DEMO && mode === 'count') o.shapes.forEach(sh => { sh.N = GS.rand(2, 3); });
+        if (DEMO && mode === 'predict') {
+          o.shapes = [o.shapes[0], o.shapes[o.shapes.length - 1]];
+          o.shapes[0].N = o.shapes[0].k === 'bola' ? 0 : 1; o.shapes[1].N = 2;
+        }
+      } else if (mode === 'design') {
+        const caps = [1, 2, 3, 4, 5, 6].map(s => capOf(s, MMs));
+        o.sMin = DEMO ? 2 : GS.rand(2, 5);
+        o.target = DEMO ? caps[0] + 1 : GS.rand(caps[o.sMin - 2] + 1, caps[o.sMin - 1]);
+        o.shapes.push({ k: 'mangkuk', label: 'ukuran 1', s: 1 });
+      } else {
+        const nB = DEMO ? 1 : GS.rand(3, 5), nS = DEMO ? 2 : GS.rand(6, 8), nL = DEMO ? GS.rand(4, 5) : GS.rand(nS + 3, 12);
+        o.shapes.push({ k: 'bola', label: 'bola', N: 0 });
+        o.shapes.push({ k: 'perahu', label: 'perahu kecil', N: nB });
+        o.shapes.push({ k: 'kotak', label: 'kotak kecil', N: nS });
+        o.shapes.push({ k: 'mangkuk', label: 'mangkuk lebar', N: nL });
+        o.target = DEMO ? GS.rand(3, nL - 1) : GS.rand(nS + 1, nL);
+      }
+      return o;
     }
+    const gc = reroll(genC, o => o.shapes.map(sh => sh.k + sh.N).join() + '|' + o.target + '|' + o.sMin);
+    const shapes = gc.shapes;
+    S.target = gc.target; S.sMin = gc.sMin;
     const sizeShape = sh => {
       if (sh.k === 'bola') { sh.r = 22; sh.W = 44; sh.D = 44; sh.H = 44; sh.M = PM; sh.rho0 = 1.5; return; }
       if (sh.s) { const d = DSZ(sh.s); sh.V = d.V; sh.M = d.M; sh.W = clamp(d.V * 1.2, 70, 210); sh.label = 'ukuran ' + sh.s; }
@@ -1390,7 +1421,7 @@
       shapes.forEach(s => s.sel.setAttribute('display', s === sh ? 'inline' : 'none'));
       GS.sfx.pop();
       btn.disabled = false;
-      say(L9 ? 'Tebakanmu: ' + sh.label + '. Tekan Coba!' : 'Pakai ' + sh.label + '? Tekan Coba!', 'think');
+      if (!S.demo) say(L9 ? 'Tebakanmu: ' + sh.label + '. Tekan Coba!' : 'Pakai ' + sh.label + '? Tekan Coba!', 'think');
     }
     if (mode === 'count' || mode === 'design') {
       const step = d => {
@@ -1494,7 +1525,7 @@
       }
       await waitUntil(() => b.calm, 5000);
       if (my !== gen) return null;
-      say('Seret kelereng ke ' + sh.label + '. Hitung, ya!', 'point');
+      if (!S.demo) say('Seret kelereng ke ' + sh.label + '. Hitung, ya!', 'point');
       GS.fx(jar, 'gs-pulse'); // the jar group is placed by translate(): pulse an inner <g> so it stays put
       return new Promise(res => { loadSt = { sh, n: 0, stopAt, res, busy: false }; });
     }
@@ -1558,7 +1589,7 @@
           finish(starsFor(tries), 'Rancangan mangkukmu pas!');
           return;
         }
-        tries++;
+        miss();
         GS.sfx.oops();
         msg = r.sank ? 'Tenggelam di kelereng ke-' + (r.count + 1) + '. Ruangnya kurang besar.' : 'Bisa! Tapi mangkuk lebih kecil juga cukup. Hemat plastisin, ya.';
         await sayWait(msg, 'oops');
@@ -1601,7 +1632,7 @@
           finish(starsFor(tries), 'Mangkuk lebar kuat membawa muatan!');
           return;
         }
-        tries++;
+        miss();
         GS.sfx.oops();
         await sayWait(sh.k === 'bola' ? 'Bola langsung tenggelam. Coba bentuk lain!' : 'Tenggelam di kelereng ke-' + (r.count + 1) + '. Coba bentuk lain!', 'oops');
         if (my !== gen) return;
@@ -1625,7 +1656,8 @@
         setTimeout(feed, 60);
       })();
     };
-    say(mode === 'predict' ? 'Mana yang membawa kelereng paling banyak? Ketuk satu.'
+    S.ex = { shapes, jar, btn, mode, m: MMs, loading: () => !!loadSt && !loadSt.busy, loadingAny: () => !!loadSt };
+    if (!DEMO) say(mode === 'predict' ? 'Mana yang membawa kelereng paling banyak? Ketuk satu.'
       : mode === 'count' ? 'Tebak dulu: berapa kelereng muat? Pakai tombol tambah.'
       : mode === 'design' ? 'Pilih ukuran mangkuk terkecil yang kuat membawa ' + S.target + ' kelereng.'
       : 'Bawa ' + S.target + ' kelereng tanpa tenggelam. Pilih bentuknya!', 'think');
@@ -1636,9 +1668,14 @@
    * k3: two rafts, share the cargo so both carry the same weight
    * ===================================================================== */
   function buildTwin() {
+    const tw = reroll(genTwin, o => o.ws.slice().sort((a, b) => a - b).join());
+    const ws = tw.ws, mask = tw.mask;
+    buildTwin2(ws, mask);
+  }
+  function genTwin() {
     let ws, mask = 0;
     for (let tr = 0; tr < 600 && !mask; tr++) {
-      ws = Array.from({ length: GS.rand(4, 6) }, () => GS.rand(2, 9));
+      ws = Array.from({ length: DEMO ? 4 : GS.rand(4, 6) }, () => GS.rand(2, 9));
       const tot = ws.reduce((a, b) => a + b, 0);
       if (tot % 2) continue;
       for (let m = 1; m < (1 << ws.length) - 1; m++) {
@@ -1647,6 +1684,9 @@
       }
     }
     if (!mask) { ws = [3, 5, 4, 4]; mask = 3; }
+    return { ws, mask };
+  }
+  function buildTwin2(ws, mask) {
     const total = ws.reduce((a, b) => a + b, 0);
     const WS = RV.ws, F = RV.F, HW = 165;
     const river = el('g', null, world);
@@ -1745,7 +1785,7 @@
         finish(starsFor(tries), 'Muatan terbagi sama berat!');
         return;
       }
-      tries++;
+      miss();
       GS.sfx.oops();
       const heavy = a > b ? 'kiri' : 'kanan';
       rafts.forEach(R => GS.fx(R.bob, 'gs-wobble'));
@@ -1762,7 +1802,8 @@
         setTimeout(() => { if (my === gen) dayung(); }, 400);
       }, 300);
     };
-    say('Bagi muatan ke dua rakit. Harus sama berat!', 'think');
+    S.ex = { ws, mask, total, cargo, rafts, btn };
+    if (!DEMO) say('Bagi muatan ke dua rakit. Harus sama berat!', 'think');
   }
 
   /* =====================================================================
@@ -1788,7 +1829,10 @@
   }
   function buildEgg() {
     pierScene();
-    const tanks = [mkTank(650, 930, 'fresh'), mkTank(960, 1240, 'salt')];
+    const tanks = [mkTank(650, 930, DEMO ? 'fresh-d' : 'fresh'), mkTank(960, 1240, DEMO ? 'salt-d' : 'salt')];
+    // Example: lower tanks and choice chips so the "Contoh" pill (top-right) never hides the chips.
+    const chipY = DEMO ? 200 : 62;
+    if (DEMO) tanks.forEach(tk => { tk.top = 262; tk.ws = 346; });
     const water = [RHO_W, RHO_SALT];
     const T2 = tanks.map((tk, j) => {
       const tt = drawTank(world, tk);
@@ -1811,10 +1855,11 @@
       return t;
     });
     const pred = [null, null];
-    const cc = tanks.map((tk, j) => choiceChips(world, tk.cx, 62, k => { if (S.locked) return; pred[j] = k; cc[j].set(k); GS.sfx.pop(); btn.disabled = pred.some(x => !x); }));
+    const cc = tanks.map((tk, j) => choiceChips(world, tk.cx, chipY, k => { if (S.locked) return; pred[j] = k; cc[j].set(k); GS.sfx.pop(); btn.disabled = pred.some(x => !x); }));
     const btn = button('Cemplung!', '', () => cemplung());
     btn.disabled = true;
     let spoons = 0, fresh = null;
+    const demoEgg = DEMO, SPOON = demoEgg ? 0.08 : 0.03; // the example uses a big spoon: other numbers than the child's
     async function cemplung() {
       if (S.locked || pred.some(x => !x)) return;
       const my = gen; S.locked = true; btn.disabled = true;
@@ -1849,9 +1894,9 @@
       const my = gen;
       spoons++;
       // each spoon of salt makes the fresh tank a little denser (capped near saturation)
-      water[0] = Math.min(1.2, RHO_W + 0.03 * spoons);
+      water[0] = Math.min(1.2, RHO_W + SPOON * spoons);
       fresh.rhoW = water[0]; fresh.onBottom = fresh.y >= fresh.floor; wake(fresh);
-      T2[0].label.set('garam ' + spoons + ' sendok');
+      T2[0].label.set('garam ' + spoons + ' sendok' + (demoEgg ? ' besar' : ''));
       GS.sfx.count(spoons);
       const tk = tanks[0];
       for (let k = 0; k < 6; k++) bubble(T2[0].fx, tk.cx - 40 + k * 16, tk.ws + 60, tk.ws);
@@ -1860,7 +1905,7 @@
         await waitUntil(() => fresh.y - fresh.ws < fresh.H && fresh.calm, 15000);
         if (my !== gen) return;
         sparkle(S.fxTop, tk.cx, fresh.y - fresh.H - 20);
-        await sayWait(spoons + ' sendok garam! Air jadi lebih padat dari telur, telur naik.', 'happy');
+        await sayWait(spoons + ' sendok' + (demoEgg ? ' besar' : '') + ' garam! Air jadi lebih padat dari telur, telur naik.', 'happy');
         if (my !== gen) return;
         finish(S.right === 2 ? 3 : S.right === 1 ? 2 : 1, 'Air asin lebih kuat mengangkat!');
       }
@@ -1871,7 +1916,8 @@
       const my = gen;
       (function feed() { if (my !== gen) return; if (!saltBtn.disabled && !saltBtn.hidden) addSalt(); setTimeout(feed, 300); })();
     };
-    say('Telur di air tawar dan air asin. Terapung atau tenggelam?', 'think');
+    S.ex = { cc, btn, saltBtn, ready: () => !saltBtn.disabled && !saltBtn.hidden };
+    if (!DEMO) say('Telur di air tawar dan air asin. Terapung atau tenggelam?', 'think');
   }
 
   /* =====================================================================
@@ -1884,7 +1930,8 @@
     const jetty = el('g', null, world);
     S.fxTop = el('g', null, world);
     S.dragLayer = el('g', null, world);
-    const names = GS.shuffle(GS.shuffle(['botol', 'daun', 'kayu', 'apel', 'es']).slice(0, 4));
+    const NR = DEMO ? 3 : 4; // the example orders three things, the child four
+    const names = GS.shuffle(reroll(() => GS.shuffle(['botol', 'daun', 'kayu', 'apel', 'es']).slice(0, NR), a => a.slice().sort().join()));
     const items = names.map(n => {
       const t = makeThing(jetty, n, artItem(n), fitScale(n, Math.min(90, MAT[n].size)), { drag: true, aria: labelOf(n) });
       t.rho = density(n); t.label = labelOf(n); t.slot = null; t.air = MAT[n].air || 0;
@@ -1892,7 +1939,7 @@
       return t;
     });
     layoutRow(items.map(t => t.bb.w * t.base), 40, 630).forEach((x, j) => { items[j].home = { x, y: 366 }; place(items[j], x, 366); });
-    const slots = [110, 250, 390, 530].map((x, k) => {
+    const slots = (NR === 3 ? [110, 320, 530] : [110, 250, 390, 530]).map((x, k) => {
       const g = el('g', { transform: 'translate(' + x + ' 540)' }, rack);
       el('rect', { x: -64, y: -30, width: 128, height: 60, rx: 14, fill: '#FFF8EC', stroke: OUT, 'stroke-width': 3 }, g);
       el('rect', { x: -14, y: -18, width: 28, height: 34, rx: 4, fill: '#fff', stroke: OUT, 'stroke-width': 2.5 }, g);
@@ -1952,7 +1999,7 @@
         await sayWait(t.label.charAt(0).toUpperCase() + t.label.slice(1) + ': ' + tenth + ' dari 10 bagian terendam.', ok ? 'happy' : 'surprise');
         if (my !== gen) return;
       }
-      await sayWait('Makin padat bahannya, makin banyak yang terendam.', 'point');
+      if (!S.demo) await sayWait('Makin padat bahannya, makin banyak yang terendam.', 'point');
       if (my !== gen) return;
       finish(wrong === 0 ? 3 : wrong <= 2 ? 2 : 1, wrong === 0 ? 'Urutanmu pas!' : 'Semua benda sudah diamati!');
     }
@@ -1962,7 +2009,174 @@
       const my = gen;
       setTimeout(() => { if (my === gen) cemplung(); }, 400);
     };
-    say('Urutkan: yang sedikit terendam sampai yang banyak terendam.', 'think');
+    S.ex = { items, slots, btn };
+    if (!DEMO) say('Urutkan: yang sedikit terendam sampai yang banyak terendam.', 'think');
+  }
+
+  /* =====================================================================
+   * Worked examples ("Contoh", GS.demo, SOP docs/CONTOH.md)
+   * The ghost hand plays one round through the real drag/tap handlers with other objects or
+   * numbers than the child's task. Sorting levels are predict-then-observe: the example
+   * predicts correctly, then drops everything in and the water shows the result.
+   * ===================================================================== */
+  const NUMW = ['Nol', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan'];
+  const capw = s => s.charAt(0).toUpperCase() + s.slice(1);
+  function demoNamesA(LV) {
+    const sample = LV.names(), out = n => sample.indexOf(n) < 0;
+    const fl = ['gabus', 'botol', 'kayu', 'apel', 'kelapa', 'daun'].filter(out);
+    const sk = ['batu', 'gembok', 'koin', 'sendok', 'paku', 'baut', 'kelereng'].filter(out);
+    const pick = (a, d) => (a.length ? rndOf(a) : d);
+    if ((LV.rhoW || RHO_W) > RHO_W) return GS.shuffle(['telur', pick(sk, 'batu')]);
+    return GS.shuffle([pick(fl, 'gabus'), pick(sk, 'batu')]);
+  }
+  function demoKey(LV) {
+    if (LV.t === 'A') return LV.rhoW ? 'asin' : 'sortir';
+    if (LV.t === 'B') return LV.fruit ? 'kelapa' : LV.crates ? 'peti' : LV.kinds ? 'dua-jenis' : LV.mode === 'exact' ? 'pas' : 'maks';
+    if (LV.t === 'C') return { count: 'tebak-jumlah', predict: 'tebak-bentuk', target: 'bawa', design: 'rancang' }[LV.mode];
+    return { T: 'dua-rakit', E: 'telur', R: 'urutan' }[LV.t];
+  }
+  function demoSpec(i) {
+    const LV = LEVELS[i];
+    return {
+      key: demoKey(LV),
+      auto: !(LV.t === 'A' && /^Tantangan/.test(LV.say || '')),
+      build: () => buildLevel(i, true),
+      script: d => ({ A: demoA, B: demoB, C: demoC, T: demoTwin, E: demoEgg, R: demoRank })[LV.t](d)
+    };
+  }
+  async function until(d, fn, ms) {
+    const end = performance.now() + (ms || 30000);
+    while (!fn()) {
+      if (performance.now() > end) throw new Error('contoh menunggu terlalu lama');
+      await d.wait(120);
+    }
+  }
+  async function demoA(d) {
+    const { items, baskets, btn, rhoW } = S.ex;
+    await d.wait(500);
+    if (rhoW > RHO_W) await d.say('Ini air asin. Air asin lebih kuat mengangkat.');
+    else await d.say(BIG ? 'Tebak dulu, lalu cemplungkan.' : 'Tebak dulu: terapung atau tenggelam?');
+    for (const t of items) {
+      const line = t.name === 'telur' ? 'Telur kalah padat dari air asin. Terapung.'
+        : capw(t.label) + (BIG ? (t.floats ? ' ringan. Terapung.' : ' padat. Tenggelam.')
+          : (t.floats ? ' ringan untuk ukurannya. Terapung.' : ' padat untuk ukurannya. Tenggelam.'));
+      await d.say(line);
+      const bk = baskets[t.floats ? 'float' : 'sink'];
+      await d.drag(() => t.hit, { x: bk.cx, y: 470 }, 700);
+    }
+    await d.say('Ayo cemplung. Kita lihat!');
+    await d.tap(btn);
+    await d.success(60000);
+  }
+  async function demoB(d) {
+    const { P, K, cargo, btn, raft, exactLevel, fruit, grouped, crates } = S.ex;
+    const pick = cargo.filter(t => P.bestMask & (1 << t.idx)).sort((a, b) => b.kg - a.kg);
+    const to = { x: raft.x, y: 530 };
+    await d.wait(500);
+    if (fruit) {
+      await d.say('Benderanya ' + K + '. Rakit muat ' + K + ' kelapa.');
+      for (let j = 0; j < pick.length; j++) { await d.drag(() => pick[j].hit, to, 550); await d.say(NUMW[j + 1] + '.', 700); }
+      await d.say('Penuh! Ayo dayung.');
+    } else if (crates) {
+      const w = P.ws[0], n = pick.length;
+      await d.say('Satu peti ' + w + ' kilo. Rakit kuat ' + K + ' kilo.');
+      for (const t of pick) await d.drag(() => t.hit, to, 550);
+      await d.say(n + ' × ' + w + ' = ' + n * w + ' kilo. Satu peti lagi jadi ' + (n + 1) * w + ', terlalu berat!', 4200);
+    } else {
+      await d.say('Rakit kuat ' + K + ' kilo. ' + (exactLevel ? 'Cari yang jumlahnya pas ' + K + '.' : 'Cari yang paling berat, tapi tidak lewat ' + K + '.'));
+      for (const t of pick) await d.drag(() => t.hit, to, 550);
+      let terms = pick.map(t => String(t.kg));
+      if (grouped) {
+        const cnt = new Map();
+        pick.forEach(t => cnt.set(t.kg, (cnt.get(t.kg) || 0) + 1));
+        terms = [...cnt].map(([w, c]) => (c > 1 ? c + ' × ' + w : String(w)));
+      }
+      await d.say(terms.join(' + ') + ' = ' + P.best + ' kilo. ' + (exactLevel ? 'Pas!' : 'Paling dekat ke ' + K + '!'));
+    }
+    await d.tap(btn);
+    await d.success(60000);
+  }
+  async function demoTwin(d) {
+    const { mask, total, cargo, rafts, btn } = S.ex;
+    const left = cargo.filter(t => mask & (1 << t.idx)), right = cargo.filter(t => !(mask & (1 << t.idx)));
+    const half = total / 2;
+    await d.wait(500);
+    await d.say('Semuanya ' + total + ' kilo. Tiap rakit harus ' + half + ' kilo.');
+    for (const t of left) await d.drag(() => t.hit, { x: rafts[0].x, y: 530 }, 550);
+    await d.say('Kiri: ' + left.map(t => t.kg).join(' + ') + ' = ' + half + ' kilo.');
+    for (const t of right) await d.drag(() => t.hit, { x: rafts[1].x, y: 530 }, 550);
+    await d.say('Kanan juga ' + half + ' kilo. Sama berat!');
+    await d.tap(btn);
+    await d.success(30000);
+  }
+  // Load marbles until the shape sinks or carries enough: the first by dragging, then by tapping the jar.
+  async function feed(d) {
+    const end = performance.now() + 90000;
+    let first = true;
+    while (!S.won) {
+      if (performance.now() > end) throw new Error('contoh: kelereng tidak selesai');
+      if (S.ex.loading()) {
+        if (first) { await d.drag(S.ex.jar, { x: TK.cx, y: 300 }, 700); first = false; }
+        else await d.tap(S.ex.jar);
+      } else await d.wait(120);
+    }
+  }
+  async function demoC(d) {
+    const { shapes, btn, mode, m } = S.ex;
+    await d.wait(500);
+    if (mode === 'count') {
+      const sh = shapes[0];
+      await d.say(capw(sh.label) + ' ini kecil. Kira-kira muat ' + sh.N + ' kelereng.');
+      for (let k = 0; k < sh.N; k++) await d.tap('[data-hit="tambah"]');
+      await d.say('Coba, kita hitung!');
+    } else if (mode === 'predict') {
+      const best = shapes.reduce((a, s2) => (s2.N > a.N ? s2 : a));
+      await d.say(capw(best.label) + ' ruangnya paling besar. Aku pilih itu.');
+      await d.tap(best.g);
+    } else if (mode === 'target') {
+      const best = shapes.reduce((a, s2) => (s2.N > a.N ? s2 : a));
+      await d.say('Bawa ' + S.target + ' kelereng tanpa tenggelam.');
+      await d.say(capw(best.label) + ' ruangnya paling besar. Aku pilih itu.');
+      await d.tap(best.g);
+    } else {
+      const T0 = S.target, d1 = DSZ(1), d2 = DSZ(2);
+      await d.say(T0 + ' kelereng × ' + m + ' gram = ' + T0 * m + ' gram.');
+      await d.say('Ukuran 1: ruang ' + d1.V + ' ml, plastisin ' + d1.M + ' gram. Sisa ' + (d1.V - d1.M) + ', kurang.', 4200);
+      await d.tap('[data-hit="tambah"]');
+      await d.say('Ukuran 2: sisa ' + (d2.V - d2.M) + '. Cukup, dan hemat!');
+    }
+    await d.tap(btn);
+    await feed(d);
+    await d.success(30000);
+  }
+  async function demoEgg(d) {
+    const { cc, btn, saltBtn, ready } = S.ex;
+    await d.wait(500);
+    await d.say('Telur lebih padat dari air tawar. Tenggelam.');
+    await d.tap(cc[0].chips[1]);
+    await d.say('Air asin lebih padat dari telur. Terapung.');
+    await d.tap(cc[1].chips[0]);
+    await d.tap(btn);
+    await until(d, ready, 40000);
+    await d.wait(600);
+    const end = performance.now() + 40000;
+    while (!S.won) {
+      if (performance.now() > end) throw new Error('contoh: garam tidak selesai');
+      if (ready()) await d.tap(saltBtn); else await d.wait(150);
+    }
+    await d.success(20000);
+  }
+  async function demoRank(d) {
+    const { items, slots, btn } = S.ex;
+    const sorted = items.slice().sort((a, b) => a.rho - b.rho);
+    await d.wait(500);
+    await d.say('Yang paling ringan, paling sedikit terendam. ' + capw(sorted[0].label) + ' nomor 1.', 3600);
+    for (let k = 0; k < sorted.length; k++) {
+      const t = sorted[k];
+      await d.drag(() => t.hit, { x: slots[k].x, y: 505 }, 550);
+    }
+    await d.tap(btn);
+    await d.success(90000);
   }
 
   /* ---------------- debug hook (harmless) ---------------- */
