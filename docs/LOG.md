@@ -2,6 +2,15 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-11: Worked examples ("Contoh") in every level
+
+Requested by the owner before testing with children: every game in every kelas shows an example first, skippable; an SOP for future games and levels.
+- Engine `GS.demo` in `shared/core.js` + styles in `core.css`: a ghost hand plays the example through the game's REAL input handlers (synthetic pointer events; moves follow the pressed element, falling back to the `[data-gs-drag]` holder if the game redraws it), real touches are blocked except "Lewati", `run.win()` only marks the example solved (no stars). Auto-plays the first time a level type (`key`) is met per kelas, after the "Main!" gate (shown even in the installed app when audio is still locked); HUD hand button replays; `run.offerDemo()` pulses it after two misses. On phones the bar is compact (hand icon + Lewati, top-right).
+- SOP `docs/CONTOH.md` (different numbers than the child's task, real mechanics, think aloud, one round, 10-25 s, never affects stars) and test `tests/demos.js` (every level has an example that reaches success, auto-plays once, skips cleanly).
+- Piloted in Lompat Katak, then one agent per game added examples to all 380 levels; each game passed `demos.js` and `levels.js` on all five tiers. Timbangan's seesaw "jarak" result line no longer always says "Kiri turun".
+- Known: some examples run longer than 25 s because the game's own physics/reveal animations were kept at real speed (Rakit 26-31 s, Warung Kembalian up to 43 s in k2 L1/L7 and k4 L2/L5/L6, Wayang up to ~27 s). Lewati is always available.
+- Decision: auto-play once per level type, not every time (repeated auto-play teaches children to tap Lewati blindly); one-line change in `GS.runner` if the owner wants otherwise.
+
 ## 2026-10-10: Wave 2, four new games (10 in total)
 
 Requested by the owner: more game variety that follows the curriculum; ideas proposed first, owner approved ideas 1, 2, 6, 9 (Warung Kembalian, Jam Kampung, Kebun Bibit, Wayang Bayangan); Tenun Motif and Pancing Magnet postponed. Ideas not yet chosen: Jembatan Bambu (length), Tuang Sirup (volume), Ubin Rumah Joglo (shapes), Panen Grafik (data), Lintasan Kelereng (slopes, friction).
