@@ -886,7 +886,14 @@
       miss: t => 'Ini angka ' + h12(hmOf(t).h) + '. Cari angka dengan ' + n + ' titik.'
     })
   };
-  const TK_ORDER = () => ({
+  const TK_ORDER = demo => (demo ? {
+    kind: 'order', mode: 'tk', start: HM(5),
+    slots: [{ t: HM(6), icon: 'sunrise' }, { t: HM(12), icon: 'sunHigh' }, { t: HM(19), icon: 'moon' }],
+    cards: shuffle([{ id: 'warung', t: HM(6), icon: 'warung', demo: 'Warung buka pagi, matahari terbit.' },
+      { id: 'makan', t: HM(12), icon: 'makan', demo: 'Makan siang, matahari tinggi.' },
+      { id: 'makanmalam', t: HM(19), icon: 'makanmalam', demo: 'Makan malam, ada bulan.' }]),
+    say: '', win: 'Pagi, siang, lalu malam. Urutannya pas!'
+  } : {
     kind: 'order', mode: 'tk', start: HM(5),
     slots: [{ t: HM(6), icon: 'sunrise' }, { t: HM(7), icon: 'sunMid' }, { t: HM(20), icon: 'moon' }],
     cards: shuffle([{ id: 'bangun', t: HM(6), icon: 'ayam', why: 'Bangun tidur itu pagi, waktu ayam berkokok.' },
@@ -1068,13 +1075,19 @@
   };
   const LEVELS = TIERS[TIER] || TIERS.k1;
   const hud = GS.hud({ gameId: GAME, title: 'Jam Kampung', levelCount: LEVELS.length, onLevelPick: i => run.go(i) });
-  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i) });
+  const run = GS.runner({ gameId: GAME, count: LEVELS.length, hud, start: i => buildLevel(i), demo: demoSpec });
 
   /* ================= level flow ================= */
-  function buildLevel(i) {
+  let demoMode = false, demoSig = null;   // example mode; the example's signature (child's level must differ)
+  function buildLevel(i, demo) {
     tok++;
     document.querySelectorAll('.gs-overlay.gs-win').forEach(o => o.remove());
-    LV = LEVELS[i]();
+    demoMode = !!demo;
+    if (demo) { LV = { rounds: [demo.r] }; demoSig = { i, sig: rSig(demo.r) }; }
+    else {
+      LV = LEVELS[i]();
+      for (let k = 0; k < 30 && demoSig && demoSig.i === i && LV.rounds.some(r => rSig(r) === demoSig.sig); k++) LV = LEVELS[i]();
+    }
     tries = 0;
     startRound(0);
   }
@@ -1106,7 +1119,7 @@
     setDock();
     render();
     hud.mood('think');
-    GS.say(RD.say);
+    if (!demoMode) GS.say(RD.say);
   }
   function setDock() {
     dock.innerHTML = '';
@@ -1213,6 +1226,7 @@
   }
   async function miss(my, text, keepLocked) {
     tries++;
+    if (tries === 2) run.offerDemo();
     hud.mood('oops');
     GS.sfx.oops();
     GS.fx(clockG, 'gs-shake', 200);
@@ -1327,6 +1341,7 @@
       return;
     }
     tries++;
+    if (tries === 2) run.offerDemo();
     hud.mood('oops'); GS.sfx.oops();
     const bad = S[failAt].card;
     GS.fx(bad.body, 'gs-wobble', 450);
@@ -1354,8 +1369,8 @@
     const valT = GS.el('text', { x: 0, y: 16, 'font-size': 64, 'text-anchor': 'middle', fill: INK, 'font-weight': 600 }, g);
     GS.markup(g, txt(0, 60, o.unit, 34, { cls: 't-body', fill: '#5C3A1E' }));
     const show = () => { valT.textContent = String(st.v); };
-    hitButton(g, -122, 0, 50, '', () => { st.v = Math.max(st.min, st.v - st.step); show(); GS.sfx.pop(); }, { glyph: GLYPH.minus, name: 'minus', col: ['#F28C28', '#F8B26A', '#C76A12'] });
-    hitButton(g, 122, 0, 50, '', () => { st.v = Math.min(st.max, st.v + st.step); show(); GS.sfx.pop(); }, { glyph: GLYPH.plus, name: 'plus' });
+    st.minusHit = hitButton(g, -122, 0, 50, '', () => { st.v = Math.max(st.min, st.v - st.step); show(); GS.sfx.pop(); }, { glyph: GLYPH.minus, name: 'minus', col: ['#F28C28', '#F8B26A', '#C76A12'] }).querySelector('[data-hit]');
+    st.plusHit = hitButton(g, 122, 0, 50, '', () => { st.v = Math.min(st.max, st.v + st.step); show(); GS.sfx.pop(); }, { glyph: GLYPH.plus, name: 'plus' }).querySelector('[data-hit]');
     show();
     st.set = v => { st.v = v; show(); };
     return st;
@@ -1567,6 +1582,143 @@
     const inner = el('g', { class: 'jm-zzz' }, g);
     inner.innerHTML = Ci(0, 0, 58, solid('#FFFFFF', 3)) + markup;
     setTimeout(() => g.remove(), 2500);
+  }
+
+  /* ================= worked examples ("Contoh", GS.demo, SOP docs/CONTOH.md) =================
+   * Each level type has one example round with OTHER times than the child's task. The ghost
+   * hand turns the minute hand with a circular drag on the face (the real unwrapped-angle
+   * handler), drags the sun, drags order cards, or taps the steppers / digital buttons, then
+   * presses Cek! / Jalan!. On k3/k4 it stops one grid step short and taps the +/- nudge.
+   * Mixed and challenge levels replay the closest type's example (auto: false). */
+  function rSig(r) {
+    const tg = r.target != null ? wrap(r.target, r.mod === HALF ? HALF : DAY) : '';
+    return [r.kind, tg, r.kind === 'digital' ? r.start : '', r.answer != null ? r.start + '+' + r.answer : '',
+      r.cards ? r.cards.map(c => c.id + '@' + c.t).sort().join(',') : ''].join('|');
+  }
+  function demoDef(i) {
+    const D = {
+      tk: [
+        () => ({ key: 'tk-waktu', r: tk.night(HM(17)), say: ['Aku buat kampung jadi malam.', 'Aku putar jarumnya terus.'], after: 'Sudah gelap. Ada bulan. Tekan cek!' }),
+        () => ({ key: 'tk-matahari', r: clockR({ start: HM(14), target: HM(18), sunDrag: true, demoSun: true, card: { icon: 'sunrise' }, check: t => tod(t) >= HM(17) && tod(t) <= HM(18, 30), okSay: 'Matahari terbenam. Langitnya jingga!' }),
+          say: ['Mataharinya juga bisa digeser.', 'Aku geser turun sampai terbenam.'], after: 'Matahari terbenam. Tekan cek!' }),
+        () => ({ key: 'tk-urut', r: TK_ORDER(true), say: ['Taruh gambar sesuai waktunya.'], cardSay: c => c.demo, after: 'Pagi, siang, malam. Tekan cek!' }),
+        () => { const n = rand(1, 6); return { key: 'tk-jarum', r: tk.hour(n), say: ['Jarum pendek ke angka ' + n + '.', 'Cari angka dengan ' + n + ' titik.'], after: 'Pas di angka ' + n + '. Tekan cek!' }; },
+        () => ({ key: 'tk-bayang', r: Object.assign(tk.longShadow(HM(14)), { target: HM(17) }), say: ['Bayangannya harus sampai batu.', 'Matahari harus rendah. Aku putar terus.'], after: 'Bayangannya sampai batu! Tekan cek!' }),
+        () => Object.assign(D.tk[0](), { key: 'tk-campur', auto: false })
+      ],
+      k1: [
+        () => ({ key: 'k1-jam', r: k1Ev('makanmalam', HM(19), HM(2)), say: ['Makan malam jam 7.', 'Jarum panjang berputar, jarum pendek ikut jalan.'], after: 'Jarum pendek di 7, jarum panjang di 12.' }),
+        () => ({ key: 'k1-tugu', r: matchR(HM(4), HM(2)), say: ['Jam tugu menunjuk jam 4.', 'Aku putar jam menara sampai sama.'], after: 'Jarum pendek di 4, jarum panjang di 12. Sama!' }),
+        () => ({ key: 'k1-setengah', r: k1Ev('layangan', HM(15, 30), HM(1, 30)), say: ['Main layangan jam setengah 4.', 'Setengah 4 itu jam 3 lewat 30 menit.'], after: 'Jarum panjang di angka 6. Jarum pendek di antara 3 dan 4.' }),
+        () => ({ key: 'k1-sejam', r: afterR(HM(11), 3600, 'kue', ['Mulai jam 11', '1 jam lagi'], 'Kue dikukus jam 11. Matang 1 jam lagi!'), say: ['Kue mulai jam 11. Matang 1 jam lagi.', 'Satu jam: jarum panjang berputar satu kali.'], after: 'Satu putaran penuh. Sekarang jam 12.' }),
+        () => ({ key: 'k1-urut', r: K1_ORDER(), say: ['Lihat jam di setiap kartu.'], cardSay: (c, k) => (k ? 'Lalu ' : 'Paling pagi: ') + timeWords(c.t, true) + '.', after: 'Urut dari pagi sampai malam.' }),
+        () => ({ key: 'k1-bayang', r: clockR({ start: HM(14), target: HM(16), markShadow: true, card: { icon: 'longShadow', lines: ['Jam 4 sore.', 'Lihat bayangan.'] }, okSay: 'Jam 4 sore. Bayangannya memanjang ke timur.' }),
+          say: ['Atur jam 4 sore.', 'Lihat bayangan tiangnya bergerak.'], after: 'Sore hari, bayangannya ke arah timur.' }),
+        () => Object.assign(D.k1[0](), { key: 'k1-campur', auto: false }),
+        () => Object.assign(D.k1[2](), { key: 'k1-tantangan', auto: false })
+      ],
+      k2: [
+        () => ({ key: 'k2-seperempat', r: quarterR(4, false), say: ['Atur jam 4 lewat seperempat.', 'Seperempat putaran: jarum panjang ke angka 3.'], after: 'Jarum panjang di 3. Lewat 15 menit.' }),
+        () => ({ key: 'k2-lima', r: fiveR(2, 20), say: ['Atur jam 2 lewat 20 menit.', 'Hitung lima, lima: 5, 10, 15, 20.'], after: 'Jarum panjang di angka 4. Pas 20 menit.' }),
+        () => ({ key: 'k2-digital', r: digSetR(HM(2, 15)), say: ['Jam menara: jam 2 lewat 15 menit.', 'Jamnya 2. Aku tekan atas dua kali.'], mid: 'Menitnya 15. Tekan atas tiga kali: 5, 10, 15.', after: 'Jam digitalnya 02.15. Sama!' }),
+        () => ({ key: 'k2-berapajam', r: howR(HM(8), HM(11), 'h', null, ['Buka jam 8', 'Tutup jam 11'], 'Warung buka jam 8, tutup jam 11. Berapa jam?', { short: 'Warungnya masih buka.', long: 'Warungnya sudah tutup dari tadi.', icon: 'warung', ok: 'Warungnya tutup.' }),
+          say: ['Buka jam 8, tutup jam 11.', 'Dari 8: 9, 10, 11. Tiga jam.'], after: 'Tiga jam. Tekan Jalan, jamnya berputar.' }),
+        () => { const s = HM(11, 25), d = 1200; return { key: 'k2-menit', r: afterR(s, d, 'kue', ['Mulai 11.25', '20 menit lagi'], '', { counter: 'live', cunit: 'm', card: { icon: 'kue', lines: ['Mulai 11.25', '20 menit lagi'], counter: true } }),
+          say: ['Kue mulai 11.25. Matang 20 menit lagi.', 'Lima, lima: 30, 35, 40, 45.'], after: 'Maju 20 menit. Jam 11.45.' }; },
+        () => ({ key: 'k2-pagimalam', r: Object.assign(ampmR(HM(18), 'azan'), { start: HM(16) }), say: ['Azan magrib jam 6 sore.', 'Sekarang jam 4 sore. Aku putar maju.'], after: 'Jam 6 sore. Matahari terbenam.' }),
+        () => Object.assign(D.k2[1](), { key: 'k2-campur', auto: false }),
+        () => Object.assign(D.k2[4](), { key: 'k2-tantangan', auto: false })
+      ],
+      k3: [
+        () => ({ key: 'k3-menit', r: Object.assign(digCardR(HM(3, 26)), { start: HM(2) }), say: ['Jam digital 03.26.', 'Jarum panjang ke 25, lalu satu garis lagi.'], after: 'Jam 3 lewat 26 menit.' }),
+        () => ({ key: 'k3-24jam', r: digCardR(HM(14, 40), true, 'layangan'), say: ['Jam 14.40. Lewat jam 12, jadi siang.', '14 kurang 12 sama dengan 2. Jam 2 siang.'], after: 'Jam 2 lewat 40 menit siang.' }),
+        () => ({ key: 'k3-berapamenit', r: howR(HM(10, 45), HM(11, 10), 'm', 'angkot', ['Berangkat 10.45', 'Tiba 11.10'], 'Angkot berangkat 10.45, tiba 11.10. Berapa menit?', { short: 'Angkotnya belum sampai.', long: 'Angkotnya sudah sampai dari tadi.' }),
+          say: ['Dari 10.45 ke 11.00: 15 menit.', 'Lalu ke 11.10: 10 menit lagi. Jadi 25.'], after: 'Dua puluh lima menit. Jalan!' }),
+        () => ({ key: 'k3-jadwal', r: schedR(HM(8, 5), 900), say: ['Angkot datang 08.00, 08.15, 08.30.', 'Sekarang 08.05. Berikutnya 08.15.'], after: 'Jam 08.15. Angkotnya datang.' }),
+        () => ({ key: 'k3-mundur', r: backR(HM(9, 30), 35 * 60, 'bola', ['Selesai 09.30', 'Lama 35 menit', 'Mulai jam?'], ''), say: ['Selesai 09.30. Lamanya 35 menit.', 'Aku putar mundur 35 menit.'], after: 'Mundur 35 menit: jam 08.55.' }),
+        () => ({ key: 'k3-detik', r: secR(45), say: ['Lompat tali 45 detik.', 'Jarum merah: 15, 30, 45 detik.'], after: 'Tiga perempat putaran. 45 detik!' }),
+        () => Object.assign(D.k3[0](), { key: 'k3-campur', auto: false }),
+        () => Object.assign(D.k3[4](), { key: 'k3-tantangan', auto: false })
+      ],
+      k4: [
+        () => ({ key: 'k4-lama', r: howR(HM(9, 30), HM(11, 45), 'hm', 'bus', ['Berangkat 09.30', 'Tiba 11.45'], 'Bus berangkat 09.30, tiba 11.45. Berapa lama?', { short: 'Busnya belum sampai.', long: 'Busnya sudah sampai dari tadi.' }),
+          say: ['Dari 09.30 ke 11.30: 2 jam.'], mid: 'Dari 11.30 ke 11.45: 15 menit.', after: '2 jam 15 menit. Jalan!' }),
+        () => ({ key: 'k4-ubah', r: convR(HM(10), 80 * 60, 'm'), say: ['Kue dikukus 80 menit.', '80 menit sama dengan 60 tambah 20: 1 jam 20 menit.'], after: 'Jam 11.20. Kuenya matang.' }),
+        () => ({ key: 'k4-kereta', r: trainFwd(HM(7, 15), HM(1, 40)), say: ['Berangkat 07.15, lama 1 jam 40 menit.', 'Maju 1 jam: 08.15. Maju 40 menit: 08.55.'], after: 'Tiba jam 08.55.' }),
+        () => ({ key: 'k4-zona', r: zoneR(1, HM(10)), say: ['Di Makassar jam 10.00 WITA.', 'Jakarta satu jam lebih awal: 09.00.'], after: 'Jakarta 09.00 WIB.' }),
+        () => ({ key: 'k4-laju', r: speedR(2, 6, HM(9)), say: ['Satu km 2 menit. Pasar 6 km.', '6 kali 2 sama dengan 12 menit. Sampai 09.12.'], after: 'Jam 09.12. Jalan!' }),
+        () => ({ key: 'k4-matahari', r: sunR(HM(13)), say: ['Langit mendung. Lihat garis biru.', 'Bayangan pendek ke timur: sedikit lewat jam 12.'], after: 'Bayangan pas di garis biru.' }),
+        () => Object.assign(D.k4[3](), { key: 'k4-campur', auto: false }),
+        () => Object.assign(D.k4[5](), { key: 'k4-tantangan', auto: false })
+      ]
+    };
+    const list = D[TIER] || D.k1;
+    return list[i] ? list[i]() : null;
+  }
+  function demoSpec(i) {
+    const first = demoDef(i);
+    if (!first) return null;
+    return {
+      key: first.key,
+      auto: first.auto !== false,
+      build: () => { demoCur = demoDef(i); buildLevel(i, demoCur); },
+      script: async d => { await d.wait(500); await playExample(d, demoCur); await d.success(40000); }
+    };
+  }
+  let demoCur = null;
+  /** Points along the clock face for turning the dragged hand from time `from` to `to`. */
+  function facePath(from, to, mode) {
+    const unit = unitOf(mode), R = mode === 'hour' ? 110 : 175, a0 = handAngle(from, mode), span = (to - from) / unit * 360;
+    const n = Math.max(2, Math.ceil(Math.abs(span) / 12)), pts = [];
+    for (let k = 0; k <= n; k++) { const a = (a0 + span * k / n) * Math.PI / 180; pts.push({ x: CX + R * Math.sin(a), y: CY - R * Math.cos(a) }); }
+    return { pts, laps: Math.abs(span) / 360 };
+  }
+  async function playExample(d, def) {
+    for (const s of def.say) await d.say(s);
+    const r = RD;
+    if (r.kind === 'clock' && r.demoSun) {
+      const Hd0 = 15 * (tod(T) / 3600 - 12), pts = [];
+      for (let h = Hd0; h <= 88; h += 4) pts.push(skyPos(h));
+      pts.push(skyPos(88));
+      await d.path(pts, 2600);
+      await d.wait(400);
+    } else if (r.kind === 'clock') {
+      const goal = answerT(), mode = r.mode || 'min', sign = Math.sign(goal - T) || 1;
+      const nud = r.nudge && Math.abs(goal - T) > r.grid * 2, dragGoal = nud ? goal - sign * r.grid : goal;
+      const fp = facePath(T, dragGoal, mode);
+      await d.path(fp.pts, Math.max(1500, fp.laps * 2200));
+      await d.wait(400);
+      if (nud) {
+        const lab = mode === 'sec' ? r.grid + ' detik' : r.grid / 60 + ' menit';
+        await d.say(sign > 0 ? 'Kurang ' + lab + '. Aku tekan tombol plus.' : 'Lebih ' + lab + '. Aku tekan tombol minus.');
+        await d.tap(() => nudgeG.querySelector(sign > 0 ? '[data-hit="nudge-plus"]' : '[data-hit="nudge-minus"]'));
+      }
+    } else if (r.kind === 'order') {
+      const S = orderS.slots, cards = orderS.cards;
+      const order = r.mode === 'tk' ? S.map(s => cards.find(c => c.t === s.t)) : cards.slice().sort((a, b) => a.t - b.t);
+      for (let k = 0; k < order.length; k++) {
+        const c = order[k];
+        if (def.cardSay) await d.say(def.cardSay(c, k));
+        await d.drag({ x: c.x, y: c.y }, { x: S[k].x, y: S[k].y }, 1000);
+      }
+    } else if (r.kind === 'howlong') {
+      const want = r.answer, hw = stepS.h ? (stepS.m ? Math.floor(want / 3600) : Math.round(want / 3600)) : 0;
+      const mw = stepS.m ? Math.round((want - hw * 3600) / 60) : 0;
+      const stepTo = async (st, v) => { let g = 40; while (st.v < v && g--) await d.tap(st.plusHit); while (st.v > v && g--) await d.tap(st.minusHit); };
+      if (stepS.h) await stepTo(stepS.h, hw);
+      if (def.mid) await d.say(def.mid);
+      if (stepS.m) await stepTo(stepS.m, mw);
+    } else if (r.kind === 'digital') {
+      const a = hmOf(T0), wantH = h12(a.h), wantM = a.m;
+      const press = async (name, n) => { for (let k = 0; k < n; k++) await d.tap(() => panelG.querySelector('[data-hit="' + name + '"]')); };
+      const upH = wrap(wantH - digS.h, 12);
+      await press(upH <= 6 ? 'jam-naik' : 'jam-turun', upH <= 6 ? upH : 12 - upH);
+      if (def.mid) await d.say(def.mid);
+      const upM = wrap((wantM - digS.m) / 5, 12);
+      await press(upM <= 6 ? 'menit-naik' : 'menit-turun', upM <= 6 ? upM : 12 - upM);
+    }
+    if (def.after) await d.say(def.after);
+    await d.tap('#dock .gs-action');
   }
 
   /* ================= test hook ================= */
