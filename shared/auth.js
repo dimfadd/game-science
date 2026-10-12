@@ -3,12 +3,13 @@
  * window.MS.auth
  *   current()               -> session {accountId, email, provider, name, kelas, avatar, createdAt} or null
  *   profile()               -> device profile {name, kelas, avatar} or null
- *   requireLogin()          -> redirects to welcome.html when there is no session (runs automatically)
+ *   requireLogin()          -> no session: redirects first-time visitors (no profile on this device) to the
+ *                              landing page landing.html, returning ones to welcome.html (runs automatically)
  *   logout()                -> clears the session only (profile and game progress stay) and opens welcome.html
  *   avatarSvg(id, size, o)  -> SVG string; o.full = whole body instead of a head crop
  *   mountProfileChip(el)    -> compact avatar + name + "Keluar" chip
  *
- * The automatic guard is skipped on <body data-auth="public">, on welcome.html itself,
+ * The automatic guard is skipped on <body data-auth="public">, on welcome.html and landing.html,
  * when the URL contains "?autotest", and when navigator.webdriver is true.
  *
  * DEVELOPMENT ONLY: there is no server yet. Registered accounts live in this device's
@@ -202,14 +203,16 @@
   function herePath() { // page path relative to the root, used to come back after login
     try { var p = location.pathname, i = p.lastIndexOf('/games/'); return i < 0 ? '' : p.slice(i + 1); } catch (e) { return ''; }
   }
-  function welcomeUrl(withNext) {
-    var u = rootPrefix() + 'welcome.html', h = herePath();
+  function pageUrl(page, withNext) {
+    var u = rootPrefix() + page, h = herePath();
     return withNext && h ? u + '?next=' + encodeURIComponent(h) : u;
   }
+  function welcomeUrl(withNext) { return pageUrl('welcome.html', withNext); }
+  function landingUrl(withNext) { return pageUrl('landing.html', withNext); }
   // Only same-site game pages are accepted as a return target.
   function safeNext(n) { n = String(n || ''); return /^games\/[\w-]+\/?(index\.html)?$/.test(n) ? n : 'index.html'; }
 
-  function isWelcomePage() { try { return /welcome\.html$/i.test(location.pathname); } catch (e) { return false; } }
+  function isWelcomePage() { try { return /(welcome|landing)\.html$/i.test(location.pathname); } catch (e) { return false; } }
   function isPublic() { var b = document.body; return isWelcomePage() || !!(b && b.getAttribute('data-auth') === 'public'); }
   function isAutomated() {
     try { if (/[?&]autotest(\b|=|&|$)/.test(location.search)) return true; } catch (e) { /* ignore */ }
@@ -219,7 +222,8 @@
   function go(url) { try { location.replace(url); } catch (e) { try { location.href = url; } catch (e2) { /* ignore */ } } }
   function requireLogin() {
     if (!shouldRedirect()) return false;
-    go(welcomeUrl(true));
+    // First visit on this device: the landing page explains Mat Sains before the 3 questions.
+    go(profile() ? welcomeUrl(true) : landingUrl(true));
     return true;
   }
   function logout() {
@@ -290,7 +294,7 @@
       AVATARS: AVATARS, KELAS: KELAS, DEV_EMAIL: DEV.email,
       saveProfile: saveProfile, clearProfile: clearProfile,
       loginEmail: loginEmail, register: register, loginGoogle: loginGoogle, decodeJwt: decodeJwt,
-      welcomeUrl: welcomeUrl, rootPrefix: rootPrefix, safeNext: safeNext,
+      welcomeUrl: welcomeUrl, landingUrl: landingUrl, rootPrefix: rootPrefix, safeNext: safeNext,
       shouldRedirect: shouldRedirect, isAutomated: isAutomated, keys: K
     }
   };

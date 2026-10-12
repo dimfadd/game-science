@@ -2,6 +2,17 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-12: Landing page, vertical map with game sheets, landscape only in games
+
+Requested by the owner: (1) only the games turn sideways, (2) the map scrolls up and down and tapping a place first shows its explanation with "Main!" and an X to choose another game, (3) a landing page before the 3 questions, with a strong pitch for parents (math and physics as the base for AI and robotics, Mat Sains as learning through play), working on phones and tablets.
+- `landing.html` (new, built by a design agent from the lead's brief and exact copy): hero with a live pan balance, verified quotes from Elon Musk (World Government Summit, Dubai, 2017) and Jensen Huang (Beijing, 2025, reported by CNBC), each with its English original and a source link, plus a no-affiliation note; four looping demos of the real mechanics (balance, frog hops 3 x 4, martabak fractions, true parabolas at g = 9.8), the other six games, five design principles, final CTA. No statistics, testimonials or FAQ (none exist yet). `shared/auth.js` sends a first visit (no session, no device profile) to `landing.html`; returning devices still go to `welcome.html`. `welcome.html?masuk=1` opens the Masuk tab; choosing Daftar there starts the 3 questions (a new account needs a kelas).
+- Quote check: neither person said "children need math and physics for AI and superintelligence". Musk said physics is the best analytical framework; Huang said he would probably choose the physical sciences over software. The page quotes them exactly and states the AI link in our own words. Musk has also said most people do not need advanced math (WGS 2023), so the page does not claim he endorses math.
+- Hub (`index.html`): vertical route laid out per screen (zigzag on phones, snake rows of 3 to 5 on wide screens), curriculum order top to bottom, river with a bridge above Rakit Terapung, scenery placed only in free space (`GS.art.decor`, new). Tapping a place opens a sheet (art, kind, what this kelas learns, progress, "Main!", X / backdrop / Escape closes); the parent guide cards are gone from below the map (their text lives in the sheets). Level-up banner moved to the top.
+- Orientation: manifest `orientation: any`; `GS.orient()` locks landscape on game pages and portrait on phones elsewhere where a lock is allowed; the game start gate still enters fullscreen and locks landscape in a browser tab; iPhone keeps the "turn your phone" screen.
+- Bug fixed: on a first visit the service worker's first takeover reloaded the page about a second after it opened (lost scroll on the landing page, could wipe a typed name). Now only a real update reloads.
+- Tests: `tests/journey.js` now goes landing, onboarding, login, hub, sheet, Main!, gate (ok on phone portrait, phone landscape, tablet); `tests/hub-tiers.js` checks the sheet at four sizes; `tests/hub-hover.js` scrolls each landmark into view; `tests/smoke.js` includes landing.html (repo and dist).
+- Open: "Gratis selama masa uji coba. Tanpa iklan." must change if pricing or ads are introduced; the landing page has no real testimonials or results yet (add them only after the playtest); Google can index the landing page only through the JS redirect from `/` (fine for Google, weaker for other search engines).
+
 ## 2026-10-11: Worked examples ("Contoh") in every level
 
 Requested by the owner before testing with children: every game in every kelas shows an example first, skippable; an SOP for future games and levels.

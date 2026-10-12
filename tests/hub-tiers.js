@@ -1,5 +1,5 @@
 /* Hub per kelas: signed-in hub at several sizes, the profile editor, switching
- * kelas changes the map texts and level counts, and the level-up banner.
+ * kelas changes the sheet texts and level counts, the game sheet (open, fit, X closes), and the level-up banner.
  * Screenshots go to $SHOTS (default tests/shots). */
 const fs = require('fs');
 const path = require('path');
@@ -39,11 +39,29 @@ const SIZES = { phoneWide: [1000, 452], phoneLandscape: [844, 390], phonePortrai
       await page.click('#ms-pe-save');
       await page.waitForTimeout(1200);
       const label = await page.textContent('#tierLabel');
-      const desc = await page.textContent('#games .g p');
+      await page.evaluate(() => document.querySelector('.node[data-id="timbangan"]').dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })));
+      await page.waitForTimeout(500);
+      const desc = await page.textContent('#sheetDesc');
       check(name + ': kelas switched to ' + label, label === 'Kelas 3' && /Perkalian/.test(desc));
       const chip = await page.textContent('#profile');
       check(name + ': name changed', chip.includes('Dimas') || name === 'phonePortrait');
     }
+    // tapping a place opens its sheet (what it teaches, Main!, X); X closes it again
+    await page.reload(); await page.waitForTimeout(900);
+    const lm = await page.$('.node[data-id="katak"] .lm');
+    await lm.scrollIntoViewIfNeeded(); await page.waitForTimeout(200);
+    const lb = await lm.boundingBox();
+    await page.touchscreen.tap(lb.x + lb.width / 2, lb.y + lb.height / 2); await page.waitForTimeout(600);
+    const sh = await page.evaluate(() => {
+      const c = document.querySelector('.sheet-card').getBoundingClientRect(), x = document.getElementById('sheetX').getBoundingClientRect(), p = document.getElementById('sheetPlay').getBoundingClientRect();
+      return { open: !document.getElementById('sheet').hidden, href: document.getElementById('sheetPlay').getAttribute('href'), title: document.getElementById('sheetTitle').textContent,
+        fits: c.top >= -1 && c.bottom <= innerHeight + 1 && c.left >= -1 && c.right <= innerWidth + 1, xIn: x.top >= c.top && x.right <= c.right + 1, playIn: p.bottom <= innerHeight, playH: p.height };
+    });
+    await page.screenshot({ path: path.join(SHOTS, 'sheet-' + name + '.png') });
+    check(name + ': tapping a place opens its sheet (' + sh.title + ')', sh.open && sh.href === 'games/katak/index.html' && sh.title === 'Lompat Katak');
+    check(name + ': sheet fits the screen with X and Main! visible', sh.fits && sh.xIn && sh.playIn && sh.playH >= 56);
+    await page.tap('#sheetX'); await page.waitForTimeout(500);
+    check(name + ': X closes the sheet and stays on the map', (await page.evaluate(() => document.getElementById('sheet').hidden)) && /index\.html/.test(page.url()));
     if (errors.length) { failed++; console.log('FAIL ' + name + ' errors:\n  ' + errors.join('\n  ')); }
     await ctx.close();
   }

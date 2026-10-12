@@ -429,6 +429,28 @@
   };
 
   /**
+   * Orientation: only the games play sideways. Game pages (body.gs-game) lock landscape;
+   * every other page (map, landing, onboarding) stands upright on phones and follows the
+   * device on tablets. Browsers only allow a lock in fullscreen or in the installed app, so
+   * this is best effort: in a normal browser tab the start gate's fullscreen request locks
+   * landscape, and on iPhone (no lock API) games show the "turn your phone" screen instead.
+   */
+  GS.orient = function () {
+    try {
+      const o = screen.orientation;
+      if (!o || !o.lock) return;
+      const game = document.body && document.body.classList.contains('gs-game');
+      const phone = Math.min(screen.width, screen.height) < 600;
+      if (game) o.lock('landscape').catch(() => {});
+      else if (phone) o.lock('portrait').catch(() => {});
+      else if (o.unlock) o.unlock();
+    } catch (e) { /* not supported */ }
+  };
+  if (!AUTOTEST) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', GS.orient); else GS.orient();
+  }
+
+  /**
    * Start gate for game pages: one big "Main!" button before the first level.
    * The tap unlocks audio, enters fullscreen (touch devices), locks landscape and speaks the
    * first instruction, which mobile browsers would otherwise block. Skipped for installed

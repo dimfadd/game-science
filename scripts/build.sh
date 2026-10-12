@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 rm -rf dist
 mkdir -p dist
-for f in index.html welcome.html manifest.webmanifest sw.js; do [ -f "$f" ] && cp "$f" dist/; done
+for f in index.html welcome.html landing.html manifest.webmanifest sw.js; do [ -f "$f" ] && cp "$f" dist/; done
 cp -r shared icons dist/
 [ -d audio ] && cp -r audio dist/
 mkdir -p dist/games

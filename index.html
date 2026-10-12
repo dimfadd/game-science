@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mat Sains</title>
+<meta name="description" content="10 game matematika dan fisika buatan Indonesia untuk anak TK sampai Kelas 4+, dipandu Si Cil.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
@@ -17,24 +18,27 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <style>
-  /* Layout: the illustrated kampung map is the whole first screen (the hub);
-     the parent guide sits below it on a cream panel. Single sunny theme by choice. */
-  body { overflow-x: hidden; background: var(--panel); }
+  /* Layout: a header on the sky, then the kampung map as one tall route that scrolls DOWN
+     (the page itself scrolls, no inner scroller), then the parent guide on a cream panel.
+     The map is laid out in script for the screen width (zigzag on phones, snake rows on wide
+     screens). Tapping a place opens its sheet (what it teaches, progress, "Main!", close X).
+     Single sunny theme by choice. */
+  html, body { height: auto; }
+  body { overflow-x: hidden; overflow-y: auto; background: var(--panel); }
   .map-wrap { position: relative; background: var(--sky); border-bottom: 4px solid var(--line); }
   .map-head {
-    position: absolute; z-index: 2; top: calc(14px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px;
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; pointer-events: none;
+    position: relative; z-index: 2;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px));
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
-  .brand { pointer-events: auto; display: flex; flex-direction: column; }
+  .brand { display: flex; flex-direction: column; min-width: 0; }
   .brand h1 {
     margin: 0; font-family: var(--font-display); font-weight: 800; line-height: 0.9;
-    font-size: clamp(38px, 6.5vw, 76px); color: var(--ink);
-    -webkit-text-stroke: 0; text-shadow: 0 4px 0 #fff;
+    font-size: clamp(38px, 6.5vw, 72px); color: var(--ink); text-shadow: 0 4px 0 #fff;
   }
-  .brand p { margin: 6px 0 0; font-weight: 700; font-size: clamp(15px, 1.8vw, 20px); max-width: 32ch; }
-  .head-tools { pointer-events: auto; display: flex; gap: 10px; align-items: center; }
+  .brand p { margin: 6px 0 0; font-weight: 700; font-size: clamp(16px, 1.8vw, 20px); max-width: 44ch; }
+  .head-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   @media (max-height: 520px) and (min-width: 641px) {
-    /* Short landscape phones: the subtitle would sit on top of the landmarks. */
     .brand p { display: none; }
     .brand h1 { font-size: 40px; }
     .head-tools .gs-btn, .total, .tier-btn { height: 50px; }
@@ -44,10 +48,9 @@
     /* Narrow phones: title on its own line, tools wrap underneath so nothing is clipped. */
     .map-head { flex-direction: column; align-items: stretch; gap: 10px; }
     .brand p { max-width: none; }
-    .head-tools { flex-wrap: wrap; gap: 8px; }
-    .head-tools .gs-btn, .total { height: 52px; }
+    .head-tools { justify-content: flex-start; gap: 8px; }
+    .head-tools .gs-btn, .total, .tier-btn { height: 52px; }
     .head-tools .gs-btn { width: 52px; min-width: 52px; }
-    .map-scroll { padding-top: 64px; } /* keep the header from covering the landmarks */
   }
   .total {
     display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 16px 0 10px;
@@ -57,75 +60,102 @@
   .total svg { width: 34px; height: 34px; color: var(--sun); }
   .total svg path { stroke: var(--line); stroke-width: 1.3; }
 
-  .map-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-  .map-scroll::-webkit-scrollbar { display: none; }
-  /* The map fills its box; the viewBox is widened in script so there are never empty strips. */
-  #map { display: block; width: 100%; min-width: 980px; height: auto; aspect-ratio: 16 / 9; }
-  @media (max-width: 760px) { #map { width: 980px; } }
-  @media (min-aspect-ratio: 16/9) and (min-width: 761px) { #map { aspect-ratio: auto; height: 100vh; height: 100svh; } }
-
+  #map { display: block; width: 100%; }
   .node { cursor: pointer; outline: none; }
   .node .lm { transition: transform 200ms var(--ease-pop); transform-box: fill-box; transform-origin: 50% 100%; }
   .node:hover .lm, .node:focus-visible .lm { transform: scale(1.06); }
   .node:active .lm { transform: scale(0.96); }
   .node:focus-visible .sign rect { stroke: var(--primary); stroke-width: 6; }
+  .node.on .sign rect { fill: #FFF1C9; }
   .sign text { font-family: var(--font-display); font-weight: 800; }
   .sign .stars { font-family: var(--font-num); font-weight: 600; }
   .node.fresh .lm { filter: saturate(0.75); }
-  .cloud { animation: drift 60s linear infinite; }
-  .cloud.c2 { animation-duration: 85s; animation-delay: -30s; }
-  .cloud.c3 { animation-duration: 70s; animation-delay: -50s; }
-  @keyframes drift { from { transform: translateX(-300px); } to { transform: translateX(1900px); } }
-  .kite { animation: kite 4s ease-in-out infinite; transform-origin: 840px 140px; }
+  .cloud { animation: drift 26s ease-in-out infinite alternate; }
+  .cloud.c2 { animation-duration: 34s; animation-delay: -12s; }
+  @keyframes drift { from { transform: translateX(-90px); } to { transform: translateX(90px); } }
+  .kite { animation: kite 4s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 0; }
   @keyframes kite { 50% { transform: rotate(6deg) translateY(-8px); } }
+  .river-hl { animation: flow 3s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -60; } }
   #cil { transition: transform 900ms var(--ease-in); }
-  @media (prefers-reduced-motion: reduce) { .cloud, .kite { animation: none; } #cil { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .cloud, .kite, .river-hl { animation: none; } #cil { transition: none; } }
 
-  /* "Swipe the map" hint: a small pill in the bottom-right corner (a free patch of grass on
-     every phone width), gone after the first scroll of the map. */
-  .swipe-hint { display: none; }
-  @media (max-width: 760px) {
-    .swipe-hint {
-      display: flex; position: absolute; bottom: 10px; right: 10px; z-index: 2;
-      gap: 6px; align-items: center; padding: 4px 12px 4px 8px; background: var(--card); border: 3px solid var(--line); border-radius: 999px;
-      font-weight: 700; font-size: 14px; line-height: 1.2; pointer-events: none;
-      box-shadow: 0 3px 0 rgba(59, 42, 32, 0.25);
-      transition: opacity 300ms ease-out, translate 300ms ease-out;
-    }
-    .swipe-hint svg { width: 22px; height: 22px; flex: none; }
-    /* the near row of signs reaches the map's bottom edge, so the hint gets its own strip of grass */
-    .map-scroll { padding-bottom: 50px; background: linear-gradient(to bottom, transparent 50%, #7CC26B 50%); }
-    .swipe-hint.gone { opacity: 0; translate: 0 8px; }
+  /* "Scroll down" hint: shown while the route continues below the fold, gone after the first scroll. */
+  .down-hint {
+    position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 5; translate: -50% 0;
+    display: flex; gap: 6px; align-items: center; padding: 6px 16px 6px 10px; background: var(--card); border: 3px solid var(--line); border-radius: 999px;
+    font-weight: 700; font-size: 16px; line-height: 1.2; pointer-events: none; box-shadow: 0 3px 0 rgba(59, 42, 32, 0.25);
+    transition: opacity 300ms ease-out, translate 300ms ease-out;
   }
-  @media (prefers-reduced-motion: reduce) { .swipe-hint { transition: none; } }
+  .down-hint svg { width: 22px; height: 22px; flex: none; animation: nudge 1.4s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: translateY(4px); } }
+  .down-hint.gone { opacity: 0; translate: -50% 10px; }
+  @media (prefers-reduced-motion: reduce) { .down-hint { transition: none; } .down-hint svg { animation: none; } }
+
+  /* Game sheet: bottom sheet on phones in portrait, centred card elsewhere. */
+  .sheet { position: fixed; inset: 0; z-index: 50; display: grid; place-items: end center; }
+  .sheet[hidden] { display: none; }
+  .sheet-back { position: absolute; inset: 0; background: rgba(43, 29, 20, 0.5); opacity: 0; transition: opacity 240ms ease-out; }
+  .sheet.show .sheet-back { opacity: 1; }
+  .sheet-card {
+    position: relative; width: min(560px, 100%); max-height: calc(100% - 24px); overflow-y: auto; overscroll-behavior: contain;
+    background: var(--panel); border: 4px solid var(--line); border-bottom: 0; border-radius: 32px 32px 0 0;
+    padding: 18px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(105%); transition: transform 340ms var(--ease-in);
+  }
+  .sheet.show .sheet-card { transform: none; }
+  .sheet-x { position: absolute; top: 12px; right: 12px; width: 56px; height: 56px; min-width: 56px; z-index: 1; }
+  .sheet-x svg { width: 28px; height: 28px; }
+  .sheet-art { height: 170px; margin: 0 64px 4px; display: block; }
+  .sheet-art svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .sheet-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .sheet .kind { align-self: flex-start; display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 15px; font-weight: 700; }
+  .sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 7vw, 38px); line-height: 1.05; }
+  .sheet-tier { margin: 0; font-weight: 700; font-size: 16px; color: #6B5444; }
+  .sheet-desc { margin: 0; font-size: 18px; line-height: 1.5; }
+  .sheet-prog { margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--font-num); font-size: 18px; color: #5C4636; font-variant-numeric: tabular-nums; }
+  .sheet-prog .s3 { display: inline-flex; gap: 2px; }
+  .sheet-prog .s3 svg { width: 26px; height: 26px; }
+  .sheet .sheet-play { align-self: stretch; justify-content: center; min-height: 72px; font-size: 32px; margin-top: 4px; }
+  .sheet-play svg { width: 30px; height: 30px; }
+  @media (min-width: 700px) and (min-height: 521px) {
+    .sheet { place-items: center; padding: 24px; }
+    .sheet-card { border-bottom: 4px solid var(--line); border-radius: 32px; padding: 22px 26px 26px; transform: translateY(24px) scale(0.94); opacity: 0; transition: transform 300ms var(--ease-pop), opacity 200ms ease-out; }
+    .sheet.show .sheet-card { opacity: 1; }
+    .sheet-art { height: 200px; }
+  }
+  /* Short landscape screens: art left, text right, both visible without scrolling. */
+  @media (max-height: 520px) and (orientation: landscape) {
+    .sheet { place-items: center; padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); }
+    .sheet-card {
+      width: min(780px, 100%); max-height: 100%; display: grid; grid-template-columns: minmax(170px, 30%) 1fr; gap: 18px; align-items: center;
+      border-bottom: 4px solid var(--line); border-radius: 28px; padding: 14px 18px 16px;
+      transform: translateY(24px) scale(0.94); opacity: 0; transition: transform 300ms var(--ease-pop), opacity 200ms ease-out;
+    }
+    .sheet.show .sheet-card { opacity: 1; }
+    .sheet-art { height: auto; aspect-ratio: 1; max-height: calc(100vh - 60px); margin: 0; }
+    .sheet h2 { font-size: 30px; padding-right: 60px; }
+    .sheet-body { gap: 8px; }
+    .sheet-desc { font-size: 16px; line-height: 1.4; }
+    .sheet .sheet-play { min-height: 60px; font-size: 28px; margin-top: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .sheet-card, .sheet-back { transition: none; } }
 
   /* Parent guide */
   .guide { max-width: 1120px; margin: 0 auto; padding-block: 40px 56px; padding-inline: 16px; }
   .guide h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 4vw, 40px); text-wrap: balance; }
   .guide > p { margin: 0 0 24px; max-width: 64ch; font-size: 18px; line-height: 1.55; }
-  .games { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
-  .g {
-    display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: start; min-width: 0;
-    background: var(--card); border: 3px solid var(--line); border-radius: 24px; padding: 16px;
-  }
-  .g-art { width: 88px; height: 88px; border-radius: 18px; background: var(--sky-low); display: grid; place-items: center; overflow: hidden; }
-  /* The icon's viewBox is fitted to its drawing in the script below, so it sits centred and whole. */
-  .g-art svg { display: block; width: 76px; height: 76px; margin: 0; overflow: visible; }
-  .g h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.1; }
-  .g .kind { display: inline-block; margin: 6px 0 8px; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 700; }
   .kind.mat { background: #DCEAFB; color: #134C93; }
   .kind.fis { background: #FDE3C8; color: #7A3E06; }
   .kind.mix { background: #D6F0EB; color: #0A5E52; }
-  .g p { margin: 0 0 10px; font-size: 16px; line-height: 1.5; }
-  .g .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .g .prog { font-family: var(--font-num); font-size: 18px; font-variant-numeric: tabular-nums; color: #5C4636; }
   .play {
-    display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 0 20px;
+    display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 20px;
     background: var(--primary); color: #fff; border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
-    font-family: var(--font-display); font-weight: 800; font-size: 20px; text-decoration: none;
+    font-family: var(--font-display); font-weight: 800; font-size: 20px; text-decoration: none; cursor: pointer;
   }
   .play:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
-  .principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 36px; }
+  .play:focus-visible, .sheet-x:focus-visible { outline: 4px solid var(--sun-dark); outline-offset: 3px; }
+  .principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 8px; }
   .principles div { border-top: 4px solid var(--line); padding-top: 12px; }
   .principles h4 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
   .principles p { margin: 0; font-size: 16px; line-height: 1.5; }
@@ -137,8 +167,8 @@
   .tier-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
   .tier-btn svg { width: 20px; height: 20px; }
   .levelup {
-    display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin: 0 0 24px;
-    padding: 16px 18px; background: #E3F4F1; border: 3px solid var(--line); border-radius: 24px;
+    position: relative; z-index: 2; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center;
+    margin: 6px 16px 4px; padding: 16px 18px; background: #E3F4F1; border: 3px solid var(--line); border-radius: 24px;
   }
   .levelup[hidden] { display: none; }
   .levelup svg.cil { width: 84px; height: 84px; }
@@ -146,6 +176,7 @@
   .levelup p { margin: 0 0 10px; font-size: 16px; line-height: 1.45; }
   .levelup .row2 { display: flex; gap: 10px; flex-wrap: wrap; }
   .levelup .ghost { background: var(--card); color: var(--ink); }
+  @media (max-width: 480px) { .levelup { grid-template-columns: 1fr; } .levelup svg.cil { width: 64px; height: 64px; } }
   .guide .tier-note { display: inline-block; margin: 0 0 14px; padding: 4px 12px; border-radius: 999px; background: #FFF1C9; border: 2px solid var(--line); font-weight: 700; font-size: 15px; }
   .profile { display: flex; align-items: center; }
   .profile:empty { display: none; }
@@ -159,9 +190,8 @@
   .install-cta p { margin: 0; font-size: 16px; line-height: 1.45; }
   @media (max-width: 560px) { .install-cta { grid-template-columns: 56px 1fr; } .install-cta .play { grid-column: 1 / -1; justify-content: center; } }
   .foot { margin-top: 36px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 16px; }
-  .foot a { color: var(--primary-dark); font-weight: 700; }
   .reset { min-height: 44px; padding: 0 16px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); font-weight: 700; cursor: pointer; }
-  .confirm { display: inline-flex; gap: 10px; align-items: center; }
+  .confirm { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -179,22 +209,19 @@
         <div id="profile" class="profile"></div>
       </div>
     </div>
-    <div class="map-scroll" id="scroller">
-      <svg id="map" viewBox="0 0 1600 900" role="group" aria-label="Peta dengan sepuluh tempat bermain"></svg>
-    </div>
-    <div class="swipe-hint" id="swipeHint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h16M15 7l5 5-5 5M9 7l-5 5 5 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Geser peta</div>
-  </section>
-
-  <section class="guide" id="orang-tua">
     <div class="levelup" id="levelUp" hidden>
       <div id="levelUpCil"></div>
       <div><h3 id="levelUpTitle"></h3><p id="levelUpText"></p>
         <div class="row2"><button type="button" class="play" id="levelUpGo"></button><button type="button" class="play ghost" id="levelUpStay">Main lagi di kelas ini</button></div></div>
     </div>
+    <svg id="map" viewBox="0 0 620 2400" role="group" aria-label="Peta dengan sepuluh tempat bermain"></svg>
+  </section>
+  <div class="down-hint gone" id="downHint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Geser ke bawah</div>
+
+  <section class="guide" id="orang-tua">
     <h2>Untuk orang tua dan guru</h2>
     <span class="tier-note" id="tierNote"></span>
-    <p>Setiap permainan mengajarkan satu konsep matematika atau fisika lewat mekaniknya sendiri. Anak tidak menjawab kuis. Anak menimbang, melompat, memotong, dan menembak, lalu dunia game menunjukkan hasilnya. Angka dan simbol muncul pelan-pelan di samping benda nyata, supaya saat bertemu notasi di sekolah, anak sudah punya gambarannya.</p>
-    <div class="games" id="games"></div>
+    <p>Setiap permainan mengajarkan satu konsep matematika atau fisika lewat mekaniknya sendiri. Anak tidak menjawab kuis. Anak menimbang, melompat, memotong, dan menembak, lalu dunia game menunjukkan hasilnya. Ketuk tempat di peta untuk membaca apa yang dipelajari di kelas ini. Angka dan simbol muncul pelan-pelan di samping benda nyata, supaya saat bertemu notasi di sekolah, anak sudah punya gambarannya.</p>
     <div class="principles">
       <div><h4>Benda dulu, simbol kemudian</h4><p>Level awal hanya benda. Angka muncul di samping benda, lalu kalimat matematika, lalu simbol saja.</p></div>
       <div><h4>Tebak dulu, lalu lihat</h4><p>Sebelum hasil terlihat, anak memprediksi. Prediksi yang meleset tidak dihukum, justru jadi bahan berpikir.</p></div>
@@ -212,6 +239,22 @@
   </section>
 </main>
 
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet-back" id="sheetBack"></div>
+  <div class="sheet-card">
+    <button type="button" class="gs-btn sheet-x" id="sheetX" aria-label="Tutup, pilih game lain"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></button>
+    <div class="sheet-art" id="sheetArt" aria-hidden="true"></div>
+    <div class="sheet-body">
+      <span class="kind" id="sheetKind"></span>
+      <h2 id="sheetTitle"></h2>
+      <p class="sheet-tier" id="sheetTier"></p>
+      <p class="sheet-desc" id="sheetDesc"></p>
+      <p class="sheet-prog" id="sheetProg"></p>
+      <a class="play sheet-play" id="sheetPlay" href="#"></a>
+    </div>
+  </div>
+</div>
+
 <script src="shared/core.js"></script>
 <script src="shared/art.js"></script>
 <script src="shared/config.js"></script>
@@ -223,227 +266,392 @@
 <script>
 (function () {
   'use strict';
-  // Positions and art are the hub's; names, descriptions and level counts come from shared/curriculum.js.
+  // Art and spoken lines are the hub's; names, descriptions and level counts come from shared/curriculum.js.
   const KUR = window.MS && MS.kur;
   const TIER = KUR ? KUR.tier() : 'k1';
   const TINFO = KUR ? KUR.info(TIER) : { label: 'Kelas 1', fase: '', levels: 8 };
   const KIND = { mat: 'Matematika', fis: 'Fisika', mix: 'Matematika + Fisika' };
-  // Three rows on a 1600 x 900 map: far row (terminal, pos ronda, panggung, river), middle row
-  // (warung by the market, kebun by the river) and the near row (market street, then the fields).
-  const PLACES = [
-    { id: 'timbangan', lm: 'pasar', x: 190, y: 808, icon: 'rambutan', say: 'Timbangan Pasar. Ayo menimbang!' },
-    { id: 'kembalian', lm: 'kelontong', x: 610, y: 808, icon: 'koin', say: 'Warung Kembalian. Ayo hitung uang kembalian!' },
-    { id: 'martabak', lm: 'warung', x: 400, y: 596, icon: 'klepon', say: 'Bagi Martabak. Bagi yang adil, ya!' },
-    { id: 'angkot', lm: 'terminal', x: 260, y: 360, icon: 'person0', say: 'Angkot Penuh! Ayo isi angkotnya.' },
-    { id: 'jam', lm: 'posronda', x: 640, y: 360, icon: 'ayam', say: 'Jam Kampung. Jam berapa sekarang?' },
-    { id: 'wayang', lm: 'panggung', x: 1020, y: 360, icon: 'kucing', say: 'Wayang Bayangan. Ayo main bayangan!' },
-    { id: 'perahu', lm: 'sungai', x: 1390, y: 360, icon: 'kayu', say: 'Rakit Terapung. Mana yang terapung, mana yang tenggelam?' },
-    { id: 'ketapel', lm: 'kebun', x: 1205, y: 596, icon: 'mangga', say: 'Ketapel Mangga. Tarik, bidik, lepas!' },
-    { id: 'katak', lm: 'sawah', x: 990, y: 808, icon: 'katak', say: 'Lompat Katak. Bantu katak menemui temannya!' },
-    { id: 'bibit', lm: 'bibit', x: 1420, y: 808, icon: 'keranjang', say: 'Kebun Bibit. Ayo tanam bibit berbaris!' }
-  ];
-  const LM_SCALE = 0.86; // ten landmarks share the map, so each is drawn a little smaller
-  const GAMES = PLACES.map(p => {
-    const k = KUR && KUR.GAMES[p.id];
-    return Object.assign({}, p, {
-      name: k ? k.name : p.id,
+  const PLACES = {
+    timbangan: { lm: 'pasar', say: 'Timbangan Pasar. Ayo menimbang!' },
+    angkot: { lm: 'terminal', say: 'Angkot Penuh! Ayo isi angkotnya.' },
+    katak: { lm: 'sawah', say: 'Lompat Katak. Bantu katak menemui temannya!' },
+    ketapel: { lm: 'kebun', say: 'Ketapel Mangga. Tarik, bidik, lepas!' },
+    perahu: { lm: 'sungai', say: 'Rakit Terapung. Mana yang terapung, mana yang tenggelam?' },
+    martabak: { lm: 'warung', say: 'Bagi Martabak. Bagi yang adil, ya!' },
+    bibit: { lm: 'bibit', say: 'Kebun Bibit. Ayo tanam bibit berbaris!' },
+    kembalian: { lm: 'kelontong', say: 'Warung Kembalian. Ayo hitung uang kembalian!' },
+    jam: { lm: 'posronda', say: 'Jam Kampung. Jam berapa sekarang?' },
+    wayang: { lm: 'panggung', say: 'Wayang Bayangan. Ayo main bayangan!' }
+  };
+  // The route follows the curriculum order, top to bottom.
+  const ORDER = KUR ? Object.keys(KUR.GAMES) : Object.keys(PLACES);
+  const GAMES = ORDER.filter(id => PLACES[id]).map(id => {
+    const k = KUR && KUR.GAMES[id];
+    return Object.assign({ id }, PLACES[id], {
+      name: k ? k.name : id,
       kind: k ? k.kind : 'mat',
       kindLabel: KIND[k ? k.kind : 'mat'],
       desc: k ? k.desc[TIER] : '',
       levels: TINFO.levels
     });
   });
+  const RIVER_BEFORE = Math.max(1, GAMES.findIndex(g => g.id === 'perahu')); // the river runs just above the raft
 
   const map = document.getElementById('map');
   const art = GS.art || {};
   const has = fn => typeof art[fn] === 'function';
+  const r1 = v => Math.round(v * 10) / 10;
+  const stars = id => GS.store.totalStars(id);
+  const done = id => GS.store.stars(id).filter(Boolean).length;
+  const STAR = 'm12 2.8 2.8 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.7 3.1 1.2-6.3-4.6-4.4 6.3-.8z';
+  let total = 0;
+  GAMES.forEach(g => { total += stars(g.id); });
 
-  // --- background: sky, hills, river, path ---
-  const bg = GS.el('g', null, map);
-  bg.innerHTML =
-    '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ED8EC"/><stop offset="1" stop-color="#E6F5F0"/></linearGradient>' +
-    '<pattern id="kawung" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="7" cy="7" r="3" fill="#3B2A20" opacity="0.06"/><circle cx="21" cy="21" r="3" fill="#3B2A20" opacity="0.06"/></pattern></defs>' +
-    '<rect x="-1600" width="4800" height="900" fill="url(#sky)"/>' +
-    '<circle cx="1470" cy="120" r="56" fill="#FFE08A"/><circle cx="1470" cy="120" r="40" fill="#FFC83D"/>' +
-    cloud(0, 120, 1) + cloud(0, 200, 0.7, 'c2') + cloud(0, 90, 0.85, 'c3') +
-    '<path d="M0 300 C180 220 330 260 480 230 C640 200 760 250 900 225 C1060 195 1200 240 1360 215 C1480 200 1560 230 1600 240 V900 H0Z" fill="#A9D3A0"/>' +
-    '<path d="M0 380 C200 330 420 380 640 350 C900 315 1150 370 1600 330 V900 H0Z" fill="#8FCB7E"/>' +
-    '<path d="M0 470 C300 430 600 470 900 445 C1200 420 1420 450 1600 440 V900 H0Z" fill="#7CC26B"/>' +
-    // wings: continue the hills and river past both edges for wide screens
-    '<rect x="-1600" y="300" width="1601" height="600" fill="#A9D3A0"/><rect x="1599" y="240" width="1601" height="660" fill="#A9D3A0"/>' +
-    '<rect x="-1600" y="380" width="1601" height="520" fill="#8FCB7E"/><rect x="1599" y="330" width="1601" height="570" fill="#8FCB7E"/>' +
-    '<rect x="-1600" y="470" width="1601" height="430" fill="#7CC26B"/><rect x="1599" y="440" width="1601" height="460" fill="#7CC26B"/>' +
-    '<rect x="-1600" y="440" width="4800" height="460" fill="url(#kawung)"/>' +
-    '<rect x="1598" y="250" width="1602" height="40" fill="#3FA7C4"/>' +
-    // river: comes out of the far hills behind the far row and runs off the right edge past the raft
-    '<path d="M1600 250 C1520 262 1470 300 1400 318 C1320 338 1250 300 1190 262 C1170 250 1150 244 1130 246 L1132 256 C1160 262 1200 300 1250 330 C1320 368 1420 362 1480 336 C1530 316 1570 300 1600 296Z" fill="#3FA7C4"/>' +
-    '<path d="M1590 266 C1530 278 1480 306 1420 324" fill="none" stroke="#9FE0F0" stroke-width="5" stroke-linecap="round" opacity="0.8"/>' +
-    // winding footpath linking the ten places
-    '<path id="path" d="M-200 860 C0 840 100 815 190 808 C330 796 480 822 610 808 C720 795 520 650 400 596 C300 540 190 440 260 360 C330 300 520 380 640 360 C760 340 900 382 1020 360 C1140 338 1280 330 1390 360 C1480 390 1350 530 1205 596 C1060 655 910 740 990 808 C1090 880 1320 790 1420 808 C1520 822 1600 850 1800 860" fill="none" stroke="#D4A062" stroke-width="34" stroke-linecap="round"/>' +
-    '<path d="M-200 860 C0 840 100 815 190 808 C330 796 480 822 610 808 C720 795 520 650 400 596 C300 540 190 440 260 360 C330 300 520 380 640 360 C760 340 900 382 1020 360 C1140 338 1280 330 1390 360 C1480 390 1350 530 1205 596 C1060 655 910 740 990 808 C1090 880 1320 790 1420 808 C1520 822 1600 850 1800 860" fill="none" stroke="#E5BE86" stroke-width="22" stroke-linecap="round" stroke-dasharray="2 26"/>' +
-    // a kite in the free sky between the title and the tools
-    '<g class="kite"><path d="M840 190 C812 240 852 290 824 340" fill="none" stroke="#3B2A20" stroke-width="2" opacity="0.5"/>' +
-    '<path d="M840 92 L872 140 L840 190 L808 140Z" fill="#E2453C" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/><path d="M840 92 V190 M808 140 H872" stroke="#3B2A20" stroke-width="3"/><path d="M840 92 L872 140 L840 140Z" fill="#FFC83D"/></g>';
-
-  function cloud(x, y, s, cls) {
-    return '<g class="cloud ' + (cls || '') + '"><g transform="translate(' + x + ' ' + y + ') scale(' + s + ')"><path d="M0 40 C0 18 30 10 46 22 C56 0 100 0 110 24 C130 14 160 24 158 44 Z" fill="#fff"/></g></g>';
+  /* ---------------- layout ----------------
+     s = screen px per map unit, chosen so a landmark is about 100 to 200 px on any screen.
+     U = map width in units (the screen width / s). Two lanes zigzag on narrow screens;
+     wider screens get snake rows of 3 to 5 places. Every place is a node at its base point. */
+  const LM_H = 178, SIGN_H = 88;
+  function layout() {
+    const W = document.documentElement.clientWidth || innerWidth, H = innerHeight || 800;
+    const s = Math.min(W / 620, H / 470, 1.15);
+    const U = W / s;
+    const cols = Math.max(2, Math.min(5, Math.floor((U - 40) / 310)));
+    const pts = [];
+    let y = 270, rows = [], riverRow = 1;
+    if (cols === 2) {
+      // zigzag: one place per step, alternating left and right of the centre line
+      const half = Math.min(U * 0.21, 210);
+      GAMES.forEach((g, i) => {
+        if (i === RIVER_BEFORE) y += 150;
+        pts.push({ x: U / 2 + (i % 2 ? half : -half), y, row: i });
+        rows.push([i]);
+        y += 215;
+      });
+      y -= 215;
+      riverRow = RIVER_BEFORE;
+    } else {
+      const margin = Math.max(70, (U - cols * 340) / 2), lane = (U - 2 * margin) / cols;
+      riverRow = Math.max(1, Math.floor(RIVER_BEFORE / cols));
+      for (let i = 0, r = 0; i < GAMES.length; r++) {
+        if (r === riverRow) y += 150;
+        const row = [];
+        for (let k = 0; k < cols && i < GAMES.length; k++, i++) {
+          const c = r % 2 ? cols - 1 - k : k;
+          pts.push({ x: margin + (c + 0.5) * lane, y: y + (c % 2) * 34, row: r });
+          row.push(i);
+        }
+        rows.push(row);
+        y += 330;
+      }
+      y -= 330;
+    }
+    return { s, U, cols, pts, rows, riverRow, Ht: y + 34 + SIGN_H + 110, W };
   }
 
-  // --- landmarks ---
-  const stars = id => GS.store.totalStars(id);
-  let total = 0;
-  const nodes = GS.el('g', null, map);
-  GAMES.forEach((g, i) => {
-    const s = stars(g.id); total += s;
-    const a = GS.el('a', { href: 'games/' + g.id + '/index.html', class: 'node' + (s ? '' : ' fresh'), tabindex: '0', 'aria-label': g.name + ', ' + s + ' bintang' }, nodes);
-    // Position lives on an outer group; the hover/press scale animates an inner one.
-    // (A CSS transform on the positioned group would replace its translate and fling it to 0,0.)
-    const pos = GS.el('g', { transform: 'translate(' + g.x + ' ' + g.y + ') scale(' + LM_SCALE + ')' }, a);
-    const lm = GS.el('g', { class: 'lm' }, pos);
-    if (has('landmark')) lm.innerHTML = art.landmark(g.lm);
-    else lm.innerHTML = '<rect x="-80" y="-150" width="160" height="150" rx="24" fill="#FFF8EC" stroke="#3B2A20" stroke-width="5"/>';
-    // signboard
-    // width is an estimate until the font has loaded, then fitted to the text (fitSigns)
-    const w = Math.max(190, g.name.length * 14 + 44);
-    const sign = GS.el('g', { class: 'sign', transform: 'translate(' + g.x + ' ' + (g.y + 14) + ')' }, a);
-    sign.innerHTML =
-      '<rect x="' + (-w / 2) + '" y="0" width="' + w + '" height="66" rx="18" fill="#FFF8EC" stroke="#3B2A20" stroke-width="4"/>' +
-      '<text class="name" x="0" y="30" text-anchor="middle" font-size="25" fill="#2B1D14">' + g.name + '</text>' +
-      '<g transform="translate(0 50)">' + [0, 1, 2].map(k => '<path transform="translate(' + (k * 26 - 46) + ' -11) scale(0.9)" d="m12 2.8 2.8 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17l-5.7 3.1 1.2-6.3-4.6-4.4 6.3-.8z" fill="' + (s >= g.levels * (k + 1) ? '#FFC83D' : '#EADFCB') + '" stroke="#3B2A20" stroke-width="1.6" stroke-linejoin="round"/>').join('') +
-      '<text class="stars" x="34" y="5" text-anchor="start" font-size="18" fill="#5C4636">' + s + '/' + g.levels * 3 + '</text></g>';
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      GS.sfx.pop();
-      walkTo(g, () => { location.href = 'games/' + g.id + '/index.html'; });
-      GS.say(g.say);
-    });
-    a.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); a.dispatchEvent(new MouseEvent('click')); } });
-  });
+  /* Route path: leaves each place sideways at its sign (y + 50) and arrives sideways at the next,
+     so it never runs through a building. Places in one row connect directly; other steps
+     turn through a middle point (the centre line in a zigzag, outside the lane in snake rows). */
+  function routePath(L) {
+    const P = L.pts.map(p => ({ x: p.x, y: p.y + 50, row: p.row }));
+    const first = P[0], last = P[P.length - 1];
+    let d = 'M' + r1(first.x - 260) + ' ' + r1(first.y - 40) + ' C' + r1(first.x - 150) + ' ' + r1(first.y) + ' ' + r1(first.x - 80) + ' ' + first.y + ' ' + first.x + ' ' + first.y;
+    for (let i = 0; i < P.length - 1; i++) {
+      const A = P[i], B = P[i + 1];
+      if (A.row === B.row) {
+        const dx = (B.x - A.x) / 3;
+        d += ' C' + r1(A.x + dx) + ' ' + A.y + ' ' + r1(B.x - dx) + ' ' + B.y + ' ' + B.x + ' ' + B.y;
+        continue;
+      }
+      const mx = L.cols === 2 ? L.U / 2 : A.x + (A.x > L.U / 2 ? 1 : -1) * Math.min(175, (L.U - 140) / L.cols / 2 + 12);
+      const my = (A.y + B.y) / 2, k = (B.y - A.y) / 4;
+      d += ' C' + r1(A.x + (mx - A.x) * 0.9) + ' ' + A.y + ' ' + r1(mx) + ' ' + r1(my - k) + ' ' + r1(mx) + ' ' + r1(my);
+      d += ' C' + r1(mx) + ' ' + r1(my + k) + ' ' + r1(B.x + (mx - B.x) * 0.9) + ' ' + B.y + ' ' + B.x + ' ' + B.y;
+    }
+    const ex = L.cols === 2 ? L.U / 2 : last.x;
+    d += ' C' + r1(last.x + (ex - last.x) * 0.9) + ' ' + last.y + ' ' + r1(ex) + ' ' + r1(last.y + 40) + ' ' + r1(ex) + ' ' + r1(L.Ht + 40);
+    return d;
+  }
 
+  function rng(seed) { let v = seed % 2147483647 || 7; return () => (v = (v * 16807) % 2147483647) / 2147483647; }
+  const overlap = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+
+  function signWidth(name) { return Math.max(200, name.length * 16 + 56); }
+
+  let L = null, cilG = null, nodeEls = {};
+  function render() {
+    L = layout();
+    const { U, Ht, s, pts } = L;
+    map.setAttribute('viewBox', '0 0 ' + r1(U) + ' ' + r1(Ht));
+    map.style.height = r1(Ht * s) + 'px';
+    map.innerHTML = '';
+    nodeEls = {};
+
+    // --- sky, hills and grass ---
+    const bg = GS.el('g', null, map);
+    const hill = (y, amp, n, col) => {
+      let d = 'M-20 ' + (y + 40);
+      for (let i = 0; i <= n; i++) d += ' Q' + r1((i - 0.5) * U / n) + ' ' + r1(y - amp * (i % 2 ? 1 : 0.4)) + ' ' + r1(i * U / n) + ' ' + y;
+      return '<path d="' + d + ' L' + r1(U + 20) + ' ' + r1(Ht + 10) + ' L-20 ' + r1(Ht + 10) + 'Z" fill="' + col + '"/>';
+    };
+    let sky = '<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ED8EC"/><stop offset="1" stop-color="#E6F5F0"/></linearGradient>' +
+      '<pattern id="kawung" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="7" cy="7" r="3" fill="#3B2A20" opacity="0.06"/><circle cx="21" cy="21" r="3" fill="#3B2A20" opacity="0.06"/></pattern></defs>' +
+      '<rect x="-20" y="0" width="' + r1(U + 40) + '" height="260" fill="url(#sky)"/>' +
+      cloud(U * 0.18, 30, 0.8, '') + cloud(U * 0.62, 70, 0.6, 'c2') +
+      hill(120, 46, Math.max(3, Math.round(U / 260)), '#A9D3A0') + hill(160, 30, Math.max(4, Math.round(U / 200)), '#8FCB7E') + hill(200, 18, Math.max(5, Math.round(U / 160)), '#7CC26B');
+    // gentle meadow bands down the route so the long map does not look flat
+    for (let yb = 700, k = 0; yb < Ht; yb += 640, k++) sky += '<path d="M-20 ' + yb + ' Q' + r1(U * 0.3) + ' ' + (yb - 26) + ' ' + r1(U * 0.6) + ' ' + (yb - 6) + ' T' + r1(U + 20) + ' ' + (yb - 14) + ' V' + r1(Math.min(Ht + 10, yb + 320)) + ' H-20Z" fill="' + (k % 2 ? '#86C874' : '#74BB63') + '" opacity="0.7"/>';
+    sky += '<rect x="-20" y="190" width="' + r1(U + 40) + '" height="' + r1(Ht) + '" fill="url(#kawung)"/>';
+    bg.innerHTML = sky;
+
+    // --- the river (just above the raft) ---
+    // halfway between the signs of the row above and the roofs of the row below
+    const rowY = r => L.rows[r].map(i => pts[i].y);
+    const yR = (Math.max.apply(null, rowY(L.riverRow - 1)) + 14 + SIGN_H + Math.min.apply(null, rowY(L.riverRow)) - LM_H) / 2;
+    let rv = 'M-20 ' + r1(yR - 24);
+    const n = Math.max(3, Math.round(U / 180));
+    for (let i = 1; i <= n; i++) rv += ' Q' + r1((i - 0.5) * (U + 40) / n - 20) + ' ' + r1(yR - 24 + (i % 2 ? 12 : -12)) + ' ' + r1(i * (U + 40) / n - 20) + ' ' + r1(yR - 24);
+    rv += ' V' + r1(yR + 26);
+    for (let i = n - 1; i >= 0; i--) rv += ' Q' + r1((i + 0.5) * (U + 40) / n - 20) + ' ' + r1(yR + 26 + (i % 2 ? -10 : 10)) + ' ' + r1(i * (U + 40) / n - 20) + ' ' + r1(yR + 26);
+    GS.el('g', null, map).innerHTML = '<path d="' + rv + 'Z" fill="#3FA7C4" stroke="#2E86A0" stroke-width="3"/>' +
+      '<path class="river-hl" d="M-20 ' + r1(yR) + ' H' + r1(U + 20) + '" stroke="#9FE0F0" stroke-width="5" stroke-linecap="round" stroke-dasharray="26 34" opacity="0.8" fill="none"/>';
+
+    // --- the footpath ---
+    const pathD = routePath(L);
+    const pg = GS.el('g', null, map);
+    pg.innerHTML = '<path id="route" d="' + pathD + '" fill="none" stroke="#D4A062" stroke-width="34" stroke-linecap="round"/>' +
+      '<path d="' + pathD + '" fill="none" stroke="#E5BE86" stroke-width="22" stroke-linecap="round" stroke-dasharray="2 26"/>';
+    const route = pg.firstChild;
+    const samples = [];
+    try { const len = route.getTotalLength(); for (let t = 0; t <= len; t += 18) { const p = route.getPointAtLength(t); samples.push({ x: p.x, y: p.y, t }); } } catch (e) { /* old engines: no decor avoidance */ }
+
+    // a wooden bridge where the path crosses the river
+    const cross = samples.find((p, i) => i && samples[i - 1].y < yR && p.y >= yR);
+    if (cross) {
+      const a = route.getPointAtLength(Math.max(0, cross.t - 10)), b = route.getPointAtLength(cross.t + 10);
+      const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      let planks = '';
+      for (let x = -44; x < 44; x += 11) planks += '<rect x="' + x + '" y="-27" width="9" height="54" rx="2" fill="' + ((x / 11) % 2 ? '#C58B55' : '#B9794A') + '" stroke="#3B2A20" stroke-width="2"/>';
+      GS.el('g', { transform: 'translate(' + r1(cross.x) + ' ' + r1(yR) + ') rotate(' + r1(ang) + ')' }, map).innerHTML =
+        '<rect x="-52" y="-31" width="104" height="62" rx="8" fill="#8A5A36" stroke="#3B2A20" stroke-width="3"/>' + planks +
+        '<path d="M-50 -31 H50 M-50 31 H50" stroke="#6B4424" stroke-width="7" stroke-linecap="round"/>';
+    }
+
+    // --- keep-out boxes: places, signs, river and path ---
+    const boxes = [];
+    pts.forEach((p, i) => {
+      const w = signWidth(GAMES[i].name);
+      boxes.push([p.x - 104, p.y - LM_H - 10, p.x + 104, p.y + 8], [p.x - w / 2 - 8, p.y + 4, p.x + w / 2 + 8, p.y + 14 + SIGN_H + 8]);
+    });
+    boxes.push([-40, yR - 44, U + 40, yR + 40]);
+    // Si Cil's spot next to every place is kept free too
+    pts.forEach(p => { const cx = cilX(p); boxes.push([cx - 64, p.y - 130, cx + 64, p.y + 10]); });
+
+    // --- scenery: trees, houses, palms placed where nothing else is ---
+    const R = rng(Math.round(U) * 31 + 7);
+    const kinds = ['tree', 'tree', 'fruit', 'house', 'palm', 'bamboo', 'house2', 'tree'];
+    const size = { tree: [44, 112], fruit: [44, 112], house: [60, 92], house2: [60, 92], palm: [64, 140], bamboo: [40, 170] };
+    const decor = [];
+    const want = Math.round(U * Ht / 52000);
+    for (let tries = 0; tries < 900 && decor.length < want; tries++) {
+      const kind = kinds[Math.floor(R() * kinds.length)], sc = 0.75 + R() * 0.45, [hw, hh] = size[kind];
+      const x = -10 + R() * (U + 20), gy = 250 + R() * (Ht - 300);
+      const box = [x - hw * sc, gy - hh * sc, x + hw * sc, gy + 6];
+      if (boxes.some(b => overlap(b, box))) continue;
+      if (samples.some(p => p.x > box[0] - 26 && p.x < box[2] + 26 && p.y > box[1] - 20 && p.y < box[3] + 26)) continue;
+      boxes.push(box);
+      decor.push({ kind, x, gy, sc });
+    }
+    // small grass tufts fill the gaps
+    for (let tries = 0, k = 0; tries < 600 && k < want * 2; tries++) {
+      const x = R() * U, gy = 240 + R() * (Ht - 260), box = [x - 12, gy - 18, x + 12, gy];
+      if (boxes.some(b => overlap(b, box)) || samples.some(p => Math.abs(p.x - x) < 30 && Math.abs(p.y - gy) < 26)) continue;
+      decor.push({ kind: 'tuft', x, gy, sc: 1 }); k++;
+    }
+    decor.sort((a, b) => a.gy - b.gy);
+    if (has('decor')) GS.el('g', { class: 'decor', 'aria-hidden': 'true' }, map).innerHTML = decor.map(d => '<g>' + art.decor(d.kind, d.x, d.gy, d.sc) + '</g>').join('');
+
+    // a kite in the sky
+    GS.el('g', { transform: 'translate(' + r1(U - 120) + ' 18)' }, map).innerHTML = '<g class="kite"><path d="M0 98 C-28 148 12 198 -16 248" fill="none" stroke="#3B2A20" stroke-width="2" opacity="0.5"/>' +
+      '<path d="M0 0 L32 48 L0 98 L-32 48Z" fill="#E2453C" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/><path d="M0 0 V98 M-32 48 H32" stroke="#3B2A20" stroke-width="3"/><path d="M0 0 L32 48 L0 48Z" fill="#FFC83D"/></g>';
+
+    // --- places ---
+    const nodes = GS.el('g', null, map);
+    GAMES.forEach((g, i) => {
+      const p = pts[i], st = stars(g.id);
+      const a = GS.el('a', { href: 'games/' + g.id + '/index.html', class: 'node' + (st ? '' : ' fresh'), tabindex: '0', 'data-id': g.id, 'aria-label': g.name + ', ' + st + ' bintang. Ketuk untuk penjelasan.' }, nodes);
+      nodeEls[g.id] = a;
+      // Position lives on an outer group; the hover/press scale animates an inner one.
+      // (A CSS transform on the positioned group would replace its translate and fling it to 0,0.)
+      const pos = GS.el('g', { transform: 'translate(' + r1(p.x) + ' ' + r1(p.y) + ')' }, a);
+      const lm = GS.el('g', { class: 'lm' }, pos);
+      lm.innerHTML = has('landmark') ? art.landmark(g.lm) : '<rect x="-80" y="-150" width="160" height="150" rx="24" fill="#FFF8EC" stroke="#3B2A20" stroke-width="5"/>';
+      // width is an estimate until the font has loaded, then fitted to the text (fitSigns)
+      const w = signWidth(g.name);
+      const sign = GS.el('g', { class: 'sign', transform: 'translate(' + r1(p.x) + ' ' + r1(p.y + 14) + ')' }, a);
+      sign.innerHTML =
+        '<rect x="' + (-w / 2) + '" y="0" width="' + w + '" height="' + SIGN_H + '" rx="20" fill="#FFF8EC" stroke="#3B2A20" stroke-width="4"/>' +
+        '<text class="name" x="0" y="37" text-anchor="middle" font-size="30" fill="#2B1D14">' + g.name + '</text>' +
+        '<g transform="translate(0 66)">' + [0, 1, 2].map(k => '<path transform="translate(' + (k * 30 - 62) + ' -13) scale(1.1)" d="' + STAR + '" fill="' + (st >= g.levels * (k + 1) ? '#FFC83D' : '#EADFCB') + '" stroke="#3B2A20" stroke-width="1.6" stroke-linejoin="round"/>').join('') +
+        '<text class="stars" x="36" y="8" text-anchor="start" font-size="24" fill="#5C4636">' + st + '/' + g.levels * 3 + '</text></g>';
+      a.addEventListener('click', e => { e.preventDefault(); openSheet(g); });
+      a.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); openSheet(g); } });
+    });
+    fitSigns();
+
+    // --- Si Cil stands next to the last place played ---
+    const at = GAMES.find(g => g.id === GS.store.get('lastGame', 'timbangan')) || GAMES[0];
+    cilG = GS.el('g', { id: 'cil', transform: cilAt(at) }, map);
+    if (has('mascot')) {
+      const holder = GS.el('foreignObject', { x: -60, y: -125, width: 120, height: 130 }, cilG);
+      holder.innerHTML = '<div xmlns="http://www.w3.org/1999/xhtml" style="width:120px;height:130px">' + art.mascot({ mood: 'point', size: 120 }) + '</div>';
+    }
+  }
+  function cloud(x, y, sc, cls) {
+    return '<g class="cloud ' + cls + '"><g transform="translate(' + r1(x) + ' ' + y + ') scale(' + sc + ')"><path d="M0 40 C0 18 30 10 46 22 C56 0 100 0 110 24 C130 14 160 24 158 44 Z" fill="#fff"/></g></g>';
+  }
+  // Si Cil stands on the side of a place that faces the middle of the map.
+  function cilX(p) { return p.x + (p.x < L.U / 2 ? 150 : -150); }
+  function cilAt(g) { const p = L.pts[GAMES.indexOf(g)]; return 'translate(' + r1(cilX(p)) + ' ' + r1(p.y - 4) + ')'; }
   function fitSigns() {
     map.querySelectorAll('.sign').forEach(sg => {
       const t = sg.querySelector('text.name'), r = sg.querySelector('rect');
       let tw = 0;
       try { tw = t.getComputedTextLength(); } catch (e) { tw = 0; }
       if (!tw) return;
-      const w = Math.max(190, Math.ceil(tw + 48));
+      const w = Math.max(200, Math.ceil(tw + 52));
       r.setAttribute('x', -w / 2); r.setAttribute('width', w);
     });
   }
-  fitSigns();
+
+  render();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSigns);
+  let lastW = innerWidth, lastH = innerHeight, rt = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => {
+      // phones resize when the browser bar slides; only re-lay out when the size really changed
+      if (Math.abs(innerWidth - lastW) < 2 && Math.abs(innerHeight - lastH) < 120) return;
+      lastW = innerWidth; lastH = innerHeight;
+      render();
+      if (current) markOn(current.id);
+    }, 160);
+  });
 
-  // --- Si Cil walks to the last place played ---
-  const last = GS.store.get('lastGame', 'timbangan');
-  const start = GAMES.find(g => g.id === last) || GAMES[0];
-  const cil = GS.el('g', { id: 'cil', transform: 'translate(' + (start.x - 120) + ' ' + (start.y + 10) + ')' }, map);
-  if (has('mascot')) {
-    const holder = GS.el('foreignObject', { x: -60, y: -125, width: 120, height: 130 }, cil);
-    holder.innerHTML = '<div xmlns="http://www.w3.org/1999/xhtml" style="width:120px;height:130px">' + art.mascot({ mood: 'point', size: 120 }) + '</div>';
-  }
-  function walkTo(g, done) {
+  /* ---------------- game sheet ---------------- */
+  const sheet = document.getElementById('sheet');
+  const $ = id => document.getElementById(id);
+  let current = null, lastFocus = null, closeT = 0;
+  function markOn(id) { Object.keys(nodeEls).forEach(k => nodeEls[k].classList.toggle('on', k === id)); }
+  function openSheet(g) {
+    GS.sfx.pop();
     GS.store.set('lastGame', g.id);
-    cil.setAttribute('transform', 'translate(' + (g.x - 120) + ' ' + (g.y + 10) + ')');
-    setTimeout(done, GS.reducedMotion ? 150 : 650);
+    if (cilG) cilG.setAttribute('transform', cilAt(g));
+    GS.say(g.say);
+    current = g; lastFocus = document.activeElement; markOn(g.id);
+    const st = stars(g.id), dn = done(g.id);
+    $('sheetArt').innerHTML = has('landmark') ? '<svg viewBox="-110 -190 220 200">' + art.landmark(g.lm) + '</svg>' : '';
+    $('sheetKind').className = 'kind ' + g.kind;
+    $('sheetKind').textContent = g.kindLabel;
+    $('sheetTitle').textContent = g.name;
+    $('sheetTier').textContent = 'Yang dipelajari di ' + TINFO.label + ':';
+    $('sheetDesc').textContent = g.desc;
+    $('sheetProg').innerHTML = '<span class="s3" aria-hidden="true">' + [0, 1, 2].map(k => '<svg viewBox="0 0 24 24"><path d="' + STAR + '" fill="' + (st >= g.levels * (k + 1) ? '#FFC83D' : '#EADFCB') + '" stroke="#3B2A20" stroke-width="1.6" stroke-linejoin="round"/></svg>').join('') + '</span><span></span>';
+    $('sheetProg').lastChild.textContent = dn + ' dari ' + g.levels + ' level selesai, ' + st + ' bintang';
+    const play = $('sheetPlay');
+    play.href = 'games/' + g.id + '/index.html';
+    play.innerHTML = GS.ICON.play + '<span>Main!</span>';
+    play.setAttribute('aria-label', 'Main ' + g.name);
+    clearTimeout(closeT);
+    sheet.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+    sheet.querySelector('.sheet-card').scrollTop = 0;
+    requestAnimationFrame(() => requestAnimationFrame(() => sheet.classList.add('show')));
+    try { play.focus({ preventScroll: true }); } catch (e) { /* old browsers */ }
   }
+  function closeSheet() {
+    if (sheet.hidden) return;
+    GS.sfx.click();
+    sheet.classList.remove('show');
+    document.documentElement.style.overflow = '';
+    markOn(null);
+    closeT = setTimeout(() => { sheet.hidden = true; }, GS.reducedMotion ? 0 : 320);
+    const back = current && nodeEls[current.id];
+    current = null;
+    try { (back || lastFocus).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+  $('sheetX').addEventListener('click', closeSheet);
+  $('sheetBack').addEventListener('click', closeSheet);
+  document.addEventListener('keydown', e => {
+    if (sheet.hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeSheet(); }
+    if (e.key === 'Tab') { // keep focus inside the sheet
+      const f = [$('sheetX'), $('sheetPlay')];
+      const i = f.indexOf(document.activeElement);
+      e.preventDefault();
+      f[(i + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+    }
+  });
+  $('sheetPlay').addEventListener('click', () => { GS.sfx.coin(); });
 
-  // --- header widgets ---
+  /* ---------------- header widgets ---------------- */
   const openProfile = () => { GS.sfx.click(); if (MS.profileEditor) MS.profileEditor.open({ onSave: () => location.reload() }); };
   if (window.MS && MS.auth && MS.auth.mountProfileChip) MS.auth.mountProfileChip(document.getElementById('profile'), { onEdit: openProfile });
-  document.getElementById('tierLabel').textContent = TINFO.label;
-  document.getElementById('tierBtn').addEventListener('click', openProfile);
-  document.getElementById('tierNote').textContent = 'Sedang ditampilkan: ' + TINFO.label + (TINFO.fase ? ' (' + TINFO.fase + ')' : '');
+  $('tierLabel').textContent = TINFO.label;
+  $('tierBtn').addEventListener('click', openProfile);
+  $('tierNote').textContent = 'Sedang ditampilkan: ' + TINFO.label + (TINFO.fase ? ' (' + TINFO.fase + ')' : '');
 
-  // --- map always fills its box: widen the viewBox to the box's aspect ratio ---
-  function fitMap() {
-    const w = map.clientWidth, h = map.clientHeight;
-    if (!w || !h) return;
-    const vbW = Math.max(1600, 900 * w / h);
-    map.setAttribute('viewBox', (-(vbW - 1600) / 2).toFixed(1) + ' 0 ' + vbW.toFixed(1) + ' 900');
-  }
-  fitMap();
-  window.addEventListener('resize', fitMap);
-
-  // --- every level of this kelas has a star: offer the next kelas ---
+  /* ---------------- every level of this kelas has a star: offer the next kelas ---------------- */
   (function levelUp() {
     if (!KUR) return;
     const nextT = KUR.next(TIER);
-    const allDone = GAMES.every(g => GS.store.stars(g.id).filter(Boolean).length >= g.levels);
+    const allDone = GAMES.every(g => done(g.id) >= g.levels);
     if (!allDone) return;
-    const box = document.getElementById('levelUp');
+    const box = $('levelUp');
     box.hidden = false;
-    if (has('mascot')) document.getElementById('levelUpCil').innerHTML = art.mascot({ mood: 'cheer', size: 84 }).replace('<svg', '<svg class="cil"');
-    document.getElementById('levelUpTitle').textContent = 'Hebat! Semua game ' + TINFO.label + ' sudah selesai.';
-    const go = document.getElementById('levelUpGo'), stay = document.getElementById('levelUpStay');
+    if (has('mascot')) $('levelUpCil').innerHTML = art.mascot({ mood: 'cheer', size: 84 }).replace('<svg', '<svg class="cil"');
+    $('levelUpTitle').textContent = 'Hebat! Semua game ' + TINFO.label + ' sudah selesai.';
+    const go = $('levelUpGo'), stay = $('levelUpStay');
     if (nextT) {
-      document.getElementById('levelUpText').textContent = 'Siap belajar materi ' + nextT.label + '? Bintang di ' + TINFO.label + ' tetap tersimpan.';
+      $('levelUpText').textContent = 'Siap belajar materi ' + nextT.label + '? Bintang di ' + TINFO.label + ' tetap tersimpan.';
       go.textContent = 'Naik ke ' + nextT.label;
       go.addEventListener('click', () => { GS.sfx.coin(); MS.auth.updateProfile({ kelas: nextT.kelas }); location.reload(); });
     } else {
-      document.getElementById('levelUpText').textContent = 'Kamu sudah sampai jenjang tertinggi. Coba kumpulkan 3 bintang di setiap level!';
+      $('levelUpText').textContent = 'Kamu sudah sampai jenjang tertinggi. Coba kumpulkan 3 bintang di setiap level!';
       go.hidden = true;
     }
     stay.addEventListener('click', () => { box.hidden = true; });
   })();
-  document.getElementById('totalStar').innerHTML = GS.ICON.star;
-  document.getElementById('totalN').textContent = total;
-  document.getElementById('sound').addEventListener('click', () => { GS.sfx.click(); GS.setMuted(!GS.muted); });
+  $('totalStar').innerHTML = GS.ICON.star;
+  $('totalN').textContent = total;
+  $('sound').addEventListener('click', () => { GS.sfx.click(); GS.setMuted(!GS.muted); });
   GS.setMuted(GS.muted);
 
-  // centre the map on Si Cil for narrow screens
-  const sc = document.getElementById('scroller');
-  // (fitMap may have widened the viewBox, so map design x to pixels through the current viewBox)
+  /* ---------------- start where Si Cil is, and hint that the route goes on below ---------------- */
   requestAnimationFrame(() => {
-    const vb = map.viewBox.baseVal, r = map.getBoundingClientRect().width / vb.width;
-    sc.scrollLeft = Math.max(0, (start.x - 60 - vb.x) * r - sc.clientWidth / 2);
+    const g = GAMES.find(x => x.id === GS.store.get('lastGame', '')) || null;
+    if (g && L) {
+      const p = L.pts[GAMES.indexOf(g)], top = map.getBoundingClientRect().top + scrollY + (p.y - LM_H / 2) * L.s;
+      if (top > innerHeight * 0.7) window.scrollTo(0, Math.max(0, top - innerHeight / 2));
+    }
+    const hint = $('downHint');
+    if (document.documentElement.scrollHeight > innerHeight + 120 && scrollY < 40) {
+      hint.classList.remove('gone');
+      const off = () => { if (scrollY > 40) { hint.classList.add('gone'); removeEventListener('scroll', off); } };
+      addEventListener('scroll', off, { passive: true });
+      setTimeout(() => hint.classList.add('gone'), 6000); // it may cover a sign, so it does not stay
+    }
   });
-  // the swipe hint goes away once the child has scrolled the map (or when nothing scrolls)
-  const hint = document.getElementById('swipeHint');
-  const hideHint = () => { hint.classList.add('gone'); sc.removeEventListener('scroll', onMapScroll); };
-  let scroll0 = null;
-  function onMapScroll() { if (scroll0 === null) scroll0 = sc.scrollLeft; else if (Math.abs(sc.scrollLeft - scroll0) > 24) hideHint(); }
-  setTimeout(() => { scroll0 = sc.scrollLeft; if (sc.scrollWidth <= sc.clientWidth + 4) hideHint(); else sc.addEventListener('scroll', onMapScroll, { passive: true }); }, 300);
 
-  // --- parent guide cards ---
-  const list = document.getElementById('games');
-  // cards follow the curriculum order (the map order is geographic)
-  const order = KUR ? Object.keys(KUR.GAMES) : [];
-  GAMES.slice().sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id)).forEach(g => {
-    const s = stars(g.id);
-    const done = GS.store.stars(g.id).filter(Boolean).length;
-    const c = document.createElement('article');
-    c.className = 'g';
-    const icon = g.icon.startsWith('person') && has('person') ? '<svg viewBox="-55 -105 110 110" aria-hidden="true">' + art.person(0) + '</svg>' : has('svg') ? art.svg(g.icon, 100) : '';
-    c.innerHTML = '<div class="g-art">' + icon + '</div><div><h3></h3><span class="kind ' + g.kind + '"></span><p></p><div class="row"><span class="prog"></span><a class="play" href="games/' + g.id + '/index.html">Main</a></div></div>';
-    c.querySelector('h3').textContent = g.name;
-    c.querySelector('.kind').textContent = g.kindLabel;
-    c.querySelector('p').textContent = g.desc;
-    c.querySelector('.prog').textContent = done + ' dari ' + g.levels + ' level, ' + s + ' bintang';
-    list.appendChild(c);
-    fitIcon(c.querySelector('.g-art svg'));
-  });
-  /** Art is drawn around a bottom-centre origin, so the shared viewBox leaves each icon low and
-      clipped in a square tile. Fit the viewBox to the drawing instead: square, centred, small margin. */
-  function fitIcon(svg) {
-    if (!svg) return;
-    svg.removeAttribute('width'); svg.removeAttribute('height');
-    let b = null;
-    try { const g = svg.firstElementChild; b = g && g.getBBox(); } catch (e) { b = null; }
-    if (!b || !b.width || !b.height) return;
-    const side = Math.max(b.width, b.height) * 1.08, cx = b.x + b.width / 2, cy = b.y + b.height / 2;
-    svg.setAttribute('viewBox', [cx - side / 2, cy - side / 2, side, side].map(v => Math.round(v * 10) / 10).join(' '));
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  }
-
-  // --- reset progress with an in-page confirmation (no confirm() dialogs) ---
-  const box = document.getElementById('resetBox');
-  document.getElementById('reset').addEventListener('click', function ask() {
+  /* ---------------- reset progress with an in-page confirmation (no confirm() dialogs) ---------------- */
+  const box = $('resetBox');
+  $('reset').addEventListener('click', function ask() {
     box.innerHTML = '<span>Yakin hapus semua bintang di semua kelas?</span><button type="button" class="reset" id="yes">Ya, hapus</button><button type="button" class="reset" id="no">Batal</button>';
-    document.getElementById('yes').onclick = () => {
+    $('yes').onclick = () => {
       (KUR ? KUR.TIERS : [{ id: TIER }]).forEach(t => GAMES.forEach(g => GS.store.set('stars.' + g.id + '@' + t.id, [])));
       location.reload();
     };
-    document.getElementById('no').onclick = () => location.reload();
+    $('no').onclick = () => location.reload();
   });
 })();
 </script>

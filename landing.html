@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mat Sains: Game Matematika dan Fisika untuk Anak TK sampai SD</title>
+<meta name="description" content="10 game seru buatan Indonesia untuk TK sampai Kelas 4+. Anak menimbang, melompat, memotong, dan melempar, lalu matematika dan fisikanya terasa sendiri. Gratis selama masa uji coba, tanpa iklan.">
+<meta property="og:title" content="Mat Sains: Game Matematika dan Fisika untuk Anak TK sampai SD">
+<meta property="og:description" content="10 game seru buatan Indonesia untuk TK sampai Kelas 4+. Anak menimbang, melompat, memotong, dan melempar, lalu matematika dan fisikanya terasa sendiri. Gratis selama masa uji coba, tanpa iklan.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="icons/icon-512.png">
+<meta property="og:locale" content="id_ID">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="shared/core.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#E6F5F0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<style>
+  /* Landing page for parents arriving from search or ads (mostly phone portrait).
+     Visual language = the game's own "Kampung Chunky": #3B2A20 outlines, solid offset shadows,
+     the real game art from shared/art.js, kawung dots. Dials: ENERGY 3, RHYTHM 2, MOTION 2.
+     Single light theme by choice, same as the product (core.css sets color-scheme: light).
+     ACCENT: the CTA is the only thing painted --sun yellow. Why yellow and not --primary blue:
+     the page sits on sky and mint tones, so blue would melt into the background, while ink on
+     #FFC83D reads at about 11:1 and is the warmest "go" colour in the game's palette.
+     Everything else stays cream, ink and sky. */
+  html, body { height: auto; }
+  body {
+    background: var(--panel); overflow-x: hidden;
+    -webkit-user-select: text; user-select: text; overscroll-behavior-y: auto;
+    font-size: 18px; line-height: 1.5;
+  }
+  a { color: var(--primary-dark); text-underline-offset: 3px; }
+  .wrap { width: min(1120px, 100%); margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
+  @media (min-width: 700px) { .wrap { padding-left: max(40px, env(safe-area-inset-left, 0px)); padding-right: max(40px, env(safe-area-inset-right, 0px)); } }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 800; margin: 0; text-wrap: balance; }
+  h2 { font-size: clamp(28px, 4.4vw, 44px); line-height: 1.12; max-width: 24ch; }
+  p { margin: 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .kawung {
+    background-color: var(--sky-low);
+    background-image: radial-gradient(circle, rgba(59, 42, 32, 0.07) 3px, transparent 3.6px), radial-gradient(circle, rgba(59, 42, 32, 0.07) 3px, transparent 3.6px);
+    background-size: 28px 28px; background-position: 0 0, 14px 14px;
+  }
+  /* chunky frame: outline + solid offset shadow, the same elevation the game's panels use */
+  .frame { background: var(--card); border: 4px solid var(--line); border-radius: 26px; box-shadow: 0 6px 0 var(--line); }
+  .frame > svg { display: block; width: 100%; height: auto; border-radius: 22px; }
+
+  /* ---------- CTA (the single accent) ---------- */
+  .cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 64px; padding: 10px 28px; width: 100%; max-width: 440px;
+    background: var(--sun); color: var(--ink); text-decoration: none;
+    border: 4px solid var(--line); border-radius: 999px; box-shadow: 0 6px 0 var(--line);
+    font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.15; text-align: center;
+    transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  }
+  .cta svg { flex: none; width: 28px; height: 28px; }
+  @media (max-width: 400px) { .cta { font-size: 22px; padding: 10px 18px; } .cta svg { display: none; } }
+  @media (max-width: 340px) { .cta { font-size: 20px; padding: 10px 12px; } }
+  .cta:hover { box-shadow: 0 8px 0 var(--line); transform: translateY(-2px); }
+  .cta:active { transform: translateY(4px) scale(0.97); box-shadow: 0 2px 0 var(--line); }
+  .cta:focus-visible { outline: 4px solid var(--primary); outline-offset: 4px; border-radius: 999px; }
+  .cta-note { margin-top: 12px; font-size: 16px; font-weight: 700; color: #5C4636; }
+  .alt { margin-top: 6px; font-size: 17px; color: #5C4636; }
+  .alt a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 6px; font-weight: 700; }
+
+  /* ---------- HERO ---------- */
+  .hero { padding: max(14px, env(safe-area-inset-top, 0px)) 0 40px; border-bottom: 4px solid var(--line); }
+  .hero-in { display: grid; gap: 22px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1; }
+  .brand-cil { width: 46px; height: 46px; display: block; }
+  .brand-cil svg { width: 100%; height: 100%; display: block; overflow: hidden; }
+  .kicker { margin-top: 14px; font-weight: 700; font-size: 16px; line-height: 1.35; color: #5C4636; }
+  .hero h1 { margin-top: 12px; font-size: clamp(30px, 8vw, 40px); line-height: 1.08; }
+  .hero h1 .h1-2 { display: block; margin-top: 8px; color: var(--primary-dark); }
+  .lead { margin-top: 14px; max-width: 60ch; font-size: 18px; }
+  .cta-box { margin-top: 20px; }
+  .hero-art { margin: 0; align-self: center; width: 100%; }
+  /* phones: headline and CTA first (they must be above the fold), then the live game scene,
+     then the story. The text block dissolves into the column so the scene can sit between. */
+  @media (max-width: 759px), (max-aspect-ratio: 5/4) {
+    .hero-in { display: flex; flex-direction: column; gap: 0; }
+    .hero-txt { display: contents; }
+    .hero .cta-box { order: 4; }
+    .hero .hero-art { order: 5; margin-top: 26px; }
+    .hero .lead { order: 6; margin-top: 22px; }
+  }
+  @media (min-width: 760px) and (min-aspect-ratio: 5/4) {
+    .hero { padding-bottom: 48px; }
+    .hero-in { grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr); gap: 36px; align-items: center; }
+    .hero h1 { font-size: clamp(30px, 4vw, 54px); }
+  }
+  @media (min-width: 760px) and (max-aspect-ratio: 5/4) {
+    .hero .hero-art { max-width: 640px; }
+    .hero h1 { font-size: clamp(36px, 6vw, 52px); }
+  }
+  /* short landscape phones: same rule as portrait, headline + CTA inside the first screen */
+  @media (max-height: 500px) and (min-aspect-ratio: 5/4) {
+    .hero-txt { display: flex; flex-direction: column; }
+    .hero .cta-box { order: 4; margin-top: 14px; }
+    .hero .lead { order: 5; margin-top: 18px; font-size: 17px; }
+    .brand { font-size: 20px; }
+    .brand-cil { width: 36px; height: 36px; }
+    .kicker { margin-top: 8px; font-size: 15px; }
+    .hero h1 { margin-top: 6px; font-size: 27px; }
+    .hero h1 .h1-2 { margin-top: 4px; }
+    .cta { min-height: 60px; font-size: 22px; }
+    .hero-art { align-self: start; margin-top: 8px; }
+  }
+
+  /* ---------- sections ---------- */
+  section { padding: 56px 0; }
+  @media (min-width: 760px) { section { padding: 80px 0; } }
+
+  /* quotes */
+  .quotes h2 { max-width: 22ch; }
+  .qgrid { display: grid; gap: 40px; margin-top: 44px; }
+  @media (min-width: 760px) { .qgrid { grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; } .qgrid .qcard:nth-child(2) { margin-top: 48px; } }
+  .qcard { position: relative; margin: 0; padding: 40px 22px 22px; }
+  .qcard .qmark { position: absolute; left: 18px; top: -30px; width: 64px; height: 52px; border-radius: 0; }
+  .qctx { font-size: 17px; color: #5C4636; margin-bottom: 6px; }
+  .qtext { font-family: var(--font-display); font-weight: 800; font-size: clamp(23px, 3vw, 30px); line-height: 1.2; }
+  .qorig { margin-top: 12px; font-size: 16px; font-style: italic; color: #5C4636; }
+  .qwho { margin-top: 16px; padding-top: 14px; border-top: 3px dashed #D9CBB6; font-size: 16px; color: #5C4636; }
+  .qwho strong { display: block; font-size: 18px; color: var(--ink); }
+  .qwho a { display: flex; align-items: center; width: fit-content; min-height: 48px; font-weight: 700; }
+  .bridge { margin-top: 48px; max-width: 62ch; font-size: clamp(19px, 2.2vw, 22px); line-height: 1.5; }
+  .bridge b { font-weight: 700; }
+  .fine { margin-top: 18px; max-width: 70ch; font-size: 14px; line-height: 1.5; color: #5C4636; }
+
+  /* showcase */
+  .show h2 { max-width: 20ch; }
+  .rows { display: grid; gap: 48px; margin-top: 40px; }
+  .row { display: grid; gap: 18px; align-items: center; }
+  @media (min-width: 700px) {
+    .rows { gap: 64px; }
+    .row { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 48px; }
+    .row:nth-child(even) .row-art { order: 2; }
+  }
+  .row-art { margin: 0; }
+  .gname { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: #5C4636; }
+  .gname svg { width: 40px; height: 40px; flex: none; }
+  .row h3 { margin-top: 6px; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.12; }
+  .row p { margin-top: 10px; max-width: 46ch; }
+  .more { margin-top: 56px; }
+  .more h3 { font-size: 24px; }
+  .chips { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  @media (min-width: 640px) { .chips { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (min-width: 1000px) { .chips { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+  .chips li { min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px 12px 8px 8px; background: var(--card); border: 3px solid var(--line); border-radius: 18px; font-weight: 700; font-size: 16px; line-height: 1.2; }
+  .chips .ic { flex: none; width: 46px; height: 46px; display: grid; place-items: center; background: var(--sky-low); border-radius: 12px; }
+  .chips .ic svg { width: 42px; height: 42px; display: block; }
+
+  /* how it is built: one wide lead item, then a staggered list */
+  .how-lead { margin-top: 36px; padding: 22px 18px; display: grid; gap: 18px; }
+  @media (max-width: 359px) { .tiers { grid-template-columns: repeat(3, 62px); } .chips { grid-template-columns: 1fr; } }
+  @media (min-width: 760px) { .how-lead { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 28px 32px; } }
+  .how h3 { font-size: 24px; line-height: 1.15; }
+  .how p { margin-top: 6px; max-width: 52ch; }
+  .tiers { display: grid; grid-template-columns: repeat(5, minmax(0, 62px)); gap: 8px; }
+  .tier { min-width: 0; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 3px solid var(--line); border-radius: 16px; background: var(--sky-low); box-shadow: 0 4px 0 var(--line); }
+  .tier small { font-weight: 700; font-size: 13px; line-height: 1; color: #5C4636; }
+  .tier b { font-family: var(--font-num); font-weight: 600; font-size: 30px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .how-list { list-style: none; margin: 36px 0 0; padding: 0; display: grid; gap: 28px; }
+  @media (min-width: 760px) { .how-list { grid-template-columns: 1fr 1fr; gap: 36px 48px; } .how-list li:nth-child(even) { margin-top: 36px; } }
+  .how-list li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .how-ic { width: 76px; height: 76px; border: 3px solid var(--line); border-radius: 22px; background: var(--sky-low); overflow: hidden; display: grid; place-items: center; }
+  .how-ic svg { width: 100%; height: 100%; display: block; }
+
+  /* final CTA */
+  .final { background: var(--sky); border-top: 4px solid var(--line); text-align: center; padding-bottom: 64px; }
+  .final .wrap { display: flex; flex-direction: column; align-items: center; }
+  .final-cil { width: 170px; height: 170px; margin-bottom: 4px; }
+  .final-cil svg { width: 100%; height: 100%; display: block; }
+  .final h2 { max-width: none; font-size: clamp(34px, 5vw, 52px); }
+  .final p { margin-top: 8px; font-size: 19px; }
+  .final .cta-box { margin-top: 22px; width: 100%; display: flex; flex-direction: column; align-items: center; }
+  .final .cta-note, .final .alt { color: var(--ink); }
+
+  footer.foot { background: var(--panel); border-top: 4px solid var(--line); padding: 22px 0 max(22px, env(safe-area-inset-bottom, 0px)); font-size: 15px; color: #5C4636; }
+  footer.foot p + p { margin-top: 4px; }
+
+  /* reveal once on scroll (transform/opacity only); without JS or with reduced motion nothing hides */
+  .js-rv .rv { opacity: 0; transform: translateY(18px); transition: opacity 420ms var(--ease-in), transform 420ms var(--ease-in); }
+  .js-rv .rv.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .js-rv .rv { opacity: 1; transform: none; transition: none; }
+    .cta, .cta:hover { transition: none; transform: none; }
+  }
+</style>
+</head>
+<body data-auth="public">
+
+<header class="hero kawung">
+  <div class="wrap hero-in">
+    <div class="hero-txt">
+      <p class="brand"><span class="brand-cil" id="brandCil" aria-hidden="true"></span><span>Mat Sains</span></p>
+      <p class="kicker">Game matematika dan fisika untuk TK sampai Kelas 4+</p>
+      <h1>AI dan robot dibangun dari matematika dan fisika. <span class="h1-2">Anakmu bisa mulai hari ini, sambil main.</span></h1>
+      <p class="lead">Mat Sains berisi 10 game buatan Indonesia. Anak menimbang di pasar, mengisi angkot, memotong martabak, dan melempar mangga dengan ketapel. Matematika dan fisikanya ada di dalam permainan, jadi anak merasa sedang main, padahal sedang belajar.</p>
+      <div class="cta-box">
+        <a class="cta" href="welcome.html" data-cta><span class="cta-t">Mulai main bersama Si&nbsp;Cil</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12.5 6.5L18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <p class="cta-note">Gratis selama masa uji coba. Tanpa iklan.</p>
+        <p class="alt" data-alt>Sudah punya akun? <a href="welcome.html?masuk=1" data-masuk>Masuk</a></p>
+      </div>
+    </div>
+    <figure class="hero-art frame">
+      <svg id="heroScene" viewBox="0 0 640 420" role="img" aria-label="Timbangan pasar. Di kiri anak timbangan 3 dan 4, di kanan 7. Timbangan jadi seimbang dan Si Cil bersorak."></svg>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <section class="quotes">
+    <div class="wrap">
+      <h2 class="rv">Orang di balik roket SpaceX dan chip AI NVIDIA bicara soal fisika.</h2>
+      <div class="qgrid">
+        <blockquote class="qcard frame rv">
+          <svg class="qmark" viewBox="0 0 64 52" aria-hidden="true"><g fill="#9ED8EC" stroke="#3B2A20" stroke-width="3.5" stroke-linejoin="round"><path d="M27 6C14 9 5 18 5 31c0 8 5 14 12 14s11-5 11-11-4-10-10-10c1-6 5-10 11-12z"/><path d="M58 6C45 9 36 18 36 31c0 8 5 14 12 14s11-5 11-11-4-10-10-10c1-6 5-10 11-12z"/></g></svg>
+          <p class="qtext">“Kalau ingin membuat kemajuan, kerangka berpikir terbaik adalah fisika.”</p>
+          <p class="qorig" lang="en">“If you want to make progress in things, the best analytical framework… is physics.”</p>
+          <footer class="qwho"><strong>Elon Musk, pendiri SpaceX dan Tesla</strong>World Government Summit, Dubai, 2017. <a href="https://www.worldgovernmentssummit.org/observer/articles/detail/this-is-the-subject-elon-musk-says-young-people-need-to-study-to-be-successful-in-the-future" target="_blank" rel="noopener">Sumber</a></footer>
+        </blockquote>
+        <blockquote class="qcard frame rv">
+          <svg class="qmark" viewBox="0 0 64 52" aria-hidden="true"><g fill="#9ED8EC" stroke="#3B2A20" stroke-width="3.5" stroke-linejoin="round"><path d="M27 6C14 9 5 18 5 31c0 8 5 14 12 14s11-5 11-11-4-10-10-10c1-6 5-10 11-12z"/><path d="M58 6C45 9 36 18 36 31c0 8 5 14 12 14s11-5 11-11-4-10-10-10c1-6 5-10 11-12z"/></g></svg>
+          <p class="qctx">Ditanya apa yang akan ia pelajari kalau baru lulus kuliah hari ini, ia menjawab:</p>
+          <p class="qtext">“...mungkin lebih ke ilmu fisika daripada ilmu perangkat lunak.”</p>
+          <p class="qorig" lang="en">“more of the physical sciences than the software sciences”</p>
+          <footer class="qwho"><strong>Jensen Huang, pendiri dan CEO NVIDIA</strong>Beijing, 2025, dilaporkan CNBC. <a href="https://www.nbcsandiego.com/news/business/money-report/nvidia-ceo-if-i-were-a-20-year-old-again-today-this-is-the-field-i-would-focus-on-in-college/3871046/" target="_blank" rel="noopener">Sumber</a></footer>
+        </blockquote>
+      </div>
+      <p class="bridge rv">AI belajar dengan matematika: <b>menghitung, membandingkan, memperkirakan.</b> Robot bergerak dengan fisika: <b>gaya, berat, keseimbangan.</b> Fondasinya dimulai dari yang dipelajari anak SD: berhitung, pecahan, perbandingan, berat, dan gerak.</p>
+      <p class="fine rv">Kutipan diterjemahkan dari pernyataan publik. Mat Sains tidak berafiliasi dengan dan tidak didukung oleh Elon Musk, Jensen Huang, SpaceX, Tesla, atau NVIDIA.</p>
+    </div>
+  </section>
+
+  <section class="show kawung">
+    <div class="wrap">
+      <h2 class="rv">Di buku, angka itu diam. Di Mat Sains, angka punya berat.</h2>
+      <div class="rows">
+        <article class="row rv">
+          <figure class="row-art frame"><svg data-demo="timbangan" viewBox="0 0 560 330" role="img" aria-label="Timbangan: di kiri 5, di kanan 2, lalu ditambah 1 dan 2. Timbangan makin datar dan berhenti seimbang saat kanan juga 5."></svg></figure>
+          <div><p class="gname" data-lm="pasar">Timbangan Pasar</p><h3>Tanda&nbsp;=&nbsp;artinya seimbang.</h3><p>Timbangan baru berhenti miring kalau kiri dan kanan sama berat. Anak merasakan arti "sama dengan" sebelum menulisnya.</p></div>
+        </article>
+        <article class="row rv">
+          <figure class="row-art frame"><svg data-demo="katak" viewBox="0 64 600 266" role="img" aria-label="Katak melompat 3 sebanyak 4 kali di garis bilangan: 0, 3, 6, 9, lalu 12, sampai ke temannya."></svg></figure>
+          <div><p class="gname" data-lm="sawah">Lompat Katak</p><h3>Perkalian adalah lompatan berulang.</h3><p>Katak sampai ke temannya kalau besar dan banyak lompatannya pas. Lompat 3 sebanyak 4 kali, sampai di 12.</p></div>
+        </article>
+        <article class="row rv">
+          <figure class="row-art frame"><svg data-demo="martabak" viewBox="0 0 560 330" role="img" aria-label="Martabak dipotong menjadi 2, 3, lalu 4 bagian yang sama besar: setengah, sepertiga, seperempat."></svg></figure>
+          <div><p class="gname" data-lm="warung">Bagi Martabak</p><h3>Pecahan yang bisa dipotong.</h3><p>Potong martabak sampai semua teman dapat sama besar. Setengah, sepertiga, dan seperempat jadi kelihatan.</p></div>
+        </article>
+        <article class="row rv">
+          <figure class="row-art frame"><svg data-demo="ketapel" viewBox="0 64 600 266" role="img" aria-label="Ketapel dua kali: tarikan pelan dan tarikan kuat. Batu terbang melengkung, yang ditarik kuat jatuh lebih jauh."></svg></figure>
+          <div><p class="gname" data-lm="kebun">Ketapel Mangga</p><h3>Fisika yang jujur.</h3><p>Tarik lebih kuat, batu terbang lebih jauh dan melengkung karena gravitasi sungguhan. Tidak ada bantuan rahasia.</p></div>
+        </article>
+      </div>
+      <div class="more rv">
+        <h3>Dan enam game lainnya:</h3>
+        <ul class="chips">
+          <li data-lm="terminal">Angkot Penuh!</li>
+          <li data-lm="sungai">Rakit Terapung</li>
+          <li data-lm="bibit">Kebun Bibit</li>
+          <li data-lm="kelontong">Warung Kembalian</li>
+          <li data-lm="posronda">Jam Kampung</li>
+          <li data-lm="panggung">Wayang Bayangan</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="how">
+    <div class="wrap">
+      <h2 class="rv">Dibuat mengikuti cara anak belajar.</h2>
+      <div class="how-lead frame rv">
+        <div><h3>Sesuai kelasnya</h3><p>Pilih TK, Kelas 1, 2, 3, atau 4+. Setiap game punya level sendiri untuk tiap kelas, mengikuti fase Kurikulum Merdeka.</p></div>
+        <div class="tiers" aria-hidden="true">
+          <span class="tier"><small>&nbsp;</small><b>TK</b></span><span class="tier"><small>Kelas</small><b>1</b></span><span class="tier"><small>Kelas</small><b>2</b></span><span class="tier"><small>Kelas</small><b>3</b></span><span class="tier"><small>Kelas</small><b>4+</b></span>
+        </div>
+      </div>
+      <ul class="how-list">
+        <li class="rv"><span class="how-ic" data-ic="demo"></span><div><h3>Dicontohkan dulu</h3><p>Sebelum mencoba, Si Cil mencontohkan dengan tangan bayangan. Kalau sudah paham, contohnya bisa dilewati.</p></div></li>
+        <li class="rv"><span class="how-ic" data-ic="tilt"></span><div><h3>Tanpa nyawa, tanpa waktu</h3><p>Tidak ada tanda salah berwarna merah. Kalau meleset, dunia game yang menunjukkan sebabnya: timbangan miring, rakit tenggelam.</p></div></li>
+        <li class="rv"><span class="how-ic" data-ic="fade"></span><div><h3>Benda dulu, simbol kemudian</h3><p>Level awal memakai benda. Angka muncul pelan-pelan di sampingnya, sampai anak siap dengan simbol saja.</p></div></li>
+        <li class="rv"><span class="how-ic" data-ic="device"></span><div><h3>Main di HP dan tablet</h3><p>Bisa dipasang di layar utama dan tetap jalan tanpa internet.</p></div></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <div class="final-cil" id="finalCil" aria-hidden="true"></div>
+      <h2 class="rv">Siap main?</h2>
+      <p class="rv">Tiga pertanyaan singkat, lalu anak langsung bermain.</p>
+      <div class="cta-box rv">
+        <a class="cta" href="welcome.html" data-cta><span class="cta-t">Mulai main bersama Si&nbsp;Cil</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12.5 6.5L18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <p class="cta-note">Gratis selama masa uji coba. Tanpa iklan.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>Mat Sains, game matematika dan fisika untuk anak TK sampai SD.</p>
+    <p>Masa uji coba: akun tersimpan di perangkat ini saja.</p>
+  </div>
+</footer>
+
+<script src="shared/core.js"></script>
+<script src="shared/art.js"></script>
+<script src="shared/config.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/curriculum.js"></script>
+<script src="shared/pwa.js"></script>
+<script>
+(function () {
+  'use strict';
+  var GS = window.GS || {}, MS = window.MS || {}, A = MS.auth, X = A && A._, art = GS.art;
+  var OL = '#3B2A20', NS = 'http://www.w3.org/2000/svg';
+  var reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* ---------------- links: carry ?next through, signed-in visitors go straight back ---------------- */
+  try {
+    var q = new URLSearchParams(location.search);
+    var next = X && X.safeNext ? X.safeNext(q.get('next')) : 'index.html';
+    var nq = next !== 'index.html' ? 'next=' + encodeURIComponent(next) : '';
+    var signedIn = false;
+    try { signedIn = !!(A && A.current && A.current()); } catch (e) { signedIn = false; }
+    document.querySelectorAll('[data-cta]').forEach(function (a) {
+      if (signedIn) { a.href = next; a.querySelector('.cta-t').textContent = 'Lanjut main'; }
+      else a.href = 'welcome.html' + (nq ? '?' + nq : '');
+    });
+    document.querySelectorAll('[data-masuk]').forEach(function (a) { a.href = 'welcome.html?masuk=1' + (nq ? '&' + nq : ''); });
+    if (signedIn) document.querySelectorAll('[data-alt]').forEach(function (p) { p.hidden = true; });
+  } catch (e) { /* plain links still work */ }
+
+  /* ---------------- small helpers ---------------- */
+  function f(n) { return Math.round(n * 10) / 10; }
+  function mascot(mood, size) { try { return art && art.mascot ? art.mascot({ mood: mood, size: size }) : ''; } catch (e) { return ''; } }
+  function weight(n) { try { return art && art.weight ? art.weight(n) : ''; } catch (e) { return ''; } }
+  function item(name) { try { return art && art.item ? art.item(name) : ''; } catch (e) { return ''; } }
+  /** art is drawn around a bottom-centre origin: fit the viewBox to the drawing (same as the hub's fitIcon) */
+  function fitIcon(svg) {
+    if (!svg) return;
+    var b = null;
+    try { var g = svg.firstElementChild; b = g && g.getBBox(); } catch (e) { b = null; }
+    if (!b || !b.width || !b.height) return;
+    var side = Math.max(b.width, b.height) * 1.08, cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+    svg.setAttribute('viewBox', [cx - side / 2, cy - side / 2, side, side].map(f).join(' '));
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }
+  function lmIcon(name) {
+    try { return art && art.landmark ? '<svg viewBox="-100 -200 200 200" aria-hidden="true" focusable="false">' + art.landmark(name) + '</svg>' : ''; } catch (e) { return ''; }
+  }
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  function fracLabel(x, y, n) { // "1 over n" on a cream tag: readable without vulgar-fraction glyphs
+    return '<g transform="translate(' + f(x) + ' ' + f(y) + ')"><rect x="-22" y="-36" width="44" height="72" rx="14" fill="#FFF8EC" stroke="' + OL + '" stroke-width="3"/>' +
+      '<text y="-6" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="28" fill="#2B1D14">1</text>' +
+      '<path d="M-11 2H11" stroke="#2B1D14" stroke-width="3.5" stroke-linecap="round"/>' +
+      '<text y="30" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="28" fill="#2B1D14">' + n + '</text></g>';
+  }
+
+  /* ---------------- art that does not move ---------------- */
+  var cil = $('#brandCil');
+  if (cil) { cil.innerHTML = mascot('happy', 46); var cs = cil.querySelector('svg'); if (cs) cs.setAttribute('viewBox', '36 8 128 128'); }
+  var fc = $('#finalCil');
+  if (fc) fc.innerHTML = mascot('cheer', 170);
+  document.querySelectorAll('[data-lm]').forEach(function (el) {
+    var s = lmIcon(el.getAttribute('data-lm'));
+    if (!s) return;
+    if (el.tagName === 'LI') { var sp = document.createElement('span'); sp.className = 'ic'; sp.innerHTML = s; el.insertBefore(sp, el.firstChild); fitIcon(sp.firstChild); }
+    else { el.insertAdjacentHTML('afterbegin', s); fitIcon(el.firstChild); }
+  });
+
+  /* ---------------- pan balance (dacing), same rule as the game ----------------
+     angle = 18 deg * clamp((R - L) / max(L, R, 1) * 1.6, -1, 1); the beam swings to it on a damped
+     spring stepped at a fixed 1/120 s. Pans hang straight down from the beam ends.
+     SVG rule: every moving part is positioned by a transform ATTRIBUTE set from JS, never by CSS. */
+  function Balance(root, o) {
+    var ARM = o.arm, CH = o.chain, H = o.post;
+    var brass = ['#D9A441', '#F0CB76', '#AD7E2C'];
+    function pan(id) {
+      return '<g id="' + id + '"><path d="M0 0L-44 ' + CH + 'M0 0L44 ' + CH + '" stroke="#7A5518" stroke-width="3" stroke-linecap="round"/>' +
+        '<circle r="6" fill="' + brass[0] + '" stroke="' + OL + '" stroke-width="3"/>' +
+        '<g class="load"></g>' +
+        '<path d="M-56 ' + CH + 'H56Q52 ' + (CH + 26) + ' 0 ' + (CH + 28) + 'Q-52 ' + (CH + 26) + ' -56 ' + CH + 'Z" fill="' + brass[0] + '" stroke="' + OL + '" stroke-width="3.5" stroke-linejoin="round"/>' +
+        '<path d="M-44 ' + (CH + 6) + 'Q-20 ' + (CH + 14) + ' 0 ' + (CH + 14) + '" fill="none" stroke="' + brass[1] + '" stroke-width="4" stroke-linecap="round"/></g>';
+    }
+    root.insertAdjacentHTML('beforeend',
+      '<g transform="translate(' + o.x + ' ' + o.y + ')">' +
+      '<ellipse cx="0" cy="' + (H + 4) + '" rx="74" ry="9" fill="' + OL + '" opacity=".18"/>' +
+      '<path d="M-60 ' + (H + 2) + 'L-44 ' + (H - 20) + 'H44L60 ' + (H + 2) + 'Z" fill="#A8673A" stroke="' + OL + '" stroke-width="3.5" stroke-linejoin="round"/>' +
+      '<rect x="-9" y="0" width="18" height="' + (H - 18) + '" rx="6" fill="#A8673A" stroke="' + OL + '" stroke-width="3.5"/>' +
+      '<g class="sign" transform="translate(0 ' + (o.signY || 92) + ')"><rect x="-32" y="-30" width="64" height="60" rx="16" fill="#FFF8EC" stroke="' + OL + '" stroke-width="3.5"/>' +
+      '<text y="15" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="44" fill="#2B1D14">=</text></g>' +
+      '<g class="beam"><rect x="' + (-ARM - 12) + '" y="-8" width="' + (2 * ARM + 24) + '" height="16" rx="8" fill="' + brass[0] + '" stroke="' + OL + '" stroke-width="3.5"/>' +
+      '<path d="M' + (-ARM + 4) + ' -2H' + (ARM - 4) + '" stroke="' + brass[1] + '" stroke-width="3" stroke-linecap="round"/></g>' +
+      '<circle r="13" fill="' + brass[0] + '" stroke="' + OL + '" stroke-width="3.5"/><circle cx="-3" cy="-4" r="3" fill="#FFF" opacity=".8"/>' +
+      pan('pl') + pan('pr') + '</g>');
+    var g = root.lastElementChild, beam = $('.beam', g), pl = $('#pl', g), pr = $('#pr', g), sign = $('.sign text', g);
+    pl.removeAttribute('id'); pr.removeAttribute('id');
+    var st = { a: 0, v: 0, L: 0, R: 0 };
+    function target() { var d = (st.R - st.L) / Math.max(st.L, st.R, 1) * 1.6; return 18 * Math.max(-1, Math.min(1, d)); }
+    function draw() {
+      beam.setAttribute('transform', 'rotate(' + f(st.a) + ')');
+      var r = st.a * Math.PI / 180, c = Math.cos(r) * ARM, s = Math.sin(r) * ARM;
+      pl.setAttribute('transform', 'translate(' + f(-c) + ' ' + f(-s) + ')');
+      pr.setAttribute('transform', 'translate(' + f(c) + ' ' + f(s) + ')');
+      // the sign compares the loads, read left to right (left heavier: left > right). Equal loads
+      // only earn "=" once the beam has really come to rest; while it still swings the sign is blank.
+      var ch = st.L > st.R ? '>' : st.L < st.R ? '<' : (Math.abs(st.a) < 0.6 && Math.abs(st.v) < 4 ? '=' : '');
+      if (sign.textContent !== ch) sign.textContent = ch;
+    }
+    var acc = 0;
+    return {
+      left: $('.load', pl), right: $('.load', pr),
+      set: function (L, R, snap) { st.L = L; st.R = R; if (snap) { st.a = target(); st.v = 0; } draw(); },
+      step: function (dt) {
+        acc += dt;
+        while (acc >= 1 / 120) { acc -= 1 / 120; st.v += (-60 * (st.a - target()) - 7 * st.v) / 120; st.a += st.v / 120; }
+        draw();
+      },
+      settled: function () { return Math.abs(st.a - target()) < 0.3 && Math.abs(st.v) < 1; }
+    };
+  }
+  function wAt(n, x, y, s) { return '<g transform="translate(' + x + ' ' + y + ') scale(' + s + ')">' + weight(n) + '</g>'; }
+  /** A weight that drops into a pan: an outer group positioned by attribute, moved by JS. */
+  function dropper(parent, n, x, s) {
+    parent.insertAdjacentHTML('beforeend', '<g opacity="0">' + wAt(n, x, 0, s) + '</g>');
+    var el = parent.lastElementChild;
+    return {
+      at: function (h, op) { el.setAttribute('transform', 'translate(0 ' + f(-h) + ')'); el.setAttribute('opacity', op); }
+    };
+  }
+  function fall(p) { return p * p; } // dropped from rest: height falls with t squared
+
+  /* ---------------- demos ---------------- */
+  var DEMOS = {};
+
+  // HERO: 3 and 4 on the left; 7 drops on the right; the beam settles level and Si Cil cheers.
+  DEMOS.hero = function (svg) {
+    var sc = '';
+    try { sc = art && art.scene ? art.scene('pasar', 640, 420) : ''; } catch (e) { sc = ''; }
+    svg.innerHTML = (sc || '<rect width="640" height="420" fill="#9ED8EC"/><rect y="330" width="640" height="90" fill="#E5BE86"/>');
+    var CH = 92;
+    var b = Balance(svg, { x: 262, y: 132, arm: 148, chain: CH, post: 200, signY: 100 });
+    b.left.innerHTML = wAt(3, -24, CH + 4, 0.62) + wAt(4, 24, CH + 4, 0.62);
+    var w7 = dropper(b.right, 7, 0, 0.66);
+    b.right.lastElementChild.querySelector('g').setAttribute('transform', 'translate(0 ' + (CH + 4) + ') scale(.66)');
+    var at = function (m) { return mascot(m, 168).replace('<svg ', '<svg x="462" y="170" '); };
+    svg.insertAdjacentHTML('beforeend', '<g class="m-a">' + at('think') + '</g><g class="m-b" opacity="0">' + at('cheer') + '</g>');
+    var ma = $('.m-a', svg), mb = $('.m-b', svg), mood = 'a';
+    function setMood(m) { if (m === mood) return; mood = m; ma.setAttribute('opacity', m === 'a' ? 1 : 0); mb.setAttribute('opacity', m === 'b' ? 1 : 0); }
+    var t = 0, T = 7.4;
+    b.set(7, 0, true);
+    return {
+      step: function (dt) {
+        t = (t + dt) % T;
+        if (t < 1.0) { w7.at(160, 0); b.set(7, 0); setMood('a'); }
+        else if (t < 1.45) { var p = (t - 1.0) / 0.45; w7.at(160 * (1 - fall(p)), Math.min(1, p * 4)); b.set(7, 0); }
+        else if (t < 6.3) { w7.at(0, 1); b.set(7, 7); if (b.settled()) setMood('b'); } // Si Cil cheers only once the beam is at rest
+        else { var u = Math.min(1, (t - 6.3) / 0.5); w7.at(120 * u * u, 1 - u); b.set(7, u > 0.15 ? 0 : 7); setMood('a'); }
+        b.step(dt);
+      },
+      still: function () { w7.at(0, 1); b.set(7, 7, true); setMood('b'); }
+    };
+  };
+
+  // TIMBANGAN: 5 on the left; on the right 2, then +1, then +2. The tilt shrinks with the difference.
+  DEMOS.timbangan = function (svg) {
+    svg.innerHTML = '<rect width="560" height="330" fill="#E6F5F0"/><rect y="296" width="560" height="34" fill="#E5BE86"/><path d="M0 296H560" stroke="' + OL + '" stroke-width="3" opacity=".25"/>';
+    var CH = 96;
+    var b = Balance(svg, { x: 280, y: 64, arm: 168, chain: CH, post: 230, signY: 112 });
+    b.left.innerHTML = wAt(5, 0, CH + 4, 0.7);
+    b.right.innerHTML = wAt(2, -26, CH + 4, 0.62);
+    var d1 = dropper(b.right, 1, 6, 0.62), d2 = dropper(b.right, 2, 34, 0.62);
+    [d1, d2].forEach(function (d, i) { b.right.children[i + 1].querySelector('g').setAttribute('transform', 'translate(' + (i ? 32 : 4) + ' ' + (CH + 4) + ') scale(.62)'); });
+    var t = 0, T = 8.6;
+    b.set(5, 2, true);
+    function drop(d, t0, now) { var p = Math.max(0, Math.min(1, (now - t0) / 0.42)); d.at(150 * (1 - fall(p)), now < t0 ? 0 : Math.min(1, p * 4)); return p >= 1; }
+    return {
+      step: function (dt) {
+        t = (t + dt) % T;
+        var R = 2;
+        if (t < 7.6) { if (drop(d1, 1.4, t)) R = 3; if (drop(d2, 3.6, t)) R = 5; }
+        else { var u = (t - 7.6) / 1; d1.at(110 * u * u, 1 - u); d2.at(110 * u * u, 1 - u); R = u > 0.1 ? 2 : 5; }
+        b.set(5, R); b.step(dt);
+      },
+      still: function () { d1.at(0, 1); d2.at(0, 1); b.set(5, 5, true); }
+    };
+  };
+
+  // KATAK: hop 3, four times: 0 -> 3 -> 6 -> 9 -> 12, where the friend waits.
+  DEMOS.katak = function (svg) {
+    var X0 = 36, U = 40, Y = 238, s = '<rect width="600" height="330" fill="#E6F5F0"/><rect y="262" width="600" height="68" fill="#7CC26B"/><path d="M0 262H600" stroke="' + OL + '" stroke-width="3" opacity=".25"/>';
+    s += '<path d="M' + (X0 - 14) + ' ' + Y + 'H' + (X0 + 12 * U + 14) + '" stroke="' + OL + '" stroke-width="5" stroke-linecap="round"/>';
+    for (var k = 0; k <= 12; k++) {
+      var big = k % 3 === 0, x = X0 + k * U;
+      s += '<path d="M' + x + ' ' + (Y - (big ? 12 : 7)) + 'V' + (Y + (big ? 12 : 7)) + '" stroke="' + OL + '" stroke-width="' + (big ? 5 : 3) + '" stroke-linecap="round"/>';
+      if (big) s += '<text class="n" data-k="' + k + '" x="' + x + '" y="' + (Y + 50) + '" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="32" fill="#2B1D14">' + k + '</text>';
+    }
+    s += '<g class="trails"></g>';
+    s += '<g transform="translate(' + (X0 + 12 * U + 36) + ' ' + (Y - 4) + ') scale(-.85 .85)">' + item('katak') + '</g>';
+    s += '<g class="frog"><g class="frog-in">' + '<g transform="scale(.85)">' + item('katak') + '</g></g></g>';
+    svg.innerHTML = s;
+    var frog = $('.frog', svg), fin = $('.frog-in', svg), trails = $('.trails', svg), ring12 = null, H = 74;
+    for (var i = 0; i < 4; i++) {
+      var a = X0 + 3 * i * U, c = a + 3 * U, m = (a + c) / 2;
+      trails.insertAdjacentHTML('beforeend', '<g opacity="0"><path d="M' + a + ' ' + (Y - 6) + 'Q' + m + ' ' + (Y - 6 - 2 * H) + ' ' + c + ' ' + (Y - 6) + '" fill="none" stroke="#215F98" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round"/>' +
+        '<text x="' + m + '" y="' + (Y - H - 22) + '" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="30" fill="#215F98">+3</text></g>');
+    }
+    svg.insertAdjacentHTML('beforeend', '<circle cx="' + (X0 + 12 * U) + '" cy="' + (Y + 39) + '" r="27" fill="none" stroke="#0F8C7A" stroke-width="5" opacity="0"/>');
+    ring12 = svg.lastElementChild;
+    var tr = trails.children, t = 0, T = 7.2, HOP = 0.56, GAP = 0.32, START = 0.8;
+    function place(x, y, sx, sy) { frog.setAttribute('transform', 'translate(' + f(x) + ' ' + f(y) + ')'); fin.setAttribute('transform', 'scale(' + f(sx * 100) / 100 + ' ' + f(sy * 100) / 100 + ')'); }
+    return {
+      step: function (dt) {
+        t = (t + dt) % T;
+        var x = X0, y = Y - 4, sx = 1, sy = 1, done = 0;
+        if (t >= START) {
+          var k = (t - START) / (HOP + GAP), n = Math.min(4, Math.floor(k)), ph = (k - n) * (HOP + GAP);
+          done = n;
+          x = X0 + 3 * n * U;
+          if (n < 4 && ph < HOP) { var p = ph / HOP; x += 3 * U * p; y -= 4 * H * p * (1 - p); sx = 0.94; sy = 1.08; }
+          else if (n < 4 && ph < HOP + 0.12) { sx = 1.12; sy = 0.88; }
+        }
+        place(x, y, sx, sy);
+        for (var i = 0; i < 4; i++) tr[i].setAttribute('opacity', i < done ? (t > T - 0.5 ? f((T - t) / 0.5) : 1) : 0);
+        ring12.setAttribute('opacity', done >= 4 && t < T - 0.5 ? 1 : 0);
+      },
+      still: function () { place(X0 + 12 * U, Y - 4, 1, 1); for (var i = 0; i < 4; i++) tr[i].setAttribute('opacity', 1); ring12.setAttribute('opacity', 1); }
+    };
+  };
+
+  // MARTABAK: cut into 2, 3, then 4 equal pieces (diameter cut, then radial wedge cuts).
+  DEMOS.martabak = function (svg) {
+    var CX = 280, CY = 168, R = 118, uid = 'm' + Math.random().toString(36).slice(2, 7);
+    var top = '<circle r="' + R + '" fill="#D98E3A"/><circle r="' + (R - 8) + '" fill="none" stroke="#B5652A" stroke-width="14" opacity=".7"/><circle r="' + (R - 17) + '" fill="none" stroke="#F0B868" stroke-width="3" opacity=".6"/>';
+    var seed = 7; function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    for (var i = 0; i < 26; i++) { var ang = rnd() * Math.PI * 2, d = rnd() * (R - 30); top += '<circle cx="' + f(Math.cos(ang) * d) + '" cy="' + f(Math.sin(ang) * d) + '" r="' + f(2.5 + rnd() * 3) + '" fill="#9C5A22" opacity=".5"/>'; }
+    var s = '<rect width="560" height="330" fill="#E6F5F0"/><defs><g id="' + uid + '">' + top + '</g></defs>' +
+      '<ellipse cx="' + CX + '" cy="' + (CY + 8) + '" rx="' + (R + 34) + '" ry="' + (R + 26) + '" fill="#FFFFFF" stroke="' + OL + '" stroke-width="3.5"/>' +
+      '<g class="pieces" transform="translate(' + CX + ' ' + CY + ')"></g><g class="whole" transform="translate(' + CX + ' ' + CY + ')"><use href="#' + uid + '"/><circle r="' + R + '" fill="none" stroke="' + OL + '" stroke-width="3.5"/></g><g class="cuts" transform="translate(' + CX + ' ' + CY + ')"></g><g class="labels" transform="translate(' + CX + ' ' + CY + ')"></g>';
+    svg.innerHTML = s;
+    var P = $('.pieces', svg), C = $('.cuts', svg), Lb = $('.labels', svg), whole = $('.whole', svg);
+    var PH = [ // cut angles in degrees, -90 = straight up
+      { n: 2, cuts: [[-90, 90]] },
+      { n: 3, cuts: [[-90], [30], [150]] },
+      { n: 4, cuts: [[-90, 90], [0, 180]] }
+    ];
+    function sector(a0, a1, r) {
+      var p = function (a) { var q = a * Math.PI / 180; return f(Math.cos(q) * r) + ' ' + f(Math.sin(q) * r); };
+      return 'M0 0L' + p(a0) + 'A' + r + ' ' + r + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + p(a1) + 'Z';
+    }
+    var cur = -1, pieces = [], cutEls = [], labs = [];
+    function build(k) {
+      cur = k; var ph = PH[k], n = ph.n, step = 360 / n, h = '', cl = '', lb = '', defs = '';
+      for (var i = 0; i < n; i++) {
+        var a0 = -90 + i * step, a1 = a0 + step, id = uid + 'c' + k + i, mid = (a0 + a1) / 2 * Math.PI / 180;
+        defs += '<clipPath id="' + id + '"><path d="' + sector(a0, a1, R + 2) + '"/></clipPath>';
+        h += '<g data-dx="' + f(Math.cos(mid)) + '" data-dy="' + f(Math.sin(mid)) + '"><g clip-path="url(#' + id + ')"><use href="#' + uid + '"/></g><path d="' + sector(a0, a1, R) + '" fill="none" stroke="' + OL + '" stroke-width="3.5" stroke-linejoin="round"/></g>';
+        lb += '<g opacity="0">' + fracLabel(Math.cos(mid) * R * 0.52, Math.sin(mid) * R * 0.52, n) + '</g>';
+      }
+      ph.cuts.forEach(function (c) {
+        var q0 = c[0] * Math.PI / 180, x0 = Math.cos(q0) * (R + 18), y0 = Math.sin(q0) * (R + 18), x1 = 0, y1 = 0;
+        if (c.length > 1) { var q1 = c[1] * Math.PI / 180; x1 = Math.cos(q1) * (R + 18); y1 = Math.sin(q1) * (R + 18); }
+        cl += '<g opacity="0"><path d="M' + f(x0) + ' ' + f(y0) + 'L' + f(x1) + ' ' + f(y1) + '" pathLength="100" stroke="' + OL + '" stroke-width="12" stroke-linecap="round" stroke-dasharray="100 100"/><path d="M' + f(x0) + ' ' + f(y0) + 'L' + f(x1) + ' ' + f(y1) + '" pathLength="100" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-dasharray="100 100"/></g>';
+      });
+      var old = svg.querySelector('defs.clips'); if (old) old.parentNode.removeChild(old);
+      svg.insertAdjacentHTML('afterbegin', '<defs class="clips">' + defs + '</defs>');
+      P.innerHTML = h; C.innerHTML = cl; Lb.innerHTML = lb;
+      pieces = [].slice.call(P.children); cutEls = [].slice.call(C.children); labs = [].slice.call(Lb.children);
+    }
+    function frame(k, u, sep, lab) {
+      if (k !== cur) build(k);
+      cutEls.forEach(function (c, i) { // each knife stroke takes 0.3 of u
+        var p = Math.max(0, Math.min(1, u * cutEls.length - i));
+        c.setAttribute('opacity', p > 0 && sep < 0.99 ? 1 - sep : 0);
+        [].forEach.call(c.children, function (l) { l.setAttribute('stroke-dashoffset', f(100 - 100 * p)); });
+      });
+      pieces.forEach(function (g) { var d = 12 * sep; g.setAttribute('transform', 'translate(' + f(d * g.getAttribute('data-dx')) + ' ' + f(d * g.getAttribute('data-dy')) + ')'); });
+      labs.forEach(function (l) { l.setAttribute('opacity', f(lab)); });
+      outline(sep);
+    }
+    function outline(sep) { // one round outline while whole, each piece outlined once it is cut apart
+      var cut = sep > 0.02;
+      whole.setAttribute('opacity', cut ? 0 : 1); // uncut: one seamless disc on top of the pieces
+      P.setAttribute('opacity', cut ? 1 : 0);
+    }
+    var t = 0, SEG = 3.6;
+    return {
+      step: function (dt) {
+        t = (t + dt) % (SEG * 3);
+        var k = Math.floor(t / SEG), x = t - k * SEG, cl = function (v) { return Math.max(0, Math.min(1, v)); };
+        var u = cl((x - 0.5) / 0.7), sep = cl((x - 1.25) / 0.3), lab = cl((x - 1.45) / 0.25);
+        if (x > SEG - 0.45) { var z = cl((x - (SEG - 0.45)) / 0.35); sep = 1 - z; lab = 1 - z; }
+        frame(k, u, x > SEG - 0.45 ? 1 : sep, lab);
+        if (x > SEG - 0.45) { pieces.forEach(function (g) { var d = 12 * sep; g.setAttribute('transform', 'translate(' + f(d * g.getAttribute('data-dx')) + ' ' + f(d * g.getAttribute('data-dy')) + ')'); }); outline(sep); }
+      },
+      still: function () { frame(2, 1, 1, 1); }
+    };
+  };
+
+  // KETAPEL: a weak and a strong pull. True projectile motion, g = 9.8 m/s^2 with 1 m = 100 units.
+  DEMOS.ketapel = function (svg) {
+    var GY = 286, LX = 70, LY = 196, TH = 45 * Math.PI / 180, G = 980, K = 12, SLOW = 0.6;
+    var s = '<rect width="600" height="330" fill="#E6F5F0"/><rect y="' + GY + '" width="600" height="44" fill="#7CC26B"/><path d="M0 ' + GY + 'H600" stroke="' + OL + '" stroke-width="3" opacity=".25"/>';
+    for (var m = 1; m <= 5; m++) {
+      var px = LX + m * 100;
+      s += '<rect x="' + (px - 5) + '" y="' + (GY - 26) + '" width="10" height="34" rx="3" fill="#A8673A" stroke="' + OL + '" stroke-width="3"/>' +
+        '<text x="' + px + '" y="' + (GY - 36) + '" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="28" fill="#2B1D14">' + m + '</text>';
+    }
+    s += '<path d="M' + LX + ' ' + GY + 'V' + (LY + 28) + 'M' + LX + ' ' + (LY + 30) + 'L' + (LX - 16) + ' ' + (LY - 4) + 'M' + LX + ' ' + (LY + 30) + 'L' + (LX + 16) + ' ' + (LY - 4) + '" fill="none" stroke="' + OL + '" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<path d="M' + LX + ' ' + GY + 'V' + (LY + 28) + 'M' + LX + ' ' + (LY + 30) + 'L' + (LX - 16) + ' ' + (LY - 4) + 'M' + LX + ' ' + (LY + 30) + 'L' + (LX + 16) + ' ' + (LY - 4) + '" fill="none" stroke="#A8673A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += '<g class="trails"><polyline fill="none" stroke="#215F98" stroke-width="4" stroke-dasharray="2 9" stroke-linecap="round"/><polyline fill="none" stroke="#215F98" stroke-width="4" stroke-dasharray="2 9" stroke-linecap="round"/></g>' +
+      '<g class="tags"></g><path class="band" fill="none" stroke="#E2453C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<g class="stone"><circle r="11" fill="#8C8F94" stroke="' + OL + '" stroke-width="3"/><circle cx="-3.5" cy="-4" r="3" fill="#C3C6CA"/></g>';
+    svg.innerHTML = s;
+    var band = $('.band', svg), stone = $('.stone', svg), lines = svg.querySelectorAll('.trails polyline'), tags = $('.tags', svg);
+    var TH_ = [{ v: 360, label: 'pelan' }, { v: 600, label: 'kuat' }];
+    TH_.forEach(function (o) { // landing time from y0 + v sin t - g t^2 / 2 = ground
+      var vs = o.v * Math.sin(TH), h = GY - 11 - LY;
+      o.T = (vs + Math.sqrt(vs * vs + 2 * G * h)) / G; o.p = o.v / K;
+      o.lx = LX + o.v * Math.cos(TH) * o.T;
+      tags.insertAdjacentHTML('beforeend', '<g opacity="0" transform="translate(' + f(o.lx) + ' ' + (GY + 24) + ')"><rect x="-38" y="-17" width="76" height="34" rx="12" fill="#FFF8EC" stroke="' + OL + '" stroke-width="3"/><text y="8" text-anchor="middle" font-family="Andika, sans-serif" font-weight="700" font-size="22" fill="#2B1D14">' + o.label + '</text></g>');
+      o.tag = tags.lastElementChild;
+    });
+    function pos(o, tt) { return [LX + o.v * Math.cos(TH) * tt, LY - o.v * Math.sin(TH) * tt + G * tt * tt / 2]; }
+    function bandTo(x, y) { band.setAttribute('d', 'M' + (LX - 16) + ' ' + (LY - 4) + 'L' + f(x) + ' ' + f(y) + 'L' + (LX + 16) + ' ' + (LY - 4)); }
+    function trail(i, o, tt) {
+      var pts = [], n = Math.max(1, Math.ceil(tt / o.T * 40));
+      for (var k = 0; k <= n; k++) { var q = pos(o, Math.min(tt, o.T) * k / n); pts.push(f(q[0]) + ',' + f(q[1])); }
+      lines[i].setAttribute('points', pts.join(' '));
+    }
+    // timeline per throw: pull 0.55 s, hold 0.25 s, flight (slowed for the eye; the path is unchanged)
+    var t = 0, SEQ = [], at = 0.6;
+    TH_.forEach(function (o, i) { SEQ.push({ o: o, i: i, t0: at }); at += 0.8 + o.T / SLOW + 0.7; });
+    var TOT = at + 1.6;
+    return {
+      step: function (dt) {
+        t = (t + dt) % TOT;
+        var fade = t > TOT - 0.5 ? (TOT - t) / 0.5 : 1, flying = false;
+        bandTo(LX, LY + 2); stone.setAttribute('transform', 'translate(' + LX + ' ' + LY + ')');
+        SEQ.forEach(function (e) {
+          var x = t - e.t0, o = e.o;
+          if (x < 0) { lines[e.i].setAttribute('points', ''); o.tag.setAttribute('opacity', 0); return; }
+          if (x < 0.8) { var p = Math.min(1, x / 0.55), e2 = 1 - (1 - p) * (1 - p), d = o.p * e2; var sx = LX - d * Math.cos(TH), sy = LY + d * Math.sin(TH); bandTo(sx, sy); stone.setAttribute('transform', 'translate(' + f(sx) + ' ' + f(sy) + ')'); lines[e.i].setAttribute('points', ''); o.tag.setAttribute('opacity', 0); flying = true; return; }
+          var ft = (x - 0.8) * SLOW;
+          trail(e.i, o, Math.min(ft, o.T)); lines[e.i].setAttribute('opacity', f(fade));
+          o.tag.setAttribute('opacity', ft >= o.T ? f(fade) : 0);
+          if (ft < o.T) { var q = pos(o, ft); stone.setAttribute('transform', 'translate(' + f(q[0]) + ' ' + f(q[1]) + ')'); flying = true; }
+        });
+        if (!flying && t > SEQ[1].t0) stone.setAttribute('opacity', 0); else stone.setAttribute('opacity', 1);
+        if (t < SEQ[0].t0) stone.setAttribute('opacity', 1);
+      },
+      still: function () { TH_.forEach(function (o, i) { trail(i, o, o.T); lines[i].setAttribute('opacity', 1); o.tag.setAttribute('opacity', 1); }); bandTo(LX, LY + 2); stone.setAttribute('transform', 'translate(' + LX + ' ' + LY + ')'); }
+    };
+  };
+
+  /* small static art for "how it is built" */
+  var IC = {
+    demo: function () { return mascot('point', 76).replace('viewBox="0 0 200 200"', 'viewBox="10 20 190 190"'); },
+    tilt: function () {
+      return '<svg viewBox="0 0 80 80" aria-hidden="true"><g transform="translate(40 30)"><g transform="rotate(-14)"><rect x="-30" y="-4" width="60" height="8" rx="4" fill="#D9A441" stroke="' + OL + '" stroke-width="2.5"/></g>' +
+        '<path d="M-3 0V40H3V0Z" fill="#A8673A" stroke="' + OL + '" stroke-width="2.5"/><circle r="5" fill="#D9A441" stroke="' + OL + '" stroke-width="2.5"/>' +
+        '<path d="M-29 7h-14q2 10 7 10t7-10z" transform="translate(7 0)" fill="#D9A441" stroke="' + OL + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+        '<path d="M29 -7h14q-2 10-7 10t-7-10z" transform="translate(-7 0)" fill="#D9A441" stroke="' + OL + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+        '<path d="M-14 40H14" stroke="' + OL + '" stroke-width="4" stroke-linecap="round"/></g></svg>';
+    },
+    fade: function () {
+      var r = '<g transform="scale(.3)">' + item('rambutan') + '</g>';
+      return '<svg viewBox="0 0 80 80" aria-hidden="true"><g transform="translate(16 40)">' + r + '</g><g transform="translate(34 40)">' + r + '</g><g transform="translate(25 62)">' + r + '</g>' +
+        '<text x="62" y="60" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="34" fill="#2B1D14">3</text></svg>';
+    },
+    device: function () {
+      return '<svg viewBox="0 0 80 80" aria-hidden="true"><rect x="8" y="20" width="64" height="40" rx="8" fill="#FFF8EC" stroke="' + OL + '" stroke-width="3"/><rect x="15" y="25" width="50" height="30" rx="3" fill="#9ED8EC"/>' +
+        '<rect x="15" y="45" width="50" height="10" fill="#7CC26B"/><circle cx="55" cy="33" r="5" fill="#FFC83D"/><circle cx="11.5" cy="40" r="1.8" fill="' + OL + '"/></svg>';
+    }
+  };
+  document.querySelectorAll('[data-ic]').forEach(function (el) { try { el.innerHTML = IC[el.getAttribute('data-ic')](); } catch (e) { /* plain tile */ } });
+
+  /* ---------------- scheduler: one rAF loop, only for demos on screen ---------------- */
+  var live = [];
+  function mount(svg, kind) {
+    if (!art || !DEMOS[kind]) return;
+    var d;
+    try { d = DEMOS[kind](svg); } catch (e) { return; }
+    d.vis = false;
+    if (reduced || !('IntersectionObserver' in window)) { d.still(); return; }
+    d.step(0);
+    live.push(d);
+    new IntersectionObserver(function (es) { es.forEach(function (e) { d.vis = e.isIntersecting; }); if (d.vis) kick(); }, { rootMargin: '40px' }).observe(svg);
+  }
+  var raf = 0, last = 0;
+  function loop(now) {
+    var dt = Math.min(0.05, last ? (now - last) / 1000 : 0), any = false;
+    last = now;
+    live.forEach(function (d) { if (d.vis) { any = true; try { d.step(dt); } catch (e) { d.vis = false; } } });
+    raf = any ? requestAnimationFrame(loop) : 0;
+    if (!any) last = 0;
+  }
+  function kick() { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } }
+  var hero = document.getElementById('heroScene');
+  if (hero) mount(hero, 'hero');
+  document.querySelectorAll('[data-demo]').forEach(function (s) { mount(s, s.getAttribute('data-demo')); });
+
+  /* ---------------- reveal once on scroll ---------------- */
+  if (!reduced && 'IntersectionObserver' in window) {
+    document.documentElement.classList.add('js-rv');
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.rv').forEach(function (el) { io.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>

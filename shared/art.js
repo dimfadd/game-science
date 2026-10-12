@@ -856,6 +856,23 @@
       `<rect x="${n1(-w * EXT)}" y="0" width="${n1(w * (1 + 2 * EXT))}" height="${n1(h)}" fill="url(#${id})"/><g class="layer-far">${L[0]}</g><g class="layer-mid">${L[1]}</g><g class="layer-near">${L[2]}</g></g>`;
   };
 
+  /** Single scenery pieces for pages that lay out their own world (the hub map).
+      gy = ground line, s = scale. kinds: tree, fruit, house, house2, palm, bamboo, tuft, stall. */
+  art.decor = function (kind, x, gy, s) {
+    s = +s || 1;
+    switch (kind) {
+      case 'tree': return tree(x, gy, s);
+      case 'fruit': return tree(x, gy, s, null, '#FFB938');
+      case 'house': return house(x, gy, s, '#EBCB92', '#C8643B');
+      case 'house2': return house(x, gy, s, '#E6C389', '#B5502F');
+      case 'palm': return palm(x, gy, 120 * s, 12 * s, s);
+      case 'bamboo': return bamboo(x, gy, 150 * s, s);
+      case 'tuft': return tuft(x, gy, s);
+      case 'stall': return stall(x, gy, s, '#E2453C', '#FFF3E0', ['#F28C28', '#E2453C', '#4DAA57']);
+      default: return '';
+    }
+  };
+
   /* ============================ landmarks ============================ */
   const grassBase = (rx) => f3(E(0, -5, rx, 9), [-rx, -14, 2 * rx, 18], PAL.grass, { hl: false, k: 0.2, sw: 2.6 });
   const LM = {

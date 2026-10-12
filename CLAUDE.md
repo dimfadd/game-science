@@ -18,13 +18,14 @@ Core pedagogy (non-negotiable, details in `docs/DESIGN.md`):
 - Vanilla HTML/CSS/JS, **no framework, no npm runtime deps**. All art is hand-made inline SVG (`shared/art.js`), all sfx synthesized with Web Audio, narration via recorded clips or Web Speech `id-ID`.
 - Works from `file://` (open `index.html`) and from any static host.
 - Deployed on **Vercel** (e.g. game-science-seven.vercel.app) from branch `claude/educational-game-math-physics-ep6s5i` (the repo's only and default branch). `vercel.json` runs `scripts/build.sh`, which copies only public files into `dist/` (the asset gallery `assets.html`, `docs/`, `games/_template/`, project notes are **not** deployed).
-- Installable **PWA** (`manifest.webmanifest`, `sw.js`, `shared/pwa.js`). Display `fullscreen`, orientation `landscape`.
+- Installable **PWA** (`manifest.webmanifest`, `sw.js`, `shared/pwa.js`). Display `fullscreen`, manifest orientation `any`: **only games play sideways**. `GS.orient()` (core.js) locks landscape on game pages and portrait on phones elsewhere, where the browser allows a lock (installed app or fullscreen); in a browser tab the game's start gate enters fullscreen and locks landscape; on iPhone (no lock API) games show the "turn your phone" screen.
 - No backend or database yet. Accounts are client-side only (see Auth).
 
 ## File map
 
 ```
-index.html              Hub "Peta Kampung": illustrated map with 10 game landmarks + parent/teacher guide
+landing.html            Landing page for first-time visitors (search/ads): why math + physics, the games, CTA to welcome.html
+index.html              Hub "Peta Kampung": vertical route with 10 game landmarks, a sheet per game, parent/teacher guide
 welcome.html            Onboarding (3 quick questions) then register/login
 assets.html             Internal asset gallery (NOT deployed, not linked)
 manifest.webmanifest    PWA manifest
@@ -61,7 +62,7 @@ Every game has five tiers: `tk`, `k1`, `k2`, `k3`, `k4` (Kelas 4+), following Ku
 - The tier comes from the child's kelas (session/profile), overridable with `?tier=k3` in the URL. `GS.tier()` / `MS.kur` live in `shared/curriculum.js`, which also holds the per-tier descriptions shown on the hub map and parent guide.
 - Each game builds its level list from `GS.tier()`; `window.__game.count()` must equal `MS.kur.levels(tier)`.
 - Stars are stored per game per tier (`stars.<game>@<tier>`; `GS.store` adds the suffix automatically).
-- Hub: the "Kelas" button and the profile chip open `MS.profileEditor` (name, kelas, avatar). When every level of the current tier has a star, a banner offers the next tier.
+- Hub: the "Kelas" button and the profile chip open `MS.profileEditor` (name, kelas, avatar). When every level of the current tier has a star, a banner offers the next tier (top of the map).
 - TK tier: no reading required (numbers always with dots/objects), bigger targets, looser tolerances.
 
 ## The games
@@ -81,6 +82,8 @@ Every game has five tiers: `tk`, `k1`, `k2`, `k3`, `k4` (Kelas 4+), following Ku
 
 Wave 2 (bibit, kembalian, jam, wayang, 2026-10-10) covers the Kurikulum Merdeka elements the first six never touched: measurement (money, time), arrays/area/perimeter and IPAS light. Hub map landmarks: `bibit`, `kelontong`, `posronda`, `panggung` in `GS.art` LM.
 
+**Hub map** (`index.html`, 2026-10-12): one tall route that scrolls DOWN, laid out in script for the screen: s = px per map unit = min(W/620, H/470, 1.15); two lanes zigzag on narrow screens, snake rows of 3 to 5 places on wide ones; the route follows the curriculum order (`MS.kur.GAMES`), a river with a bridge runs above Rakit Terapung, scenery (`GS.art.decor`) is placed only where no place, sign or path is. Tapping a place does NOT open the game: Si Cil walks there, says its line and a sheet opens (landmark art, Matematika/Fisika badge, what this kelas learns, progress, big "Main!", X top-right; also closes on the backdrop and Escape). Bottom sheet on portrait phones, centred card elsewhere, art beside the text on short landscape screens.
+
 Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solve()` completes the **current round**; multi-round levels need repeated calls. Angkot also has `speed(n)` to speed up animations in tests.
 
 ## GS runtime (shared/core.js)
@@ -95,11 +98,11 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
 
 ## Auth (development only)
 
-- Flow: `welcome.html` asks 3 questions (nickname, kelas, avatar), then login/register.
+- Flow: first visit on a device (no session, no profile) lands on `landing.html` (copy for parents, verified quotes from Elon Musk and Jensen Huang with sources and a no-affiliation note, CTA "Mulai main bersama Si Cil"); then `welcome.html` asks 3 questions (nickname, kelas, avatar), then login/register (`welcome.html?masuk=1` opens the Masuk tab; Daftar there starts the questions). Landing copy rules: no statistics, testimonials or FAQ until real ones exist, quotes only verbatim with source, and "Gratis selama masa uji coba. Tanpa iklan." must change if pricing or ads arrive.
 - Hard-coded dev account for everyone: **test@matsains.id / test**.
 - Registered accounts live in this device's localStorage only (password stored as SHA-256 hash). Not secure, not synced: fine for the trial phase only.
 - Google login uses Google Identity Services and activates when `GOOGLE_CLIENT_ID` is set in `shared/config.js` (create an OAuth Web client ID in Google Cloud Console, add the Vercel domain as an authorized JavaScript origin). The ID token is decoded client-side without verification: development only.
-- Pages are guarded by `shared/auth.js` (redirects to `welcome.html` without a session; skipped for `?autotest` and `navigator.webdriver`).
+- Pages are guarded by `shared/auth.js` (without a session: to `landing.html` on a device with no profile yet, else to `welcome.html`; skipped for `?autotest` and `navigator.webdriver`).
 - Before commercial launch: real backend, server-side token verification, parental consent and data handling under Indonesia's UU PDP (personal data of children).
 
 ## Narration
@@ -113,8 +116,8 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
 - `tests/` holds Playwright scripts (uses `playwright-core`; Chromium path via `CHROMIUM` env or `/opt/pw-browsers/...`). Run `npm --prefix tests install` once, then:
   - `node tests/smoke.js`: every page loads without errors or horizontal overflow at 4 device sizes (`SITE_DIR=dist` to test the Vercel build).
   - `node tests/levels.js [gameId] [tier]`: solves every level of every tier and checks the level count (run one game per command; one game takes 3 to 8 minutes).
-  - `node tests/hub-tiers.js`: signed-in hub at four sizes, profile editor, switching kelas, level-up banner.
-  - `node tests/journey.js [phoneLandscape|phonePortrait|tablet]`: new player end to end with the login guard on (onboarding, dev login, hub, tap a landmark, start gate).
+  - `node tests/hub-tiers.js`: signed-in hub at four sizes, profile editor, switching kelas, game sheet (opens on tap, fits, X closes), level-up banner.
+  - `node tests/journey.js [phoneLandscape|phonePortrait|tablet]`: new player end to end with the login guard on (landing, onboarding, dev login, hub, tap a landmark, sheet, Main!, start gate).
   - `node tests/hub-hover.js`: hub landmarks stay in place on hover/press.
   - `node tests/visual-qc.js [gameId] [tier]`: measures every text, number and touch target in px on 740×360 and 844×390 phones; **must report 0 FAIL** (SOP in `docs/QC-VISUAL.md`).
   - `node tests/demos.js [gameId] [tier]`: plays every level's worked example through real input; each must reach success, auto-play once, and skip cleanly.

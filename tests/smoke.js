@@ -3,7 +3,7 @@
  *        SITE_DIR=dist node tests/smoke.js (after scripts/build.sh) */
 const { serve, launch, VIEWPORTS, watch } = require('./lib');
 const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang'];
-const PAGES = ['index.html', 'welcome.html', ...GAMES.map(g => 'games/' + g + '/index.html')];
+const PAGES = ['index.html', 'welcome.html', 'landing.html', ...GAMES.map(g => 'games/' + g + '/index.html')];
 
 (async () => {
   const { server, base } = await serve();

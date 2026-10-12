@@ -255,13 +255,17 @@
 
   /* ---------------- state ---------------- */
   var prof = A.profile();
+  // ?masuk=1 (the landing page's "Sudah punya akun? Masuk"): a new device jumps straight to the
+  // "Masuk" tab. The back button then starts the 3 questions instead.
+  var masuk = !prof && params.get('masuk') === '1';
   var S = {
-    step: prof ? 'login' : 'name',
+    step: prof || masuk ? 'login' : 'name',
     returning: !!prof,
+    masuk: masuk,
     name: prof ? prof.name : '',
     kelas: prof ? prof.kelas : '',
     avatar: prof ? prof.avatar : '',
-    tab: prof ? 'in' : 'up'
+    tab: prof || masuk ? 'in' : 'up'
   };
   var STEPS = ['name', 'kelas', 'avatar'];
 
@@ -273,7 +277,8 @@
   $('back').addEventListener('click', function () {
     sfx('click');
     var i = STEPS.indexOf(S.step);
-    if (S.step === 'login' && !S.returning) go('avatar');
+    if (S.step === 'login' && S.masuk) { S.masuk = false; S.tab = 'up'; go('name'); }
+    else if (S.step === 'login' && !S.returning) go('avatar');
     else if (i > 0) go(STEPS[i - 1]);
   });
 
@@ -291,7 +296,7 @@
   function dots() {
     var i = S.step === 'login' || S.step === 'done' ? 3 : STEPS.indexOf(S.step);
     var ol = $('dots');
-    ol.hidden = S.returning;
+    ol.hidden = S.returning || S.masuk;
     ol.setAttribute('aria-label', i < 3 ? 'Pertanyaan ' + (i + 1) + ' dari 3' : 'Pertanyaan selesai');
     ol.innerHTML = STEPS.map(function (s, k) { return '<li class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></li>'; }).join('');
   }
@@ -385,6 +390,7 @@
   var CID = String((MS.config && MS.config.GOOGLE_CLIENT_ID) || '').trim();
   RENDER.login = function () {
     if (S.returning) host('Masuk untuk lanjut main.', 'Halo lagi, ' + S.name + '!', null, 'happy');
+    else if (S.masuk) host('Masuk untuk lanjut main.', 'Halo lagi!', null, 'happy');
     else host('Minta bantuan ayah, ibu, atau guru ya.', 'Simpan progresmu', 'Simpan progresmu! Minta bantuan ayah, ibu, atau guru ya.', 'happy');
     var gLabel = CID ? 'Masuk dengan Google' : 'Masuk dengan Google (segera)';
     var el = screen(
@@ -418,6 +424,8 @@
     // tabs (click + arrow keys)
     var tabs = [$('tab-in'), $('tab-up')];
     function setTab(t, focus) {
+      // A new account needs the 3 questions (kelas decides the levels): "Daftar" from ?masuk starts them.
+      if (t === 'up' && S.masuk) { S.masuk = false; S.tab = 'up'; go('name'); return; }
       S.tab = t;
       $('tab-in').setAttribute('aria-selected', String(t === 'in')); $('tab-in').tabIndex = t === 'in' ? 0 : -1;
       $('tab-up').setAttribute('aria-selected', String(t === 'up')); $('tab-up').tabIndex = t === 'up' ? 0 : -1;

@@ -27,10 +27,13 @@
     window.addEventListener('load', () => {
       navigator.serviceWorker.register(new URL('sw.js', root).href, { scope: root.pathname }).catch(() => { /* offline support is optional */ });
     });
-    // A new version took over: refresh quietly, but never in the middle of a game.
+    // A new version took over: refresh quietly, but never in the middle of a game. On the very
+    // first visit there was no worker yet: its first takeover is not an update, so no reload
+    // (it used to reload the landing page and the onboarding a second after they opened).
+    const hadController = !!navigator.serviceWorker.controller;
     let refreshed = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshed || document.body.classList.contains('gs-game')) return;
+      if (!hadController || refreshed || document.body.classList.contains('gs-game')) return;
       refreshed = true;
       location.reload();
     });

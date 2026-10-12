@@ -12,6 +12,7 @@ const { serve, launch, VIEWPORTS } = require('./lib');
   const want = await page.evaluate(() => Object.keys(MS.kur.GAMES).length);
   if (n !== want || n < 10) { failed++; console.log('FAIL expected ' + want + ' landmarks on the map, found ' + n); }
   for (let i = 0; i < n; i++) {
+    await page.evaluate(i => document.querySelectorAll('.node .lm')[i].scrollIntoView({ block: 'center' }), i); await page.waitForTimeout(150);
     const box = () => page.evaluate(i => { const r = document.querySelectorAll('.node .lm')[i].getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, i);
     const rest = await box();
     await page.mouse.move(rest.x, rest.y); await page.waitForTimeout(350);
