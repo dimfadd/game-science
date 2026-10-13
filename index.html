@@ -18,80 +18,201 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <style>
-  /* Layout: a header on the sky, then the kampung map as one tall route that scrolls DOWN
-     (the page itself scrolls, no inner scroller), then the parent guide on a cream panel.
-     The map is laid out in script for the screen width (zigzag on phones, snake rows on wide
-     screens). Tapping a place opens its sheet (what it teaches, progress, "Main!", close X).
+  /* Layout: the kampung map is one tall route that scrolls DOWN (the page itself scrolls, no
+     inner scroller), laid out in script for the screen width (zigzag on phones, snake rows on
+     wide screens). Tapping a place opens its sheet (what it teaches, progress, "Main!", close X).
      Single sunny theme by choice. */
   html, body { height: auto; }
-  body { overflow-x: hidden; overflow-y: auto; background: var(--panel); }
-  .map-wrap { position: relative; background: var(--sky); border-bottom: 4px solid var(--line); }
-  /* Dashboard: a floating status bar on top (who is playing, kelas, stars) and a floating dock
-     at the bottom (map, me, sound, parents) in the thumb zone. On short landscape phones the dock
-     becomes a rail on the left so the map keeps its height. Logging out lives in the parent area. */
-  :root { --dash-top: calc(10px + env(safe-area-inset-top, 0px)); }
-  .map-wrap { padding-top: calc(var(--dash-top) + 86px); }
-  main { padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)); }
+  body { overflow-x: hidden; overflow-y: auto; background: var(--sky); }
+  .map-wrap { position: relative; background: var(--sky); }
+  /* Dashboard: the map is the home screen; Papan Juara, Orang Tua and Pengaturan are screens of
+     their own (hash routes #juara, #orang-tua, #pengaturan) so the map page only holds the map.
+     A floating status bar on the map (the child's character, name and kelas; stars and this week's
+     stars) and a floating dock in the thumb zone on every screen. On short landscape phones the dock
+     becomes a rail on the left. */
+  :root { --dash-top: calc(10px + env(safe-area-inset-top, 0px)); --dock-room: calc(108px + env(safe-area-inset-bottom, 0px)); }
+  .map-wrap { padding-top: calc(var(--dash-top) + 86px); padding-bottom: var(--dock-room); border-bottom: 0; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .dash {
     position: fixed; z-index: 40; top: var(--dash-top); left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
     display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; pointer-events: none;
   }
+  .dash[hidden] { display: none; }
   .dash > * { pointer-events: auto; }
-  .dash { transition: opacity 220ms ease-out, translate 220ms ease-out; }
-  .dash.away { opacity: 0; translate: 0 -12px; pointer-events: none; }
-  .dash.away > * { pointer-events: none; }
-  #orang-tua { scroll-margin-top: 16px; }
-  .me, .score {
-    display: flex; align-items: center; min-height: 66px; background: var(--card); color: var(--ink);
+  .pill {
+    display: flex; align-items: center; min-height: 64px; background: var(--card); color: var(--ink);
     border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line), 0 8px 18px rgba(43, 29, 20, 0.16);
-    font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
-  .me:active, .score:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
-  .me { flex: 0 1 auto; min-width: 0; gap: 10px; padding: 5px 16px 5px 5px; }
+  .me { flex: 0 1 auto; min-width: 0; gap: 10px; padding: 4px 16px 4px 4px; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .me:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
   .me-av { flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--sky-low); border: 2px solid var(--line); overflow: hidden; display: grid; place-items: center; }
   .me-av svg { width: 52px; height: 52px; display: block; }
   .me-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
   .me-name { max-width: 100%; font-family: var(--font-display); font-weight: 800; font-size: 21px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .me-kelas { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px 0 10px; background: var(--sun); border: 2px solid var(--line); border-radius: 999px; font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1.45; white-space: nowrap; }
   .me-kelas svg { width: 15px; height: 15px; }
-  .score { flex: none; gap: 8px; padding: 6px 16px 6px 8px; }
-  .score-ic svg { display: block; width: 42px; height: 42px; color: var(--sun); }
-  .score-ic svg path { stroke: var(--line); stroke-width: 1.3; }
-  .score-txt { display: flex; flex-direction: column; gap: 5px; }
-  .score b { font-family: var(--font-num); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
-  .score-bar { display: block; width: 64px; height: 10px; border-radius: 99px; background: #EADFCB; border: 2px solid var(--line); overflow: hidden; }
-  .score-bar i { display: block; height: 100%; width: 0; background: var(--sun); }
+  /* one pill, two counters: all stars (tap: spoken) and this week's stars (tap: Papan Juara) */
+  .stats { flex: none; padding: 3px; gap: 0; }
+  .stat {
+    display: flex; align-items: center; gap: 6px; min-height: 56px; padding: 0 12px 0 8px; border: 0; border-radius: 999px; background: none;
+    color: var(--ink); cursor: pointer; -webkit-tap-highlight-color: transparent; font: inherit;
+  }
+  .stat:active { background: #FFF1C9; }
+  .stat svg { width: 36px; height: 36px; display: block; flex: none; }
+  .stat b { font-family: var(--font-num); font-weight: 600; font-size: 25px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .stats .sep { width: 2px; align-self: stretch; margin: 10px 0; background: #E6D7C0; border-radius: 2px; }
+  .stat:focus-visible, .me:focus-visible { outline: 4px solid var(--primary); outline-offset: 3px; }
+
   .dock {
     position: fixed; z-index: 40; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); translate: -50% 0;
     width: min(520px, calc(100% - 24px)); display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 7px;
     background: var(--card); border: 3px solid var(--line); border-radius: 30px; box-shadow: 0 5px 0 var(--line), 0 10px 26px rgba(43, 29, 20, 0.2);
   }
   .dock-b {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 66px; padding: 4px 2px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 66px; padding: 4px 2px;
     border: 0; border-radius: 22px; background: transparent; color: var(--ink); cursor: pointer; -webkit-tap-highlight-color: transparent;
-    font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1.1;
+    font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1.1; text-align: center;
   }
   .dock-b .ic { width: 40px; height: 36px; display: grid; place-items: center; transition: transform 160ms var(--ease-pop); }
   .dock-b .ic svg { width: 32px; height: 32px; display: block; }
-  .dock-b .ic.av { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--line); background: var(--sky-low); overflow: hidden; }
-  .dock-b .ic.av svg { width: 36px; height: 36px; }
   .dock-b:active .ic { transform: scale(0.88); }
-  .dock-b.on { background: var(--sun); box-shadow: inset 0 0 0 3px var(--line); }
-  .dock-b:focus-visible, .me:focus-visible, .score:focus-visible { outline: 4px solid var(--primary); outline-offset: 3px; }
+  .dock-b[aria-current="page"] { background: var(--sun); box-shadow: inset 0 0 0 3px var(--line); }
+  .dock-b:focus-visible { outline: 4px solid var(--primary); outline-offset: 3px; }
   @media (max-width: 380px) {
     .me-name { font-size: 19px; }
-    .score { padding-right: 12px; }
-    .score-bar { width: 46px; }
-    .dock-b { font-size: 14px; }
+    .stat { padding: 0 9px 0 6px; gap: 4px; }
+    .stat svg { width: 32px; height: 32px; }
+    .stat b { font-size: 22px; }
+    .dock-b { font-size: 13px; }
   }
+
+  /* ---------- screens (Papan Juara, Orang Tua, Pengaturan) ---------- */
+  .scr { min-height: 100vh; padding-bottom: calc(var(--dock-room) + 12px); background: var(--panel); }
+  .scr[hidden] { display: none; }
+  .scr-band {
+    background: var(--sky); border-bottom: 4px solid var(--line);
+    padding: calc(18px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 18px max(16px, env(safe-area-inset-left, 0px));
+  }
+  .scr-band > div { max-width: 820px; margin: 0 auto; display: flex; align-items: center; gap: 14px; }
+  .scr-band .art { flex: none; width: 84px; height: 84px; }
+  .scr-band .art svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .scr-band h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 6vw, 42px); line-height: 1.02; text-shadow: 0 3px 0 #fff; }
+  .scr-band h2:focus { outline: none; }
+  .scr-band p { margin: 4px 0 0; font-weight: 700; font-size: 17px; line-height: 1.35; }
+  .scr-body { max-width: 820px; margin: 0 auto; padding: 18px 16px 8px; display: flex; flex-direction: column; gap: 18px; }
+  .card { background: var(--card); border: 3px solid var(--line); border-radius: 24px; box-shadow: 0 4px 0 var(--line); padding: 16px; }
+  .card > h3, .sec-h { margin: 0 0 10px; font-family: var(--font-display); font-weight: 800; font-size: 22px; line-height: 1.15; }
+  .muted { color: #6B5444; }
+  .small { font-size: 15px; line-height: 1.45; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; padding: 0 20px;
+    background: var(--card); color: var(--ink); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
+    font-family: var(--font-display); font-weight: 800; font-size: 19px; cursor: pointer; text-decoration: none;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+  .btn.blue { background: var(--primary); color: #fff; }
+  .btn.warn { background: #FFE3D6; }
+  .btn:focus-visible { outline: 4px solid var(--primary); outline-offset: 3px; }
+  .who { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .who .av { flex: none; width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--line); background: var(--sky-low); overflow: hidden; }
+  .who .av svg { width: 100%; height: 100%; display: block; }
+  .who .nm { flex: 1; min-width: 140px; }
+  .who .nm b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 24px; line-height: 1.1; }
+
+  /* Papan Juara */
+  .me-card { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: center; }
+  .me-card .mascot { width: 120px; height: 120px; grid-row: span 2; }
+  .me-card .mascot svg { width: 100%; height: 100%; overflow: visible; }
+  .me-card .nm { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1.1; }
+  .nums { display: flex; gap: 10px; flex-wrap: wrap; }
+  .num { min-width: 120px; flex: 1; padding: 8px 12px; border-radius: 18px; background: #FFF6DA; border: 2px solid #EBD39A; }
+  .num b { display: block; font-family: var(--font-num); font-weight: 600; font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .num span { font-size: 15px; font-weight: 700; color: #5C4636; }
+  .podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 10px; margin-top: 4px; }
+  .pod { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .pod .who-q { width: 64px; height: 64px; border-radius: 50%; border: 3px dashed #B9A68B; background: #F6EEDF; display: grid; place-items: center; font-family: var(--font-num); font-weight: 600; font-size: 30px; color: #9C8669; }
+  .pod .step { width: 100%; border: 3px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0; display: grid; place-items: center; font-family: var(--font-num); font-weight: 600; font-size: 30px; }
+  .pod.p1 .step { height: 104px; background: var(--sun); }
+  .pod.p2 .step { height: 78px; background: #D6DCE2; }
+  .pod.p3 .step { height: 60px; background: #E8B98A; }
+  .soon { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 999px; background: #E3F4F1; border: 2px solid #0F8C7A; color: #0A5E52; font-weight: 700; font-size: 15px; }
+  .rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .rules li { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; font-size: 17px; line-height: 1.4; }
+  .rules li svg { width: 40px; height: 40px; }
+
+  /* Orang Tua */
+  .seg { display: flex; flex-wrap: wrap; gap: 8px; }
+  .seg button { min-height: 48px; min-width: 64px; padding: 0 14px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); font-family: var(--font-display); font-weight: 800; font-size: 17px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--sun); }
+  .seg button:focus-visible { outline: 4px solid var(--primary); outline-offset: 2px; }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  @media (min-width: 700px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .tile { background: var(--card); border: 3px solid var(--line); border-radius: 20px; padding: 12px 14px; }
+  .tile b { font-family: var(--font-num); font-weight: 600; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .tile small { font-family: var(--font-num); font-weight: 600; font-size: 18px; color: #6B5444; }
+  .tile p { margin: 6px 0 0; font-weight: 700; font-size: 15px; line-height: 1.3; }
+  .chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 168px; padding: 0 2px; border-bottom: 2px solid #CDBFA9; }
+  .bar { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; border: 0; padding: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .bar i { display: block; width: min(34px, 80%); min-height: 0; border-radius: 4px 4px 0 0; background: var(--primary); }
+  .bar[aria-pressed="true"] i { background: var(--primary-dark); }
+  .bar em { font-style: normal; font-family: var(--font-num); font-weight: 600; font-size: 16px; color: var(--ink); margin-bottom: 2px; font-variant-numeric: tabular-nums; }
+  .bar:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+  .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 6px; text-align: center; font-size: 14px; font-weight: 700; color: #5C4636; }
+  .days .today { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .readout { min-height: 24px; margin: 10px 0 0; font-size: 16px; font-weight: 700; }
+  .games { display: flex; flex-direction: column; gap: 0; }
+  .grow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 12px 0; border-top: 2px solid #EFE4D2; }
+  .grow:first-child { border-top: 0; padding-top: 2px; }
+  .grow .gn { font-family: var(--font-display); font-weight: 800; font-size: 19px; line-height: 1.15; }
+  .grow .gn .kind { margin-left: 6px; vertical-align: 2px; display: inline-block; padding: 1px 9px; border-radius: 999px; font-family: var(--font-body); font-size: 13px; font-weight: 700; }
+  .grow .gs { font-family: var(--font-num); font-weight: 600; font-size: 16px; color: #5C4636; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cells { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 4px; }
+  .cell { height: 30px; border-radius: 8px; border: 2px solid #3B2A20; display: grid; place-items: center; font-family: var(--font-num); font-weight: 600; font-size: 15px; color: var(--ink); }
+  .cell.s0 { background: #F4ECDD; border-color: #CDBFA9; border-style: dashed; color: transparent; }
+  .cell.s1 { background: #FFE9A8; }
+  .cell.s2 { background: #FFCF4A; }
+  .cell.s3 { background: #E89B00; }
+  .grow .last { grid-column: 1 / -1; font-size: 14px; color: #6B5444; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: 14px; font-weight: 700; color: #5C4636; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .cell { width: 26px; height: 22px; font-size: 13px; }
+  .hint { margin: 0; padding: 12px 14px; border-radius: 16px; background: #E3F4F1; border: 2px solid #9CCFC4; font-size: 16px; line-height: 1.45; }
+  .hint ul { margin: 6px 0 0; padding-left: 20px; }
+
+  /* Pengaturan */
+  .sw-list { display: flex; flex-direction: column; gap: 10px; }
+  .sw {
+    display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; width: 100%; min-height: 72px; padding: 10px 12px;
+    border: 3px solid var(--line); border-radius: 20px; background: var(--card); color: var(--ink); text-align: left; cursor: pointer; font: inherit;
+  }
+  .sw:focus-visible { outline: 4px solid var(--primary); outline-offset: 2px; }
+  .sw > svg { width: 40px; height: 40px; }
+  .sw b { display: block; font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.15; }
+  .sw small { display: block; font-size: 15px; line-height: 1.35; color: #5C4636; }
+  .tog { position: relative; width: 66px; height: 38px; border-radius: 999px; border: 3px solid var(--line); background: #C9C2B8; transition: background 160ms; }
+  .tog::after { content: ''; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 2px solid var(--line); transition: left 180ms var(--ease-in); }
+  .sw[aria-checked="true"] .tog { background: #0F8C7A; }
+  .sw[aria-checked="true"] .tog::after { left: 31px; }
+  .sw .state { display: block; margin-top: 2px; font-weight: 700; font-size: 14px; }
+  .sw[aria-checked="true"] .state { color: #0A6E60; }
+  .sw[aria-checked="false"] .state { color: #8A3B12; }
+  .banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 16px; background: #FFF1C9; border: 2px solid #E09A00; font-weight: 700; font-size: 16px; }
+  .banner[hidden] { display: none; }
+  .acct-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .confirm { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-weight: 700; }
+  .confirm[hidden] { display: none; }
+
   @media (max-height: 520px) and (orientation: landscape) {
+    :root { --dock-room: 16px; }
     body { padding-left: calc(98px + env(safe-area-inset-left, 0px)); }
-    main { padding-bottom: 0; }
     /* the sky runs on under the rail; the map itself starts right of it */
     .map-wrap { padding-top: calc(var(--dash-top) + 70px); margin-left: calc(-98px - env(safe-area-inset-left, 0px)); padding-left: calc(98px + env(safe-area-inset-left, 0px)); }
+    .scr { margin-left: calc(-98px - env(safe-area-inset-left, 0px)); padding-left: calc(98px + env(safe-area-inset-left, 0px)); }
+    .scr-band { padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: 10px; }
+    .scr-band .art { width: 60px; height: 60px; }
     .dash { left: auto; }
-    .me, .score { min-height: 58px; }
+    .pill { min-height: 58px; }
+    .stat { min-height: 50px; }
     .me-av, .me-av svg { width: 44px; height: 44px; }
     .dock {
       left: calc(10px + env(safe-area-inset-left, 0px)); top: 50%; bottom: auto; translate: 0 -50%;
@@ -99,8 +220,10 @@
     }
     .dock-b { min-height: 62px; font-size: 13px; }
   }
-  @media (prefers-reduced-motion: reduce) { .dock-b .ic, .dash { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .dock-b .ic, .tog, .tog::after { transition: none; } }
 
+  #totalStar svg { color: var(--sun); }
+  #totalStar svg path { stroke: var(--line); stroke-width: 1.3; }
   #map { display: block; width: 100%; }
   .node { cursor: pointer; outline: none; }
   .node .lm { transition: transform 200ms var(--ease-pop); transform-box: fill-box; transform-origin: 50% 100%; }
@@ -184,9 +307,6 @@
   @media (prefers-reduced-motion: reduce) { .sheet-card, .sheet-back { transition: none; } }
 
   /* Parent guide */
-  .guide { max-width: 1120px; margin: 0 auto; padding-block: 40px 56px; padding-inline: 16px; }
-  .guide h2 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 4vw, 40px); text-wrap: balance; }
-  .guide > p { margin: 0 0 24px; max-width: 64ch; font-size: 18px; line-height: 1.55; }
   .kind.mat { background: #DCEAFB; color: #134C93; }
   .kind.fis { background: #FDE3C8; color: #7A3E06; }
   .kind.mix { background: #D6F0EB; color: #0A5E52; }
@@ -212,9 +332,9 @@
   .levelup .row2 { display: flex; gap: 10px; flex-wrap: wrap; }
   .levelup .ghost { background: var(--card); color: var(--ink); }
   @media (max-width: 480px) { .levelup { grid-template-columns: 1fr; } .levelup svg.cil { width: 64px; height: 64px; } }
-  .guide .tier-note { display: inline-block; margin: 0 0 14px; padding: 4px 12px; border-radius: 999px; background: #FFF1C9; border: 2px solid var(--line); font-weight: 700; font-size: 15px; }
+  .tier-note { display: inline-block; margin: 0 0 14px; padding: 4px 12px; border-radius: 999px; background: #FFF1C9; border: 2px solid var(--line); font-weight: 700; font-size: 15px; }
   .install-cta {
-    margin-top: 32px; display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
+    display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
     padding: 16px; background: var(--card); border: 3px solid var(--line); border-radius: 24px;
   }
   .install-cta[hidden] { display: none; }
@@ -222,32 +342,22 @@
   .install-cta h4 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
   .install-cta p { margin: 0; font-size: 16px; line-height: 1.45; }
   @media (max-width: 560px) { .install-cta { grid-template-columns: 56px 1fr; } .install-cta .play { grid-column: 1 / -1; justify-content: center; } }
-  .foot { margin-top: 36px; display: flex; gap: 16px 28px; flex-wrap: wrap; align-items: center; font-size: 16px; }
-  .acct { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .acct[hidden] { display: none; }
-  .reset.ask { background: #FFE3D6; }
-  .reset { min-height: 44px; padding: 0 16px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); font-weight: 700; cursor: pointer; }
-  .confirm { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 </style>
 </head>
 <body>
 <header class="dash" id="dash">
-  <button type="button" class="me" id="profile" aria-label="Profil: ganti nama, kelas, atau teman">
+  <button type="button" class="pill me" id="profile" aria-label="Profil: ganti nama, kelas, atau karakter">
     <span class="me-av" id="meAv" aria-hidden="true"></span>
-    <span class="me-txt"><span class="me-name" id="meName">Teman</span><span class="me-kelas"><span id="tierLabel">Kelas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+    <span class="me-txt"><span class="me-name" id="meName">Chuppy</span><span class="me-kelas"><span id="tierLabel">Kelas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
   </button>
-  <button type="button" class="score" id="starBtn">
-    <span class="score-ic" id="totalStar" aria-hidden="true"></span>
-    <span class="score-txt"><b id="totalN">0</b><span class="score-bar" aria-hidden="true"><i id="totalBar"></i></span></span>
-  </button>
+  <div class="pill stats">
+    <button type="button" class="stat" id="starBtn"><span id="totalStar" aria-hidden="true"></span><b id="totalN">0</b></button>
+    <span class="sep" aria-hidden="true"></span>
+    <button type="button" class="stat" id="weekBtn"><span id="weekIc" aria-hidden="true"></span><b id="weekN">0</b></button>
+  </div>
 </header>
-<nav class="dock" id="dock" aria-label="Menu">
-  <button type="button" class="dock-b on" id="navMap" aria-current="true"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 8.5 4l7 2.5L21 4v13.5L15.5 20l-7-2.5L3 20z" fill="#9ED8EC" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.5 4v13.5M15.5 6.5V20" stroke="currentColor" stroke-width="2.2"/><path d="M5.5 15c2-1 3.5-3 6.5-2.5S17 9 18.5 8.5" fill="none" stroke="#C8643B" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 2.2"/></svg></span><span>Peta</span></button>
-  <button type="button" class="dock-b" id="navMe"><span class="ic av" id="navMeAv"></span><span>Aku</span></button>
-  <button type="button" class="dock-b" id="navSound"><span class="ic" id="navSoundIc"></span><span id="navSoundTx">Suara</span></button>
-  <button type="button" class="dock-b" id="navParent"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="6.5" r="3.2" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M2.8 21v-3.3a5.7 5.7 0 0 1 11.4 0V21z" fill="#2F80C9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="17.4" cy="10.4" r="2.5" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M13.4 21v-2.1a4 4 0 0 1 8 0V21z" fill="#F28C28" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span><span>Orang Tua</span></button>
-</nav>
-<main>
+
+<main id="scr-map" data-route="">
   <section class="map-wrap" aria-label="Peta Kampung">
     <h1 class="sr">Mat Sains: peta kampung</h1>
     <div class="levelup" id="levelUp" hidden>
@@ -258,28 +368,122 @@
     <svg id="map" viewBox="0 0 620 2400" role="group" aria-label="Peta dengan sepuluh tempat bermain"></svg>
   </section>
   <div class="down-hint gone" id="downHint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Geser ke bawah</div>
+</main>
 
-  <section class="guide" id="orang-tua">
-    <h2>Untuk orang tua dan guru</h2>
-    <span class="tier-note" id="tierNote"></span>
-    <p>Setiap permainan mengajarkan satu konsep matematika atau fisika lewat mekaniknya sendiri. Anak tidak menjawab kuis. Anak menimbang, melompat, memotong, dan menembak, lalu dunia game menunjukkan hasilnya. Ketuk tempat di peta untuk membaca apa yang dipelajari di kelas ini. Angka dan simbol muncul pelan-pelan di samping benda nyata, supaya saat bertemu notasi di sekolah, anak sudah punya gambarannya.</p>
-    <div class="principles">
-      <div><h4>Benda dulu, simbol kemudian</h4><p>Level awal hanya benda. Angka muncul di samping benda, lalu kalimat matematika, lalu simbol saja.</p></div>
-      <div><h4>Tebak dulu, lalu lihat</h4><p>Sebelum hasil terlihat, anak memprediksi. Prediksi yang meleset tidak dihukum, justru jadi bahan berpikir.</p></div>
-      <div><h4>Tanpa nyawa dan timer</h4><p>Tidak ada tanda salah berwarna merah. Bintang diberikan untuk ketelitian, bukan kecepatan.</p></div>
-      <div><h4>Fisika yang jujur</h4><p>Simulasi mengikuti hukum nyata: benda berat tidak jatuh lebih cepat, ukuran tidak menentukan berat.</p></div>
+<!-- Papan Juara: the screen is ready, the ranking itself waits for a server (no other players are shown) -->
+<section class="scr" id="scr-juara" data-route="#juara" aria-labelledby="juaraTitle" hidden>
+  <div class="scr-band"><div><span class="art" id="juaraArt" aria-hidden="true"></span>
+    <div><h2 id="juaraTitle" tabindex="-1">Papan Juara</h2><p>Kumpulkan bintang minggu ini!</p></div></div></div>
+  <div class="scr-body">
+    <div class="card me-card">
+      <div class="mascot" id="juaraMe" aria-hidden="true"></div>
+      <div class="nm" id="juaraName"></div>
+      <div class="nums">
+        <div class="num"><b id="juaraStars">0</b><span>bintang minggu ini</span></div>
+        <div class="num"><b id="juaraLevels">0</b><span>level minggu ini</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="soon">Segera hadir</span>
+      <h3 style="margin-top:10px">Berlomba dengan teman</h3>
+      <div class="podium" aria-hidden="true">
+        <div class="pod p2"><span class="who-q">?</span><span class="step">2</span></div>
+        <div class="pod p1"><span class="who-q">?</span><span class="step">1</span></div>
+        <div class="pod p3"><span class="who-q">?</span><span class="step">3</span></div>
+      </div>
+      <p class="muted" style="margin:12px 0 0;font-size:17px;line-height:1.45">Teman-temanmu akan muncul di sini. Sekarang, kumpulkan bintangmu dulu ya!</p>
+    </div>
+    <div class="card">
+      <h3>Cara menang</h3>
+      <ul class="rules" id="juaraRules"></ul>
+    </div>
+    <p class="small muted" style="margin:0">Untuk orang tua: Papan Juara belum tersambung ke internet, jadi belum ada data anak lain. Nanti yang tampil hanya nama panggilan dan karakter, tanpa foto atau nama lengkap.</p>
+  </div>
+</section>
+
+<!-- Orang Tua: progress dashboard + how the games teach -->
+<section class="scr" id="scr-ortu" data-route="#orang-tua" aria-labelledby="ortuTitle" hidden>
+  <div class="scr-band"><div><span class="art" id="ortuArt" aria-hidden="true"></span>
+    <div><h2 id="ortuTitle" tabindex="-1">Orang Tua dan Guru</h2><p id="ortuSub">Pantau perkembangan anak di sini.</p></div></div></div>
+  <div class="scr-body">
+    <div class="card">
+      <div class="who"><span class="av" id="ortuAv" aria-hidden="true"></span><div class="nm"><b id="ortuName"></b><span class="muted" id="ortuKelas"></span></div>
+        <button type="button" class="btn" id="ortuEdit">Ubah profil</button></div>
+    </div>
+    <div>
+      <h3 class="sec-h">Progres per kelas</h3>
+      <div class="seg" id="ortuSeg" role="group" aria-label="Lihat progres kelas"></div>
+    </div>
+    <div class="tiles" id="ortuTiles"></div>
+    <div class="card">
+      <h3>Level selesai, 7 hari terakhir</h3>
+      <div class="chart" id="ortuChart"></div>
+      <div class="days" id="ortuDays" aria-hidden="true"></div>
+      <p class="readout" id="ortuRead" aria-live="polite"></p>
+    </div>
+    <div class="card">
+      <h3>Per game</h3>
+      <div class="games" id="ortuGames"></div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="cell s0"></i>belum</span><span><i class="cell s1">1</i>perlu latihan</span><span><i class="cell s2">2</i>cukup</span><span><i class="cell s3">3</i>lancar</span>
+      </div>
+    </div>
+    <p class="hint" id="ortuHint" hidden></p>
+    <div class="card">
+      <h3>Cara Mat Sains mengajar</h3>
+      <span class="tier-note" id="tierNote"></span>
+      <p style="margin:0 0 16px;font-size:17px;line-height:1.55">Setiap permainan mengajarkan satu konsep matematika atau fisika lewat mekaniknya sendiri. Anak tidak menjawab kuis. Anak menimbang, melompat, memotong, dan menembak, lalu dunia game menunjukkan hasilnya. Ketuk tempat di peta untuk membaca apa yang dipelajari di kelas ini. Angka dan simbol muncul pelan-pelan di samping benda nyata, supaya saat bertemu notasi di sekolah, anak sudah punya gambarannya.</p>
+      <div class="principles">
+        <div><h4>Benda dulu, simbol kemudian</h4><p>Level awal hanya benda. Angka muncul di samping benda, lalu kalimat matematika, lalu simbol saja.</p></div>
+        <div><h4>Tebak dulu, lalu lihat</h4><p>Sebelum hasil terlihat, anak memprediksi. Prediksi yang meleset tidak dihukum, justru jadi bahan berpikir.</p></div>
+        <div><h4>Tanpa nyawa dan timer</h4><p>Tidak ada tanda salah berwarna merah. Bintang diberikan untuk ketelitian, bukan kecepatan.</p></div>
+        <div><h4>Fisika yang jujur</h4><p>Simulasi mengikuti hukum nyata: benda berat tidak jatuh lebih cepat, ukuran tidak menentukan berat.</p></div>
+      </div>
+    </div>
+    <p class="small muted" style="margin:0">Bintang: 3 berarti benar di percobaan pertama, 2 berarti butuh 1 sampai 2 kali coba lagi, 1 berarti butuh lebih banyak percobaan. Semua data tersimpan di perangkat ini saja.</p>
+  </div>
+</section>
+
+<!-- Pengaturan: sound channels, profile, app, account -->
+<section class="scr" id="scr-atur" data-route="#pengaturan" aria-labelledby="aturTitle" hidden>
+  <div class="scr-band"><div><span class="art" id="aturArt" aria-hidden="true"></span>
+    <div><h2 id="aturTitle" tabindex="-1">Pengaturan</h2><p>Atur suara, profil, dan akun.</p></div></div></div>
+  <div class="scr-body">
+    <div class="card">
+      <h3>Suara</h3>
+      <div class="banner" id="muteBanner" hidden><span>Semua suara sedang dimatikan lewat tombol speaker di dalam game.</span><button type="button" class="btn" id="unmute">Nyalakan lagi</button></div>
+      <div class="sw-list" id="swList"></div>
+    </div>
+    <div class="card">
+      <h3>Profil</h3>
+      <div class="who"><span class="av" id="aturAv" aria-hidden="true"></span><div class="nm"><b id="aturName"></b><span class="muted" id="aturKelas"></span></div>
+        <button type="button" class="btn" id="aturEdit">Ubah nama, kelas, karakter</button></div>
     </div>
     <div class="install-cta" data-pwa-install hidden>
       <img src="icons/icon-192.png" alt="" width="64" height="64">
       <div><h4>Pasang Mat Sains di layar utama</h4><p>Buka seperti aplikasi, layar penuh, dan tetap bisa dimainkan tanpa internet.</p></div>
       <button type="button" class="play">Pasang</button>
     </div>
-    <div class="foot">
-      <span class="acct" id="acct" hidden><span id="acctTx"></span><button type="button" class="reset" id="logout">Keluar dari akun</button></span>
-      <span class="confirm" id="resetBox"><button type="button" class="reset" id="reset">Hapus progres</button></span>
+    <div class="card">
+      <h3>Akun</h3>
+      <p class="small" id="acctTx" style="margin:0">Belum masuk.</p>
+      <div class="acct-row">
+        <button type="button" class="btn" id="logout">Keluar dari akun</button>
+        <button type="button" class="btn warn" id="reset">Hapus progres</button>
+      </div>
+      <div class="confirm" id="resetAsk" hidden><span>Yakin hapus semua bintang di semua kelas?</span>
+        <button type="button" class="btn warn" id="resetYes">Ya, hapus</button><button type="button" class="btn" id="resetNo">Batal</button></div>
+      <p class="small muted" style="margin:12px 0 0">Selama masa uji coba, akun dan progres tersimpan di perangkat ini saja.</p>
     </div>
-  </section>
-</main>
+  </div>
+</section>
+
+<nav class="dock" id="dock" aria-label="Menu">
+  <button type="button" class="dock-b" data-go="" id="navMap"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 8.5 4l7 2.5L21 4v13.5L15.5 20l-7-2.5L3 20z" fill="#9ED8EC" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.5 4v13.5M15.5 6.5V20" stroke="currentColor" stroke-width="2.2"/><path d="M5.5 15c2-1 3.5-3 6.5-2.5S17 9 18.5 8.5" fill="none" stroke="#C8643B" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 2.2"/></svg></span><span>Peta</span></button>
+  <button type="button" class="dock-b" data-go="#juara" id="navJuara"><span class="ic"></span><span>Juara</span></button>
+  <button type="button" class="dock-b" data-go="#orang-tua" id="navParent"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="6.5" r="3.2" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M2.8 21v-3.3a5.7 5.7 0 0 1 11.4 0V21z" fill="#2F80C9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="17.4" cy="10.4" r="2.5" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M13.4 21v-2.1a4 4 0 0 1 8 0V21z" fill="#F28C28" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span><span>Orang Tua</span></button>
+  <button type="button" class="dock-b" data-go="#pengaturan" id="navSet"><span class="ic"></span><span>Pengaturan</span></button>
+</nav>
 
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
   <div class="sheet-back" id="sheetBack"></div>
@@ -575,13 +779,14 @@
 
   render();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSigns);
-  let lastW = innerWidth, lastH = innerHeight, rt = 0;
+  let lastW = innerWidth, lastH = innerHeight, rt = 0, mapDirty = false;
   window.addEventListener('resize', () => {
     clearTimeout(rt);
     rt = setTimeout(() => {
       // phones resize when the browser bar slides; only re-lay out when the size really changed
       if (Math.abs(innerWidth - lastW) < 2 && Math.abs(innerHeight - lastH) < 120) return;
       lastW = innerWidth; lastH = innerHeight;
+      if (route !== '') { mapDirty = true; return; } // the map is hidden: its width reads 0
       render();
       if (current) markOn(current.id);
     }, 160);
@@ -648,65 +853,217 @@
   });
   $('sheetPlay').addEventListener('click', () => { GS.sfx.coin(); });
 
-  /* ---------------- dashboard: top bar and dock ---------------- */
+  /* ---------------- dashboard: top bar, dock and the three screens ---------------- */
+  const IC = {
+    cup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h10v5a5 5 0 0 1-10 0z" fill="#FFC83D" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M7 5.5H4.2a3 3 0 0 0 3.3 4M17 5.5h2.8a3 3 0 0 1-3.3 4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M12 13.5v3.5" stroke="currentColor" stroke-width="2.1"/><path d="M8 20.5h8l-1-3.5H9z" fill="#C68654" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/></svg>',
+    cal: '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="8" width="30" height="27" rx="6" fill="#fff" stroke="#3B2A20" stroke-width="3"/><path d="M5 16h30" stroke="#3B2A20" stroke-width="3"/><path d="M13 5v6M27 5v6" stroke="#3B2A20" stroke-width="3" stroke-linecap="round"/><path d="M5 14V13a5 5 0 0 1 5-5h20a5 5 0 0 1 5 5v1z" fill="#E2453C"/><text x="20" y="31" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="13" fill="#2B1D14">0</text></svg>',
+    once: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="m20 4 4.7 9.6 10.5 1.5-7.6 7.4 1.8 10.5L20 28l-9.4 5 1.8-10.5-7.6-7.4 10.5-1.5z" fill="#FFC83D" stroke="#3B2A20" stroke-width="2.6" stroke-linejoin="round"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="12" fill="#2B1D14">1x</text></svg>',
+    eye: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M4 20c4-7 9.5-10.5 16-10.5S32 13 36 20c-4 7-9.5 10.5-16 10.5S8 27 4 20z" fill="#fff" stroke="#3B2A20" stroke-width="3" stroke-linejoin="round"/><circle cx="20" cy="20" r="6" fill="#2F80C9" stroke="#3B2A20" stroke-width="2.6"/><circle cx="18" cy="18" r="1.8" fill="#fff"/></svg>',
+    sfx: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 5a3 3 0 0 1 3 3v1.2c5 1.3 8 5.6 8 11v6l3 4H6l3-4v-6c0-5.4 3-9.7 8-11V8a3 3 0 0 1 3-3z" fill="#FFC83D" stroke="#3B2A20" stroke-width="2.6" stroke-linejoin="round"/><path d="M15.5 33a4.5 4.5 0 0 0 9 0" fill="#E09A00" stroke="#3B2A20" stroke-width="2.6"/><path d="M14 16q-2 3-2 7" fill="none" stroke="#FFE08A" stroke-width="3" stroke-linecap="round"/></svg>',
+    music: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M15 29V9l18-4v20" fill="none" stroke="#3B2A20" stroke-width="2.8" stroke-linejoin="round"/><ellipse cx="10.5" cy="29.5" rx="5.5" ry="4.5" fill="#F28C28" stroke="#3B2A20" stroke-width="2.6"/><ellipse cx="28.5" cy="25.5" rx="5.5" ry="4.5" fill="#F28C28" stroke="#3B2A20" stroke-width="2.6"/></svg>',
+    voice: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M6 8h28a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H17l-7 6v-6H6a3 3 0 0 1-3-3V11a3 3 0 0 1 3-3z" fill="#fff" stroke="#3B2A20" stroke-width="2.8" stroke-linejoin="round"/><path d="M11 18h3M17 15v6M20 13v10M23 16v4M27 18h2" stroke="#0F8C7A" stroke-width="2.8" stroke-linecap="round"/></svg>'
+  };
+  const BIG = {
+    cup: '<svg viewBox="0 0 84 84"><ellipse cx="42" cy="78" rx="26" ry="4" fill="#3B2A20" opacity=".18"/><path d="M24 10h36v18a18 18 0 0 1-36 0z" fill="#FFC83D" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/><path d="M29 15v12a13 13 0 0 0 7 11" fill="none" stroke="#FFE08A" stroke-width="5" stroke-linecap="round"/><path d="M24 16H14a10 10 0 0 0 12 13M60 16h10a10 10 0 0 1-12 13" fill="none" stroke="#3B2A20" stroke-width="4" stroke-linecap="round"/><path d="M38 45h8v12h-8z" fill="#E09A00" stroke="#3B2A20" stroke-width="3.4" stroke-linejoin="round"/><path d="M26 76h32l-3-14H29z" fill="#A8673A" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/><path d="m42 17 2.6 5.4 5.9.8-4.3 4.1 1 5.8L42 30.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z" fill="#fff" stroke="#3B2A20" stroke-width="2" stroke-linejoin="round"/></svg>',
+    gear: '<svg viewBox="0 0 24 24"><path d="M10.3 2.8h3.4l.5 2.4 1.7.7 2-1.4 2.4 2.4-1.4 2 .7 1.7 2.4.5v3.4l-2.4.5-.7 1.7 1.4 2-2.4 2.4-2-1.4-1.7.7-.5 2.4h-3.4l-.5-2.4-1.7-.7-2 1.4-2.4-2.4 1.4-2-.7-1.7-2.4-.5v-3.4l2.4-.5.7-1.7-1.4-2 2.4-2.4 2 1.4 1.7-.7z" fill="#B8C2CC" stroke="#3B2A20" stroke-width="1.2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.3" fill="#fff" stroke="#3B2A20" stroke-width="1.2"/></svg>'
+  };
+  const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  // Shims keep the page working if the shared audio / activity modules are missing.
+  const AU = GS.audio || { get: ch => GS.store.get('snd.' + ch, true) !== false, set: (ch, on) => GS.store.set('snd.' + ch, !!on) };
+  const ACT = GS.activity || {
+    log: () => [], weekStars: () => 0, weekLevels: () => 0,
+    days: n => Array.from({ length: n }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (n - 1 - i)); return { date: ymd(d), levels: 0, stars: 0 }; })
+  };
+  const A = (window.MS && MS.auth) || null;
+  const who = (A && (A.current() || A.profile())) || null;
+  const myAv = who ? who.avatar : 'chuppy';
+  const myName = who && who.name ? who.name : (A && A.defaultName ? A.defaultName(myAv) : 'Chuppy');
+  const head = sz => { try { return A && A.avatarSvg ? A.avatarSvg(myAv, sz) : ''; } catch (e) { return ''; } };
+  const buddy = (mood, size) => { try { return has('mascot') ? art.mascot({ mood, size }) : ''; } catch (e) { return ''; } };
   const openProfile = () => { GS.sfx.click(); if (MS.profileEditor) MS.profileEditor.open({ onSave: () => location.reload() }); };
-  const who = (window.MS && MS.auth && MS.auth.current()) || null;
-  const avatar = sz => { try { return who && MS.auth.avatarSvg ? MS.auth.avatarSvg(who.avatar, sz) : (has('mascot') ? art.mascot({ mood: 'happy', size: sz }) : ''); } catch (e) { return ''; } };
-  $('meAv').innerHTML = avatar(52);
-  $('navMeAv').innerHTML = avatar(36);
-  $('meName').textContent = who && who.name ? who.name : 'Teman';
+  const DAY = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const dOf = s => { const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+  const longDate = s => { const d = dOf(s); return DAY[d.getDay()] + ', ' + d.getDate() + ' ' + MON[d.getMonth()]; };
+
+  // top bar (map only)
+  $('meAv').innerHTML = head(52);
+  $('meName').textContent = myName;
   $('tierLabel').textContent = TINFO.label;
   $('profile').addEventListener('click', openProfile);
-  $('navMe').addEventListener('click', openProfile);
-  $('tierNote').textContent = 'Sedang ditampilkan: ' + TINFO.label + (TINFO.fase ? ' (' + TINFO.fase + ')' : '');
-  // stars: number + a bar toward every star of this kelas; tapping says it out loud (pre-readers)
-  const maxStars = GAMES.length * TINFO.levels * 3;
   $('totalStar').innerHTML = GS.ICON.star;
   $('totalN').textContent = total;
-  $('totalBar').style.width = Math.round(100 * total / Math.max(1, maxStars)) + '%';
-  $('starBtn').setAttribute('aria-label', total + ' bintang dari ' + maxStars + ' di ' + TINFO.label);
+  const week = ACT.weekStars();
+  $('weekIc').innerHTML = IC.cup;
+  $('weekN').textContent = week;
+  $('starBtn').setAttribute('aria-label', total + ' bintang di ' + TINFO.label);
+  $('weekBtn').setAttribute('aria-label', week + ' bintang minggu ini. Buka Papan Juara');
   $('starBtn').addEventListener('click', () => {
     GS.sfx.pop();
     GS.say(total ? 'Kamu sudah punya ' + total + ' bintang. Hebat!' : 'Ayo main dan kumpulkan bintang!');
   });
-  // sound: its own icon + word ("Suara" / "Senyap"), so the label survives GS.setMuted
-  function syncSound() {
-    $('navSoundIc').innerHTML = GS.muted ? GS.ICON.soundOff : GS.ICON.soundOn;
-    $('navSoundTx').textContent = GS.muted ? 'Senyap' : 'Suara';
-    $('navSound').setAttribute('aria-pressed', String(!GS.muted));
-    $('navSound').setAttribute('aria-label', GS.muted ? 'Nyalakan suara' : 'Matikan suara');
+  $('weekBtn').addEventListener('click', () => go('#juara'));
+  $('tierNote').textContent = 'Sedang dimainkan: ' + TINFO.label + (TINFO.fase ? ' (' + TINFO.fase + ')' : '');
+  // dock icons (map and parents drawn inline in the markup helpers below)
+  $('navJuara').querySelector('.ic').innerHTML = IC.cup;
+  $('navSet').querySelector('.ic').innerHTML = BIG.gear.replace('<svg ', '<svg aria-hidden="true" ');
+
+  /* ---------- routing: '' = map, #juara, #orang-tua, #pengaturan (the back button works) ---------- */
+  const SCR = { '': $('scr-map'), '#juara': $('scr-juara'), '#orang-tua': $('scr-ortu'), '#pengaturan': $('scr-atur') };
+  const TITLE = { '#juara': 'juaraTitle', '#orang-tua': 'ortuTitle', '#pengaturan': 'aturTitle' };
+  let route = null, mapY = 0;
+  function show(r) {
+    if (!(r in SCR)) r = '';
+    if (r === route) return;
+    if (route === '') mapY = scrollY;
+    if (!sheet.hidden) closeSheet();
+    Object.keys(SCR).forEach(k => { SCR[k].hidden = k !== r; });
+    $('dash').hidden = r !== '';
+    document.querySelectorAll('.dock-b').forEach(b => { if (b.getAttribute('data-go') === r) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    route = r;
+    if (r === '') {
+      if (mapDirty) { mapDirty = false; render(); if (current) markOn(current.id); }
+      window.scrollTo(0, mapY);
+    } else {
+      SCREEN[r]();
+      window.scrollTo(0, 0);
+      try { $(TITLE[r]).focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
   }
-  $('navSound').addEventListener('click', () => { GS.setMuted(!GS.muted); syncSound(); if (!GS.muted) GS.sfx.pop(); });
-  GS.setMuted(GS.muted);
-  syncSound();
-  // map: back to Chuppy's place; parents: the guide. The active tab follows the scroll.
-  const smooth = GS.reducedMotion ? 'auto' : 'smooth';
-  $('navMap').addEventListener('click', () => {
+  function go(r) {
     GS.sfx.click();
+    if (r === route) { if (r === '') toBuddy(); return; }
+    if (r) location.hash = r;
+    else history.pushState(null, '', location.pathname + location.search);
+    show(r);
+  }
+  addEventListener('hashchange', () => show(location.hash));
+  addEventListener('popstate', () => show(location.hash));
+  document.querySelectorAll('.dock-b').forEach(b => b.addEventListener('click', () => go(b.getAttribute('data-go'))));
+  function toBuddy() {
     const g = GAMES.find(x => x.id === GS.store.get('lastGame', '')) || GAMES[0];
     const p = L.pts[GAMES.indexOf(g)], top = map.getBoundingClientRect().top + scrollY + (p.y - LM_H / 2) * L.s;
-    window.scrollTo({ top: Math.max(0, top - innerHeight / 2), behavior: smooth });
-  });
-  $('navParent').addEventListener('click', () => { GS.sfx.click(); $('orang-tua').scrollIntoView({ behavior: smooth, block: 'start' }); });
-  function setTab(id) {
-    ['navMap', 'navParent'].forEach(k => { $(k).classList.toggle('on', k === id); if (k === id) $(k).setAttribute('aria-current', 'true'); else $(k).removeAttribute('aria-current'); });
+    window.scrollTo({ top: Math.max(0, top - innerHeight / 2), behavior: GS.reducedMotion ? 'auto' : 'smooth' });
   }
-  if ('IntersectionObserver' in window) {
-    // in the parent area the floating status bar steps aside so it does not sit on the text
-    new IntersectionObserver(es => es.forEach(e => { setTab(e.isIntersecting ? 'navParent' : 'navMap'); $('dash').classList.toggle('away', e.isIntersecting); }), { rootMargin: '0px 0px -45% 0px' }).observe($('orang-tua'));
+
+  /* ---------- Papan Juara (no server yet: only the child's own week, no other players) ---------- */
+  function renderJuara() {
+    $('juaraArt').innerHTML = BIG.cup;
+    $('juaraMe').innerHTML = buddy('happy', 120);
+    $('juaraName').textContent = myName;
+    $('juaraStars').textContent = ACT.weekStars();
+    $('juaraLevels').textContent = ACT.weekLevels();
+    $('juaraRules').innerHTML = [
+      [IC.cal, 'Setiap hari Senin, semua mulai dari nol lagi.'],
+      [IC.once, 'Setiap level dihitung sekali. Yang dipakai bintang terbaikmu minggu ini.'],
+      [IC.eye, 'Bintang didapat karena teliti, bukan karena cepat.']
+    ].map(r => '<li>' + r[0] + '<span>' + r[1] + '</span></li>').join('');
   }
-  // logging out is for grown-ups: it sits in the parent area and asks twice (no dialogs)
-  if (who && MS.auth.logout) {
-    $('acct').hidden = false;
-    $('acctTx').textContent = 'Masuk sebagai ' + (who.name || 'Teman') + (who.email ? ' (' + who.email + ')' : '') + '.';
-    const out = $('logout');
-    let outT = 0;
-    out.addEventListener('click', () => {
-      if (out.classList.contains('ask')) { clearTimeout(outT); MS.auth.logout(); return; }
-      out.classList.add('ask'); out.textContent = 'Yakin keluar? Ketuk lagi';
-      outT = setTimeout(() => { out.classList.remove('ask'); out.textContent = 'Keluar dari akun'; }, 4000);
+
+  /* ---------- Orang Tua: progress per kelas, the last 7 days, per game, how it teaches ---------- */
+  let viewTier = TIER;
+  function renderOrtu() {
+    $('ortuArt').innerHTML = buddy('point', 84);
+    $('ortuSub').textContent = 'Pantau perkembangan ' + myName + ' di sini.';
+    $('ortuAv').innerHTML = head(72);
+    $('ortuName').textContent = myName;
+    $('ortuKelas').textContent = TINFO.label + (TINFO.fase ? ', ' + TINFO.fase : '');
+    const tiers = KUR ? KUR.TIERS : [{ id: TIER, label: TINFO.label, levels: TINFO.levels }];
+    const seg = $('ortuSeg');
+    seg.innerHTML = tiers.map(t => '<button type="button" data-t="' + t.id + '" aria-pressed="' + (t.id === viewTier) + '">' + t.label + '</button>').join('');
+    seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { GS.sfx.click(); viewTier = b.getAttribute('data-t'); renderOrtu(); }));
+    const t = tiers.find(x => x.id === viewTier) || tiers[0];
+    const n = KUR ? KUR.levels(t.id) : t.levels;
+    const log = ACT.log();
+    const rows = GAMES.map(g => {
+      const st = (GS.store.stars(g.id + '@' + t.id) || []).slice(0, n);
+      const last = log.filter(e => e.g === g.id && e.t === t.id).map(e => e.d).sort().pop() || '';
+      return { g, st, done: st.filter(Boolean).length, sum: st.reduce((a, b) => a + (b || 0), 0), last };
     });
+    const sumStars = rows.reduce((a, r) => a + r.sum, 0), sumDone = rows.reduce((a, r) => a + r.done, 0);
+    const days = ACT.days(7), active = days.filter(d => d.levels > 0).length;
+    const tile = (big, of, label) => '<div class="tile"><b>' + big + '</b> <small>/ ' + of + '</small><p>' + label + '</p></div>';
+    $('ortuTiles').innerHTML =
+      tile(sumStars, GAMES.length * n * 3, 'bintang di ' + t.label) +
+      tile(sumDone, GAMES.length * n, 'level selesai') +
+      tile(rows.filter(r => r.done).length, GAMES.length, 'game sudah dicoba') +
+      tile(active, 7, 'hari bermain, 7 hari terakhir');
+    // 7-day bars: one series (levels won per day), values on the bars that have any, tap for the detail
+    const max = Math.max(1, ...days.map(d => d.levels)), today = ymd(new Date());
+    $('ortuChart').innerHTML = days.map((d, i) => '<button type="button" class="bar" data-i="' + i + '" aria-pressed="false" aria-label="' + longDate(d.date) + ': ' + d.levels + ' level, ' + d.stars + ' bintang">' +
+      (d.levels ? '<em>' + d.levels + '</em>' : '') + '<i style="height:' + Math.round(100 * d.levels / max * 0.82) + '%"></i></button>').join('');
+    $('ortuDays').innerHTML = days.map(d => '<span' + (d.date === today ? ' class="today"' : '') + '>' + (d.date === today ? 'Hari ini' : DAY[dOf(d.date).getDay()].slice(0, 3)) + '</span>').join('');
+    const read = i => {
+      const d = days[i];
+      $('ortuRead').textContent = longDate(d.date) + ': ' + (d.levels ? d.levels + ' level selesai, ' + d.stars + ' bintang.' : 'belum ada level selesai.');
+      $('ortuChart').querySelectorAll('.bar').forEach(b => b.setAttribute('aria-pressed', String(+b.getAttribute('data-i') === i)));
+    };
+    $('ortuChart').querySelectorAll('.bar').forEach(b => b.addEventListener('click', () => read(+b.getAttribute('data-i'))));
+    if (log.length) read(6);
+    else $('ortuRead').textContent = 'Catatan harian mulai terisi sejak versi ini. Bintang yang sudah ada tetap terhitung di bawah.';
+    // per game: one cell per level, the star count written in it (never colour alone)
+    $('ortuGames').innerHTML = rows.map(r =>
+      '<div class="grow"><div class="gn">' + r.g.name + '<span class="kind ' + r.g.kind + '">' + r.g.kindLabel + '</span></div>' +
+      '<div class="gs">' + r.done + '/' + n + ' level, ' + r.sum + ' bintang</div>' +
+      '<div class="cells" style="--n:' + n + '" aria-hidden="true">' + Array.from({ length: n }, (_, k) => { const s = r.st[k] || 0; return '<i class="cell s' + s + '">' + (s || '') + '</i>'; }).join('') + '</div>' +
+      '<div class="last">' + (r.last ? 'Terakhir main: ' + longDate(r.last) : r.done ? 'Dimainkan sebelum catatan harian dimulai' : 'Belum dimainkan') + '</div></div>').join('');
+    const weak = [];
+    rows.forEach(r => r.st.forEach((s, k) => { if (s === 1) weak.push(r.g.name + ', level ' + (k + 1)); }));
+    const hint = $('ortuHint');
+    hint.hidden = !weak.length;
+    if (weak.length) hint.innerHTML = '<b>Perlu latihan.</b> Level ini selesai setelah banyak percobaan. Ajak anak memainkannya lagi bersama, lalu minta ia menceritakan caranya.<ul>' +
+      weak.slice(0, 5).map(w => '<li>' + w + '</li>').join('') + '</ul>';
   }
+  $('ortuEdit').addEventListener('click', openProfile);
+
+  /* ---------- Pengaturan: three sound channels, profile, account ---------- */
+  const SW = [
+    ['sfx', IC.sfx, 'Efek suara', 'Bunyi tombol, benda, dan bintang.'],
+    ['music', IC.music, 'Musik latar', 'Lagu pelan selama bermain.'],
+    ['voice', IC.voice, 'Narator', 'Suara yang membacakan petunjuk. Tulisannya tetap muncul.']
+  ];
+  function renderAtur() {
+    $('aturArt').innerHTML = BIG.gear;
+    $('muteBanner').hidden = !GS.muted;
+    $('swList').innerHTML = SW.map(s => {
+      const on = AU.get(s[0]);
+      return '<button type="button" class="sw" role="switch" data-ch="' + s[0] + '" aria-checked="' + on + '">' + s[1] +
+        '<span><b>' + s[2] + '</b><small>' + s[3] + '</small><span class="state">' + (on ? 'Nyala' : 'Mati') + '</span></span><span class="tog" aria-hidden="true"></span></button>';
+    }).join('');
+    $('swList').querySelectorAll('.sw').forEach(b => b.addEventListener('click', () => {
+      const ch = b.getAttribute('data-ch'), on = !AU.get(ch);
+      AU.set(ch, on);
+      b.setAttribute('aria-checked', String(on));
+      b.querySelector('.state').textContent = on ? 'Nyala' : 'Mati';
+      if (ch === 'sfx' && on) GS.sfx.pop();
+      if (ch === 'voice' && on) GS.say('Narator menyala.');
+    }));
+    $('aturAv').innerHTML = head(72);
+    $('aturName').textContent = myName;
+    $('aturKelas').textContent = TINFO.label;
+    const s = A && A.current();
+    $('acctTx').textContent = s ? 'Masuk sebagai ' + myName + (s.email ? ' (' + s.email + ')' : '') + '.' : 'Belum masuk ke akun.';
+    $('logout').hidden = !s;
+  }
+  // the master mute (speaker button inside games) can change while this page is open
+  addEventListener('gs:audio', e => { if (route === '#pengaturan' && e.detail && e.detail.ch === 'master') renderAtur(); });
+  $('unmute').addEventListener('click', () => { GS.setMuted(false); renderAtur(); GS.sfx.pop(); });
+  $('aturEdit').addEventListener('click', openProfile);
+  // logging out and wiping stars are for grown-ups: two taps / an in-page confirmation, no dialogs
+  let outT = 0;
+  $('logout').addEventListener('click', () => {
+    const out = $('logout');
+    if (out.classList.contains('warn')) { clearTimeout(outT); MS.auth.logout(); return; }
+    out.classList.add('warn'); out.textContent = 'Yakin keluar? Ketuk lagi';
+    outT = setTimeout(() => { out.classList.remove('warn'); out.textContent = 'Keluar dari akun'; }, 4000);
+  });
+  $('reset').addEventListener('click', () => { GS.sfx.click(); $('resetAsk').hidden = false; $('reset').hidden = true; });
+  $('resetNo').addEventListener('click', () => { GS.sfx.click(); $('resetAsk').hidden = true; $('reset').hidden = false; });
+  $('resetYes').addEventListener('click', () => {
+    (KUR ? KUR.TIERS : [{ id: TIER }]).forEach(t => GAMES.forEach(g => GS.store.set('stars.' + g.id + '@' + t.id, [])));
+    location.reload();
+  });
+  const SCREEN = { '#juara': renderJuara, '#orang-tua': renderOrtu, '#pengaturan': renderAtur };
 
   /* ---------------- every level of this kelas has a star: offer the next kelas ---------------- */
   (function levelUp() {
@@ -730,8 +1087,11 @@
     stay.addEventListener('click', () => { box.hidden = true; });
   })();
 
+  show(location.hash in SCR ? location.hash : '');
+
   /* ---------------- start where Chuppy is, and hint that the route goes on below ---------------- */
   requestAnimationFrame(() => {
+    if (route !== '') return;
     const g = GAMES.find(x => x.id === GS.store.get('lastGame', '')) || null;
     if (g && L) {
       const p = L.pts[GAMES.indexOf(g)], top = map.getBoundingClientRect().top + scrollY + (p.y - LM_H / 2) * L.s;
@@ -746,16 +1106,6 @@
     }
   });
 
-  /* ---------------- reset progress with an in-page confirmation (no confirm() dialogs) ---------------- */
-  const box = $('resetBox');
-  $('reset').addEventListener('click', function ask() {
-    box.innerHTML = '<span>Yakin hapus semua bintang di semua kelas?</span><button type="button" class="reset" id="yes">Ya, hapus</button><button type="button" class="reset" id="no">Batal</button>';
-    $('yes').onclick = () => {
-      (KUR ? KUR.TIERS : [{ id: TIER }]).forEach(t => GAMES.forEach(g => GS.store.set('stars.' + g.id + '@' + t.id, [])));
-      location.reload();
-    };
-    $('no').onclick = () => location.reload();
-  });
 })();
 </script>
 </body>

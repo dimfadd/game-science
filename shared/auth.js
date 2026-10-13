@@ -6,7 +6,9 @@
  *   requireLogin()          -> no session: redirects first-time visitors (no profile on this device) to the
  *                              landing page landing.html, returning ones to welcome.html (runs automatically)
  *   logout()                -> clears the session only (profile and game progress stay) and opens welcome.html
- *   avatarSvg(id, size, o)  -> SVG string; o.full = whole body instead of a head crop
+ *   avatarSvg(id, size, o)  -> SVG string of the chosen character (head crop; o.full = whole mascot)
+ *   charOf(avatarId)        -> mascot character id ('chuppy', 'budi', ...); GS.mascotChar() uses the player's
+ *   defaultName(avatarId)   -> the character's own name, used when the child gives no nickname
  *   mountProfileChip(el)    -> compact avatar + name + "Keluar" chip
  *
  * The automatic guard is skipped on <body data-auth="public">, on welcome.html and landing.html,
@@ -35,13 +37,17 @@
   function del(k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
 
   /* ---------------- avatars and grades ---------------- */
+  // The character the child picks is their profile picture AND the mascot that plays with them
+  // (GS.art.mascot draws it everywhere). Its label is the default name when no nickname is given.
+  // Ids p0..katak are kept from the earlier avatar list so existing profiles keep their choice.
   var AVATARS = [
-    { id: 'p0', label: 'Budi', person: 0 },
-    { id: 'p1', label: 'Siti', person: 1 },
-    { id: 'p3', label: 'Ani', person: 3 },
-    { id: 'p7', label: 'Raka', person: 7 },
-    { id: 'kucing', label: 'Kucing', item: 'kucing' },
-    { id: 'katak', label: 'Katak', item: 'katak' }
+    { id: 'chuppy', label: 'Chuppy', char: 'chuppy' },
+    { id: 'p0', label: 'Budi', char: 'budi' },
+    { id: 'p1', label: 'Siti', char: 'siti' },
+    { id: 'p3', label: 'Ani', char: 'ani' },
+    { id: 'p7', label: 'Raka', char: 'raka' },
+    { id: 'kucing', label: 'Mimi', char: 'kucing' },
+    { id: 'katak', label: 'Kiko', char: 'katak' }
   ];
   var KELAS = [
     { id: 'TK', big: 'TK', small: 'Belum SD' },
@@ -53,33 +59,37 @@
   function findAvatar(id) { for (var i = 0; i < AVATARS.length; i++) if (AVATARS[i].id === id) return AVATARS[i]; return AVATARS[0]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 
+  function charOf(id) { return findAvatar(id).char; }
+  function defaultName(id) { return findAvatar(id).label; }
   function avatarSvg(id, size, opts) {
     size = size || 64; opts = opts || {};
-    var a = findAvatar(id), art = window.GS && window.GS.art, inner = '', vb = '';
+    var a = findAvatar(id), art = window.GS && window.GS.art, out = '';
     try {
-      if (a.person != null && art && art.person) {
-        inner = art.person(a.person, { shadow: !!opts.full });
-        vb = opts.full ? '-40 -106 80 110' : '-29 -103 58 58';
-      } else if (a.item && art && art.item) {
-        inner = art.item(a.item, { shadow: !!opts.full });
-        vb = opts.full ? '-50 -95 100 100' : '-40 -78 80 80';
-      }
-    } catch (e) { inner = ''; }
-    if (!inner) {
-      vb = '0 0 64 64';
-      inner = '<circle cx="32" cy="32" r="29" fill="#FFC83D" stroke="#3B2A20" stroke-width="3"/>' +
-        '<text x="32" y="43" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="30" fill="#2B1D14">' + esc(a.label.charAt(0)) + '</text>';
-    }
-    return '<svg class="ms-avatar" viewBox="' + vb + '" width="' + size + '" height="' + size + '" role="img" aria-label="' + esc(a.label) + '" style="overflow:visible">' + inner + '</svg>';
+      if (art && opts.full && art.mascot) out = art.mascot({ char: a.char, mood: opts.mood || 'happy', size: size, name: a.label });
+      else if (art && art.mascotHead) out = art.mascotHead(a.char, size, opts.mood || 'happy');
+      else if (art && art.mascot) out = art.mascot({ char: a.char, mood: 'happy', size: size }).replace('viewBox="0 0 200 200"', 'viewBox="20 0 160 160"');
+    } catch (e) { out = ''; }
+    if (out) return out.replace('<svg ', '<svg data-av="' + esc(a.id) + '" ').replace(/class="/, 'class="ms-avatar ');
+    return '<svg class="ms-avatar" viewBox="0 0 64 64" width="' + size + '" height="' + size + '" role="img" aria-label="' + esc(a.label) + '">' +
+      '<circle cx="32" cy="32" r="29" fill="#FFC83D" stroke="#3B2A20" stroke-width="3"/>' +
+      '<text x="32" y="43" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="30" fill="#2B1D14">' + esc(a.label.charAt(0)) + '</text></svg>';
   }
 
   /* ---------------- session and profile ---------------- */
-  function current() { var s = get(K.session); return s && s.accountId ? s : null; }
-  function profile() { var p = get(K.profile); return p && p.name ? { name: p.name, kelas: p.kelas || '', avatar: p.avatar || AVATARS[0].id } : null; }
+  // "Teman" was the old placeholder for "no nickname": the character's own name replaces it.
+  function nameFor(name, avatar) { name = cleanName(name); return name && name !== 'Teman' ? name : defaultName(avatar); }
+  function current() {
+    var s = get(K.session);
+    if (!s || !s.accountId) return null;
+    s.avatar = findAvatar(s.avatar).id; s.name = nameFor(s.name, s.avatar);
+    return s;
+  }
+  function profile() { var p = get(K.profile); if (!p || !p.name) return null; var av = findAvatar(p.avatar).id; return { name: nameFor(p.name, av), kelas: p.kelas || '', avatar: av }; }
   function cleanName(n) { n = String(n == null ? '' : n).replace(/\s+/g, ' ').trim().slice(0, 12); return n; }
   function saveProfile(p) {
     var cur = profile() || {};
-    var next = { name: cleanName(p.name != null ? p.name : cur.name) || 'Teman', kelas: p.kelas != null ? p.kelas : (cur.kelas || ''), avatar: p.avatar || cur.avatar || AVATARS[0].id };
+    var av = findAvatar(p.avatar || cur.avatar).id;
+    var next = { name: nameFor(p.name != null ? p.name : cur.name, av), kelas: p.kelas != null ? p.kelas : (cur.kelas || ''), avatar: av };
     set(K.profile, next);
     return next;
   }
@@ -92,7 +102,7 @@
     return next;
   }
   function startSession(acc, provider) {
-    var p = profile() || { name: acc.name || 'Teman', kelas: '', avatar: AVATARS[0].id };
+    var p = profile() || { name: nameFor(acc.name, AVATARS[0].id), kelas: '', avatar: AVATARS[0].id };
     var s = { accountId: acc.id, email: acc.email || '', provider: provider, name: p.name, kelas: p.kelas, avatar: p.avatar, createdAt: new Date().toISOString() };
     if (acc.picture) s.picture = acc.picture;
     set(K.session, s);
@@ -285,6 +295,8 @@
     requireLogin: requireLogin,
     logout: logout,
     avatarSvg: avatarSvg,
+    charOf: charOf,
+    defaultName: defaultName,
     mountProfileChip: mountProfileChip,
     updateProfile: updateProfile,
     KELAS: KELAS,
@@ -298,6 +310,9 @@
       shouldRedirect: shouldRedirect, isAutomated: isAutomated, keys: K
     }
   };
+
+  // Every GS.art.mascot() call without an explicit char draws the player's own character.
+  if (window.GS) window.GS.mascotChar = function () { var s = current() || profile(); return s ? charOf(s.avatar) : 'chuppy'; };
 
   function autoGuard() { try { requireLogin(); } catch (e) { /* never break the page */ } }
   if (document.body) autoGuard();

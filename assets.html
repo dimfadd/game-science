@@ -39,6 +39,11 @@
   .scene svg { width: 100%; height: auto; border-radius: 12px; }
   .sizes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; background: var(--card); border: 2px solid var(--soft); border-radius: 18px; padding: 12px; }
   .sizes figure { margin: 0; text-align: center; font-size: 13px; }
+  .char { margin: 18px 0 6px; }
+  .char h3 { font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 800; font-size: 20px; margin: 0 0 6px; }
+  .char .grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+  .head { width: 52px; height: 52px; border-radius: 50%; overflow: hidden; background: var(--soft); border: 2px solid var(--line); display: grid; place-items: center; margin: 0 auto 4px; }
+  .head svg { display: block; }
 </style>
 </head>
 <body>
@@ -51,10 +56,11 @@
     </div>
   </header>
 
-  <h2>Chuppy, si robot teman</h2>
-  <p class="note">Tujuh ekspresi. Kedip, napas, telinga, dan pita ikat kepala bergerak pelan.</p>
-  <div class="grid mid" id="moods"></div>
+  <h2>Karakter</h2>
+  <p class="note">Anak memilih satu karakter yang menemani di semua game. Tujuh karakter, masing-masing tujuh ekspresi: <code>mascot({ char, mood })</code>. Napas, kedip, lambaian tangan, antena Chuppy dan ekor Mimi bergerak pelan. Sprite sheet PNG ada di <code>docs/sprites/</code>.</p>
+  <div id="chars"></div>
   <div class="sizes" id="sizes" style="margin-top:12px"></div>
+  <div class="sizes" id="heads" style="margin-top:12px"></div>
 
   <h2>Benda</h2>
   <p class="note">Ukuran gambar tidak menunjukkan berat. Kapas dan balon besar tapi ringan; batu dan gembok kecil tapi berat.</p>
@@ -96,13 +102,31 @@
 
   document.getElementById('hero').innerHTML = A.mascot({ mood: 'happy', size: 96 });
 
-  var moods = document.getElementById('moods');
-  Object.keys(MOODNAME).forEach(function (m) { moods.appendChild(card(A.mascot({ mood: m, size: 160 }), MOODNAME[m], "mood: '" + m + "'")); });
+  var KIND = { robot: 'robot', anak: 'anak', hewan: 'hewan' };
+  var chars = document.getElementById('chars');
+  A.CHARS.forEach(function (c) {
+    var sec = document.createElement('section');
+    sec.className = 'char';
+    sec.innerHTML = '<h3></h3><div class="grid"></div>';
+    sec.querySelector('h3').textContent = c.name + ' (' + KIND[c.kind] + ", char: '" + c.id + "')";
+    var gr = sec.querySelector('.grid');
+    Object.keys(MOODNAME).forEach(function (m) { gr.appendChild(card(A.mascot({ char: c.id, mood: m, size: 120 }), MOODNAME[m], "mood: '" + m + "'")); });
+    chars.appendChild(sec);
+  });
   var sizes = document.getElementById('sizes');
-  [48, 64, 96, 200].forEach(function (s) {
+  A.CHARS.forEach(function (c) {
+    [44, 64, 96].forEach(function (s) {
+      var f = document.createElement('figure');
+      f.innerHTML = A.mascot({ char: c.id, mood: s === 64 ? 'happy' : 'idle', size: s }) + '<figcaption>' + s + ' px</figcaption>';
+      sizes.appendChild(f);
+    });
+  });
+  var heads = document.getElementById('heads');
+  A.CHARS.forEach(function (c) {
     var f = document.createElement('figure');
-    f.innerHTML = A.mascot({ mood: s === 64 ? 'happy' : 'idle', size: s }) + '<figcaption>' + s + ' px</figcaption>';
-    sizes.appendChild(f);
+    f.innerHTML = '<div class="head">' + A.mascotHead(c.id, 52) + '</div><figcaption></figcaption>';
+    f.querySelector('figcaption').textContent = "mascotHead('" + c.id + "')";
+    heads.appendChild(f);
   });
 
   var HEAVY = { light: 'ringan', medium: 'sedang', heavy: 'berat' };

@@ -94,16 +94,16 @@
   .tile .big { font-family: var(--font-num); font-weight: 600; font-size: 44px; line-height: 1.05; font-variant-numeric: tabular-nums; }
 
   /* question 3: avatar tiles */
-  .av-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .av-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
   .av {
-    position: relative; min-height: 148px; padding: 8px 4px 6px;
+    position: relative; flex: 0 0 calc((100% - 36px) / 4); min-width: 0; min-height: 132px; padding: 8px 4px 6px;
     display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px;
     border: 3px solid var(--line); border-radius: 22px; background: var(--sky-low); box-shadow: 0 5px 0 var(--line);
     cursor: pointer; transition: opacity 200ms, transform 80ms ease-out, box-shadow 80ms ease-out;
   }
   .av:active { transform: translateY(4px) scale(0.96); box-shadow: 0 1px 0 var(--line); }
-  .av svg { width: min(88px, 100%); height: 112px; }
-  .av span { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.1; }
+  .av svg { width: min(96px, 100%); height: auto; aspect-ratio: 1; overflow: visible; }
+  .av span { font-family: var(--font-display); font-weight: 800; font-size: 19px; line-height: 1.1; }
   .av[aria-pressed="true"] { background: var(--sun); }
   .av-grid.picked .av:not([aria-pressed="true"]) { opacity: 0.45; }
   .av.hop svg { animation: hop 650ms var(--ease-in) 2; transform-origin: 50% 100%; }
@@ -182,13 +182,15 @@
     .av-grid { gap: 10px; }
     .av { min-height: 108px; }
     .tile .small { font-size: 13px; white-space: normal; text-align: center; }
-    .av svg { width: min(70px, 100%); height: 88px; }
+    .av svg { width: min(64px, 100%); }
     .big-input { height: 68px; font-size: 30px; }
   }
   @media (max-width: 380px) {
     .body { padding-inline: 14px; }
     .cil { width: 88px; height: 88px; }
-    .av svg { width: min(72px, 100%); height: 96px; }
+    .av { flex-basis: calc((100% - 30px) / 4); }
+    .av svg { width: min(66px, 100%); }
+    .av span { font-size: 17px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -259,7 +261,7 @@
   // "Masuk" tab. The back button then starts the 3 questions instead.
   var masuk = !prof && params.get('masuk') === '1';
   var S = {
-    step: prof || masuk ? 'login' : 'name',
+    step: prof || masuk ? 'login' : 'avatar',
     returning: !!prof,
     masuk: masuk,
     name: prof ? prof.name : '',
@@ -267,7 +269,9 @@
     avatar: prof ? prof.avatar : '',
     tab: prof || masuk ? 'in' : 'up'
   };
-  var STEPS = ['name', 'kelas', 'avatar'];
+  // The character comes first: it becomes the child's mascot and profile picture, and its own
+  // name is the default nickname (the name step shows it as the placeholder).
+  var STEPS = ['avatar', 'name', 'kelas'];
 
   /* ---------------- background + chrome ---------------- */
   try { if (GS.art && GS.art.scene) $('bg').innerHTML = GS.art.scene('kampung', 1280, 800); } catch (e) { /* plain sky */ }
@@ -277,14 +281,15 @@
   $('back').addEventListener('click', function () {
     sfx('click');
     var i = STEPS.indexOf(S.step);
-    if (S.step === 'login' && S.masuk) { S.masuk = false; S.tab = 'up'; go('name'); }
-    else if (S.step === 'login' && !S.returning) go('avatar');
+    if (S.step === 'login' && S.masuk) { S.masuk = false; S.tab = 'up'; go('avatar'); }
+    else if (S.step === 'login' && !S.returning) go('kelas');
     else if (i > 0) go(STEPS[i - 1]);
   });
 
   function sfx(n) { try { if (GS.sfx && GS.sfx[n]) GS.sfx[n](); } catch (e) { /* audio blocked */ } }
   function speak(t) { try { if (GS.say) GS.say(t); } catch (e) { /* no voice */ } }
-  function mood(m) { try { $('cil').innerHTML = GS.art ? GS.art.mascot({ mood: m, size: 108 }) : ''; } catch (e) { /* no art */ } }
+  function mood(m) { try { $('cil').innerHTML = GS.art ? GS.art.mascot({ mood: m, size: 108, char: S.avatar ? A.charOf(S.avatar) : 'chuppy' }) : ''; } catch (e) { /* no art */ } }
+  function charName() { return S.avatar ? A.defaultName(S.avatar) : 'Chuppy'; }
   function host(sub, title, spoken, m) {
     $('q-sub').textContent = sub || '';
     $('q-sub').hidden = !sub;
@@ -301,7 +306,7 @@
     ol.innerHTML = STEPS.map(function (s, k) { return '<li class="' + (k < i ? 'done' : k === i ? 'now' : '') + '"></li>'; }).join('');
   }
   function backVisible() {
-    $('back').hidden = S.step === 'name' || S.step === 'done' || (S.step === 'login' && S.returning);
+    $('back').hidden = S.step === STEPS[0] || S.step === 'done' || (S.step === 'login' && S.returning);
   }
   function go(step) {
     S.step = step;
@@ -319,25 +324,54 @@
 
   /* ---------------- questions ---------------- */
   var RENDER = {};
+  RENDER.avatar = function () {
+    var picked = S.avatar;
+    S.avatar = ''; // Chuppy hosts this question
+    host('Halo, aku Chuppy!', 'Pilih karaktermu!', 'Halo, aku Chuppy! Pilih karaktermu. Dia akan menemanimu bermain.', 'point');
+    S.avatar = picked;
+    var el = screen('<div class="av-grid" role="group" aria-labelledby="q-title">' + X.AVATARS.map(function (a) {
+      return '<button type="button" class="av" data-a="' + a.id + '" aria-pressed="' + (S.avatar === a.id) + '">' + A.avatarSvg(a.id, 100, { full: true }) + '<span>' + esc(a.label) + '</span></button>';
+    }).join('') + '</div>');
+    var grid = el.querySelector('.av-grid'), busy = false;
+    grid.querySelectorAll('.av').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (busy) return; busy = true;
+        var a = b.getAttribute('data-a');
+        // a new character brings its own default name unless the child already typed one
+        if (S.name && S.avatar && S.name === A.defaultName(S.avatar)) S.name = '';
+        S.avatar = a;
+        grid.classList.add('picked');
+        grid.querySelectorAll('.av').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); o.classList.remove('hop'); });
+        void b.offsetWidth; b.classList.add('hop');
+        host('', 'Hore! Aku ' + charName() + '!', null, 'cheer');
+        sfx('win');
+        try { var r = b.getBoundingClientRect(); if (GS.confetti) GS.confetti(r.left + r.width / 2, r.top + 20, 40); } catch (e) { /* ignore */ }
+        setTimeout(function () { go('name'); }, reduced ? 800 : 1300);
+      });
+    });
+    focusTitle();
+  };
+
   RENDER.name = function () {
-    host('Halo, aku Chuppy!', 'Siapa nama panggilanmu?', null, 'point');
+    var def = charName();
+    host('Aku temanmu bermain.', 'Siapa nama panggilanmu?', 'Siapa nama panggilanmu? Kalau dikosongkan, namanya ' + def + '.', 'point');
     var el = screen(
       '<form class="screen-form" id="f-name" novalidate style="display:flex;flex-direction:column;gap:14px">' +
-      '<input class="big-input" id="nick" name="nickname" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next" placeholder="Tulis namamu" aria-labelledby="q-title" aria-describedby="nick-count">' +
-      '<p class="count" id="nick-count"><span id="nick-n">0</span>/12 huruf</p>' +
-      '<div class="row"><button type="button" class="btn-link" id="skip">Lewati</button>' +
+      '<input class="big-input" id="nick" name="nickname" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next" placeholder="' + esc(def) + '" aria-labelledby="q-title" aria-describedby="nick-count">' +
+      '<p class="count" id="nick-count"><span id="nick-n">0</span>/12 huruf. Kosongkan untuk pakai nama ' + esc(def) + '.</p>' +
+      '<div class="row"><button type="button" class="btn-link" id="skip">Pakai nama ' + esc(def) + '</button>' +
       '<button type="submit" class="gs-action">Lanjut ' + ICON.next + '</button></div></form>');
     var inp = el.querySelector('#nick');
-    inp.value = S.name && S.name !== 'Teman' ? S.name : '';
+    inp.value = S.name && S.name !== 'Teman' && S.name !== def ? S.name : '';
     var upd = function () { $('nick-n').textContent = inp.value.length; };
     upd();
     inp.addEventListener('input', upd);
     el.querySelector('#f-name').addEventListener('submit', function (e) {
       e.preventDefault();
-      S.name = inp.value.replace(/\s+/g, ' ').trim().slice(0, 12) || 'Teman';
+      S.name = inp.value.replace(/\s+/g, ' ').trim().slice(0, 12) || def;
       sfx('pop'); go('kelas');
     });
-    el.querySelector('#skip').addEventListener('click', function () { S.name = 'Teman'; sfx('click'); go('kelas'); });
+    el.querySelector('#skip').addEventListener('click', function () { S.name = def; sfx('click'); go('kelas'); });
     if (!touch) setTimeout(function () { try { inp.focus(); } catch (e) { /* ignore */ } }, 50);
     else focusTitle();
   };
@@ -355,32 +389,9 @@
         if (busy) return; busy = true;
         S.kelas = b.getAttribute('data-k');
         el.querySelectorAll('.tile').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
-        sfx('pop');
-        setTimeout(function () { go('avatar'); }, 320);
-      });
-    });
-    focusTitle();
-  };
-
-  RENDER.avatar = function () {
-    host('Dia akan menemanimu bermain.', 'Pilih temanmu!', 'Pilih temanmu! Dia akan menemanimu bermain.', 'point');
-    var el = screen('<div class="av-grid" role="group" aria-labelledby="q-title">' + X.AVATARS.map(function (a) {
-      return '<button type="button" class="av" data-a="' + a.id + '" aria-pressed="' + (S.avatar === a.id) + '">' + A.avatarSvg(a.id, 100, { full: true }) + '<span>' + esc(a.label) + '</span></button>';
-    }).join('') + '</div>');
-    var grid = el.querySelector('.av-grid'), busy = false;
-    grid.querySelectorAll('.av').forEach(function (b) {
-      b.addEventListener('click', function () {
-        if (busy) return; busy = true;
-        var a = b.getAttribute('data-a'), meta = X.AVATARS.filter(function (x) { return x.id === a; })[0];
-        S.avatar = a;
-        grid.classList.add('picked');
-        grid.querySelectorAll('.av').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); o.classList.remove('hop'); });
-        void b.offsetWidth; b.classList.add('hop');
         X.saveProfile({ name: S.name, kelas: S.kelas, avatar: S.avatar });
-        host('', 'Hore! ' + meta.label + ' jadi temanmu!', null, 'cheer');
-        sfx('win');
-        try { var r = b.getBoundingClientRect(); if (GS.confetti) GS.confetti(r.left + r.width / 2, r.top + 20, 40); } catch (e) { /* ignore */ }
-        setTimeout(function () { go('login'); }, reduced ? 900 : 1500);
+        sfx('pop');
+        setTimeout(function () { go('login'); }, 320);
       });
     });
     focusTitle();
@@ -416,8 +427,8 @@
 
     if (S.returning) el.querySelector('#not-me').addEventListener('click', function () {
       X.clearProfile();
-      S = { step: 'name', returning: false, name: '', kelas: '', avatar: '', tab: 'up' };
-      sfx('click'); go('name');
+      S = { step: 'avatar', returning: false, name: '', kelas: '', avatar: '', tab: 'up' };
+      sfx('click'); go('avatar');
     });
     $('up-name').value = S.name || '';
 
@@ -425,7 +436,7 @@
     var tabs = [$('tab-in'), $('tab-up')];
     function setTab(t, focus) {
       // A new account needs the 3 questions (kelas decides the levels): "Daftar" from ?masuk starts them.
-      if (t === 'up' && S.masuk) { S.masuk = false; S.tab = 'up'; go('name'); return; }
+      if (t === 'up' && S.masuk) { S.masuk = false; S.tab = 'up'; go('avatar'); return; }
       S.tab = t;
       $('tab-in').setAttribute('aria-selected', String(t === 'in')); $('tab-in').tabIndex = t === 'in' ? 0 : -1;
       $('tab-up').setAttribute('aria-selected', String(t === 'up')); $('tab-up').tabIndex = t === 'up' ? 0 : -1;
@@ -600,7 +611,7 @@
   function success(session) {
     S.step = 'done';
     dots(); backVisible();
-    var name = session.name || S.name || 'Teman';
+    var name = session.name || S.name || charName();
     host('', 'Halo, ' + name + '! Ayo main!', null, 'cheer');
     screen('<div class="screen done"><div class="done-av">' + A.avatarSvg(session.avatar, 140, { full: true }) + '</div>' +
       '<a class="gs-action" href="' + esc(NEXT) + '" id="go">Ayo main! ' + ICON.next + '</a></div>');

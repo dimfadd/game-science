@@ -1,4 +1,4 @@
-/* Mat Sains profile editor: change nickname, kelas (grade tier) and avatar.
+/* Mat Sains profile editor: change nickname, kelas (grade tier) and character (the child's mascot).
  * MS.profileEditor.open({ onSave(profile, tierChanged) }) shows a sheet built on
  * the core overlay styles. Progress is kept per tier, so switching kelas never
  * deletes anything. Needs core.js, auth.js and curriculum.js. */
@@ -27,15 +27,17 @@
   .ms-pe-tier b { font-family: var(--font-num); font-weight: 600; font-size: 32px; line-height: 1.05; }
   .ms-pe-tier i { font-style: normal; font-size: 12px; font-weight: 700; color: #6B5444; font-variant-numeric: tabular-nums; }
   .ms-pe-note { margin: 8px 0 0; font-size: 15px; line-height: 1.4; color: #5C4636; }
-  .ms-pe-avs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-  .ms-pe-av { aspect-ratio: 1; padding: 2px; overflow: hidden; }
-  .ms-pe-av svg { width: 100%; height: 100%; display: block; }
+  .ms-pe-avs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+  .ms-pe-av { padding: 4px 2px 4px; gap: 2px; overflow: hidden; }
+  .ms-pe-av svg { width: min(64px, 88%); height: auto; aspect-ratio: 1; display: block; overflow: hidden; border-radius: 50%; border: 2px solid var(--line); background: var(--sky-low); }
+  .ms-pe-av[aria-pressed="true"] svg { background: #fff; }
+  .ms-pe-av span { font-family: var(--font-display); font-weight: 800; font-size: 14px; line-height: 1.1; }
   /* Save stays visible while the sheet scrolls on short screens. */
   .ms-pe-actions { position: sticky; bottom: -22px; z-index: 1; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; margin: 6px -22px -22px; padding: 12px 22px 16px; background: var(--panel); border-top: 2px solid rgba(59, 42, 32, 0.15); }
   .ms-pe-actions .gs-action { min-height: 64px; font-size: 26px; }
   @media (max-width: 520px) {
     .ms-pe-tiers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .ms-pe-avs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ms-pe-avs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .ms-pe-actions .gs-action { flex: 1; }
   }
   @media (max-height: 500px) {
@@ -59,7 +61,8 @@
     }
     const s = A.current() || {};
     const prof = A.profile() || {};
-    const state = { name: s.name || prof.name || 'Teman', kelas: s.kelas || prof.kelas || '1', avatar: s.avatar || prof.avatar };
+    const state = { avatar: s.avatar || prof.avatar || A.AVATARS[0].id, kelas: s.kelas || prof.kelas || '1' };
+    state.name = s.name || prof.name || A.defaultName(state.avatar);
     const before = K.tier();
 
     const games = Object.keys(K.GAMES);
@@ -72,15 +75,15 @@
       '<div class="gs-card" role="dialog" aria-modal="true" aria-labelledby="ms-pe-title">' +
       '<h2 id="ms-pe-title">Profil</h2>' +
       '<div class="ms-pe-sec"><label class="ms-pe-label" for="ms-pe-name">Nama panggilan</label>' +
-      '<input class="ms-pe-name" id="ms-pe-name" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" value="' + esc(state.name) + '"></div>' +
+      '<input class="ms-pe-name" id="ms-pe-name" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="' + esc(A.defaultName(state.avatar)) + '" value="' + esc(state.name) + '"></div>' +
       '<div class="ms-pe-sec"><span class="ms-pe-label" id="ms-pe-kelas-l">Kelas</span>' +
       '<div class="ms-pe-tiers" role="group" aria-labelledby="ms-pe-kelas-l">' +
       K.TIERS.map(t => '<button type="button" class="ms-pe-tier" data-kelas="' + esc(t.kelas) + '" aria-pressed="' + (t.kelas === state.kelas) + '" aria-label="' + esc(t.long) + ', ' + doneIn(t.id) + ' dari ' + totalIn(t.id) + ' level selesai">' +
         '<small>' + (t.id === 'tk' ? 'Belum SD' : 'Kelas') + '</small><b>' + esc(t.id === 'tk' ? 'TK' : t.kelas) + '</b><i>' + doneIn(t.id) + '/' + totalIn(t.id) + '</i></button>').join('') +
       '</div><p class="ms-pe-note">Progres tiap kelas tersimpan sendiri-sendiri, jadi pindah kelas tidak menghapus bintang.</p></div>' +
-      '<div class="ms-pe-sec"><span class="ms-pe-label" id="ms-pe-av-l">Teman</span>' +
+      '<div class="ms-pe-sec"><span class="ms-pe-label" id="ms-pe-av-l">Karakter (ikut menemani di setiap game)</span>' +
       '<div class="ms-pe-avs" role="group" aria-labelledby="ms-pe-av-l">' +
-      A.AVATARS.map(a => '<button type="button" class="ms-pe-av" data-av="' + esc(a.id) + '" aria-pressed="' + (a.id === state.avatar) + '" aria-label="' + esc(a.label) + '">' + A.avatarSvg(a.id, 72) + '</button>').join('') +
+      A.AVATARS.map(a => '<button type="button" class="ms-pe-av" data-av="' + esc(a.id) + '" aria-pressed="' + (a.id === state.avatar) + '" aria-label="' + esc(a.label) + '">' + A.avatarSvg(a.id, 72) + '<span aria-hidden="true">' + esc(a.label) + '</span></button>').join('') +
       '</div></div>' +
       '<div class="ms-pe-actions"><button type="button" class="gs-action alt" id="ms-pe-cancel">Batal</button><button type="button" class="gs-action" id="ms-pe-save">Simpan</button></div>' +
       '</div>';
@@ -97,6 +100,13 @@
     }));
     pick('.ms-pe-tier', 'data-kelas', 'kelas');
     pick('.ms-pe-av', 'data-av', 'avatar');
+    // A name that is still the old character's own name follows the new character.
+    ov.querySelectorAll('.ms-pe-av').forEach(b => b.addEventListener('click', () => {
+      const inp = ov.querySelector('#ms-pe-name'), was = inp.getAttribute('data-def') || A.defaultName(s.avatar || prof.avatar);
+      const now = A.defaultName(state.avatar);
+      if (!inp.value.trim() || inp.value.trim() === was) inp.value = now;
+      inp.placeholder = now; inp.setAttribute('data-def', now);
+    }));
 
     function close() { ov.classList.remove('show'); setTimeout(() => ov.remove(), 250); document.removeEventListener('keydown', onKey); }
     const onKey = e => { if (e.key === 'Escape') close(); };
@@ -104,7 +114,7 @@
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     ov.querySelector('#ms-pe-cancel').addEventListener('click', () => { GS.sfx.click(); close(); });
     ov.querySelector('#ms-pe-save').addEventListener('click', () => {
-      state.name = ov.querySelector('#ms-pe-name').value.replace(/\s+/g, ' ').trim().slice(0, 12) || 'Teman';
+      state.name = ov.querySelector('#ms-pe-name').value.replace(/\s+/g, ' ').trim().slice(0, 12) || A.defaultName(state.avatar);
       const next = A.updateProfile({ name: state.name, kelas: state.kelas, avatar: state.avatar });
       GS.sfx.coin();
       close();

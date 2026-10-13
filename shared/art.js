@@ -550,25 +550,25 @@
     return `<g class="gs-person gs-person-${(((i | 0) % 8) + 8) % 8}">${s}</g>`;
   };
 
-  /* ===================== Chuppy the robot friend ===================== */
-  // A chubby, soft "bakpao" robot: head and body are ONE round dumpling shape (no separate small
-  // head), a dark screen for a face with LED eyes, teal headphone pods, an antenna with a light
-  // bulb and a glowing chest light. Moves slowly and softly, like something inflatable: it puffs
-  // while idle, waddles when it walks (class "walk" on the svg), waves when happy, hops on cheer.
+  /* ===================== Mascots: Chuppy and friends ===================== */
+  // Every playable character (the child picks one; it is their companion in every game) is
+  // drawn by ONE rig in a 200 x 200 box: feet on the ground at y ~190, contact shadow at
+  // cy 192, body centred on x 100. A character supplies its own drawing (body, head, face,
+  // tail) plus its arm geometry and colours; the rig adds the mood (eyes, mouth, arm pose,
+  // extras) and the shared CSS hooks: .m-body (puff), .m-eyes (blink), .m-arm-r (wave),
+  // .m-tail (sway), class "walk" on the svg (waddle).
+  //
+  // Chuppy: a chubby, soft "bakpao" robot: head and body are ONE round dumpling shape (no
+  // separate small head), a dark screen for a face with LED eyes, teal headphone pods, an
+  // antenna with a light bulb and a glowing chest light. Moves slowly and softly, like
+  // something inflatable: it puffs while idle, waddles when it walks, waves when happy, hops on cheer.
+  // The kids (Budi, Siti, Ani, Raka) keep the colours of the person avatars 0, 1, 3, 7 in chibi
+  // proportions (big head, chubby round body, stubby legs); Mimi is a ginger kampung cat and
+  // Kiko a green frog, both in the same chubby body language. No copyrighted character traits.
   const MOODS = ['idle', 'happy', 'cheer', 'think', 'surprise', 'oops', 'point'];
   const BOT = PAL.white, TEAL = ['#2BB3A6', '#7DD8CE', '#1D8278'], SCREEN = ['#22304A', '#3A4E70', '#141E30'];
   const LED = '#7CF5EA', MSW = 4.2, MDW = 2.6;
   const BOTP = 'M100 33C146 33 170 64 171 108C172 146 165 171 141 179C122 186 78 186 59 179C35 171 28 146 29 108C30 64 54 33 100 33Z';
-  // [left arm path, left hand, right arm path, right hand]; arms start just inside the body edge
-  const ARMS = {
-    down: ['M41 120Q25 134 27 152', [27, 155], 'M159 120Q175 134 173 152', [173, 155]],
-    out: ['M41 120Q22 126 16 141', [15, 144], 'M159 120Q178 126 184 141', [185, 144]],
-    up: ['M41 118Q22 102 21 79', [21, 75], 'M159 118Q178 102 179 79', [179, 75]],
-    chin: ['M41 120Q25 134 27 152', [27, 155], 'M159 122Q174 138 140 120', [136, 119]],
-    wide: ['M41 118Q20 112 14 97', [13, 93], 'M159 118Q180 112 186 97', [187, 93]],
-    scratch: ['M41 120Q25 134 27 152', [27, 155], 'M159 120Q184 104 172 66', [170, 62]],
-    point: ['M41 120Q25 134 27 152', [27, 155], 'M159 118Q180 114 191 103', [194, 101]]
-  };
   const MCFG = {
     idle: { eyes: 'open', mouth: 'smile', arms: 'down' },
     happy: { eyes: 'happy', mouth: 'grin', arms: 'out', blush: 0.8 },
@@ -578,6 +578,41 @@
     oops: { eyes: 'oops', mouth: 'wobble', arms: 'scratch', extra: 'sweat' },
     point: { eyes: 'open', look: [4, 0], mouth: 'smirk', arms: 'point' }
   };
+  // Arm poses per body family: [left, right], each [shoulder x, y, curve x, y, wrist x, y, hand x, y].
+  // Arms start just inside the body edge; the right arm is the one that waves, points and scratches.
+  const ARMSETS = {
+    bot: {
+      down: [[41, 120, 25, 134, 27, 152, 27, 155], [159, 120, 175, 134, 173, 152, 173, 155]],
+      out: [[41, 120, 22, 126, 16, 141, 15, 144], [159, 120, 178, 126, 184, 141, 185, 144]],
+      up: [[41, 118, 22, 102, 21, 79, 21, 75], [159, 118, 178, 102, 179, 79, 179, 75]],
+      chin: [[41, 120, 25, 134, 27, 152, 27, 155], [159, 122, 174, 138, 140, 120, 136, 119]],
+      wide: [[41, 118, 20, 112, 14, 97, 13, 93], [159, 118, 180, 112, 186, 97, 187, 93]],
+      scratch: [[41, 120, 25, 134, 27, 152, 27, 155], [159, 120, 184, 104, 172, 66, 170, 62]],
+      point: [[41, 120, 25, 134, 27, 152, 27, 155], [159, 118, 180, 114, 191, 103, 194, 101]]
+    },
+    // big head on a chubby little body: shoulders at (65, 130) and (135, 130)
+    kid: {
+      down: [[65, 130, 52, 142, 53, 158, 53, 161], [135, 130, 148, 142, 147, 158, 147, 161]],
+      out: [[65, 130, 46, 134, 38, 148, 37, 151], [135, 130, 154, 134, 162, 148, 163, 151]],
+      up: [[65, 128, 42, 120, 34, 92, 33, 88], [135, 128, 158, 120, 166, 92, 167, 88]],
+      chin: [[65, 130, 52, 142, 53, 158, 53, 161], [135, 132, 158, 150, 128, 124, 124, 121]],
+      wide: [[65, 128, 44, 124, 33, 108, 31, 104], [135, 128, 156, 124, 167, 108, 169, 104]],
+      scratch: [[65, 130, 52, 142, 53, 158, 53, 161], [135, 130, 172, 112, 156, 52, 154, 48]],
+      point: [[65, 130, 52, 142, 53, 158, 53, 161], [135, 128, 160, 126, 176, 114, 179, 112]]
+    }
+  };
+  // the frog's mouth is lower and wider: its thinking hand rests under the mouth corner
+  ARMSETS.frog = Object.assign({}, ARMSETS.bot, { chin: [[41, 120, 25, 134, 27, 152, 27, 155], [159, 124, 178, 146, 146, 134, 142, 133]] });
+  const qp = a => `M${n1(a[0])} ${n1(a[1])}Q${n1(a[2])} ${n1(a[3])} ${n1(a[4])} ${n1(a[5])}`;
+  // first part (0..t) of the arm curve, used for the short sleeve over the skin
+  const qhead = (a, t) => {
+    const L = (p, q) => p + (q - p) * t, mx = L(a[0], a[2]), my = L(a[1], a[3]);
+    return [a[0], a[1], mx, my, L(mx, L(a[2], a[4])), L(my, L(a[3], a[5]))];
+  };
+  const pt = (x, y) => `${n1(x)} ${n1(y)}`;
+  const clipTo = (inner, x, y, w, h) => { const id = uid('k'); return `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})">${inner}</g>`; };
+
+  /* --- Chuppy's LED face --- */
   const led = (d, w) => ln(d, (w || 4.6) + 5, LED, 0.22) + ln(d, w || 4.6, LED);
   function mEye(kind, x, y, side) {
     if (kind === 'happy') return led(`M${x - 9} ${y + 4}Q${x} ${y - 9} ${x + 9} ${y + 4}`);
@@ -593,54 +628,239 @@
     wobble: 'M89 100L93.5 96.5L98 100L102.5 96.5L107 100L111 97',
     smirk: 'M91 99Q101 103 110 94'
   };
+
+  /* --- ink face for the kids and animals: eyes like the eye() helper, mouths as ink lines --- */
+  const IW = 4.8, MOUTHC = '#9E3B33', TONGUE = '#FF8FA3';
+  function inkEye(kind, x, y, rx, ry, side) {
+    if (kind === 'happy') return ln(`M${pt(x - rx - 1.5, y + 3)}Q${pt(x, y - ry - 4)} ${pt(x + rx + 1.5, y + 3)}`, IW, EYE);
+    if (kind === 'cheer') return ln(`M${pt(x - rx - 1, y + 4)}L${pt(x, y - ry + 1)}L${pt(x + rx + 1, y + 4)}`, IW, EYE);
+    if (kind === 'squint') return ln(side < 0 ? `M${pt(x - rx, y - ry * 0.75)}L${pt(x + rx * 0.9, y)}L${pt(x - rx, y + ry * 0.75)}` : `M${pt(x + rx, y - ry * 0.75)}L${pt(x - rx * 0.9, y)}L${pt(x + rx, y + ry * 0.75)}`, IW, EYE);
+    if (kind === 'round') return C(x, y, ry + 2.5)(`fill="#fff" stroke="${OL}" stroke-width="2.6"`) + eye(x, y, rx * 0.78, rx * 0.78);
+    return eye(x, y, rx, ry);
+  }
+  function inkEyes(M, f, side) {
+    const lk = M.look || [0, 0], k = M.eyes;
+    const one = (x, sd) => inkEye(k === 'oops' ? (sd < 0 ? 'open' : 'squint') : k, x + lk[0], f.ey + lk[1], f.erx, f.ery, sd);
+    return one(100 - f.edx, -1) + one(100 + f.edx, 1);
+  }
+  function inkMouth(kind, x, y, w) {
+    const o = `stroke="${OL}" stroke-width="2.6" stroke-linejoin="round"`;
+    if (kind === 'grin' || kind === 'open') {
+      const k = kind === 'open' ? 1.25 : 1, W = w * k, H = w * (kind === 'open' ? 1.25 : 0.9);
+      const d = `M${pt(x - W - 1, y - 3)}Q${pt(x, y)} ${pt(x + W + 1, y - 3)}Q${pt(x + W * 0.9, y + H)} ${pt(x, y + H)}Q${pt(x - W * 0.9, y + H)} ${pt(x - W - 1, y - 3)}Z`;
+      const id = uid('k');
+      return `<clipPath id="${id}"><path d="${d}"/></clipPath>` + P(d)(`fill="${MOUTHC}"`) +
+        `<g clip-path="url(#${id})">` + E(x, y + H, W * 0.62, H * 0.5)(fl(TONGUE)) + '</g>' + P(d)(`fill="none" ${o}`);
+    }
+    if (kind === 'o') return E(x, y + 2, Math.max(4.2, w * 0.5), Math.max(5.2, w * 0.62))(`fill="${MOUTHC}" ${o}`);
+    if (kind === 'hmm') return ln(`M${pt(x - w, y)}Q${pt(x - w / 2, y - 4)} ${pt(x, y)}Q${pt(x + w / 2, y + 4)} ${pt(x + w, y)}`, 3.4, EYE);
+    if (kind === 'wobble') return ln(`M${pt(x - w - 1, y + 1)}L${pt(x - w / 2, y - 2.5)}L${pt(x, y + 1)}L${pt(x + w / 2, y - 2.5)}L${pt(x + w + 1, y + 1)}`, 3.2, EYE);
+    if (kind === 'smirk') return ln(`M${pt(x - w + 1, y)}Q${pt(x + 2, y + 5)} ${pt(x + w + 2, y - 5)}`, 3.4, EYE);
+    return ln(`M${pt(x - w, y - 2)}Q${pt(x, y + w * 0.7)} ${pt(x + w, y - 2)}`, 3.4, EYE);
+  }
+  const cheeks = (M, f) => E(100 - f.cdx, f.cy, f.crx || 8.5, (f.crx || 8.5) * 0.58)(fl(PINK, M.blush || 0.55)) + E(100 + f.cdx, f.cy, f.crx || 8.5, (f.crx || 8.5) * 0.58)(fl(PINK, M.blush || 0.55));
+
+  /* --- the characters --- */
+  const CH = {};
+  CH.chuppy = {
+    name: 'Chuppy', kind: 'robot', arms: 'bot', eyesY: 78, shoulder: [159, 120], head: '24 6 152 152',
+    arm: { w: 15, col: BOT[0], osw: 3.2, hand: BOT, hr: 9.5, hsw: MDW + 0.6 },
+    draw(M) {
+      const look = M.look || [0, 0];
+      const white = (shape, box, opt) => f3(shape, box, BOT, Object.assign({ sw: MSW }, opt || {}));
+      let b = '';
+      // feet: chubby teal booties peeking out under the body
+      b += f3(E(78, 183, 17, 9), [61, 174, 34, 18], TEAL, { sw: MDW + 0.6, hl: false, k: 0.18 }) + f3(E(122, 183, 17, 9), [105, 174, 34, 18], TEAL, { sw: MDW + 0.6, hl: false, k: 0.18 });
+      // headphone pods behind the body
+      b += f3(R(16, 66, 24, 40, 11), [16, 66, 24, 40], TEAL, { sw: MDW + 0.6, k: 0.12, hx: 0.4, hy: 0.25 }) + f3(R(160, 66, 24, 40, 11), [160, 66, 24, 40], TEAL, { sw: MDW + 0.6, k: 0.12, hx: 0.5, hy: 0.25 });
+      // antenna (sways from its base) with a light bulb that glows
+      b += g(limb('M100 36V18', 4.4, TEAL[0], 2.6) + '<g opacity=".5">' + C(100, 12, 13)(fl('#FFE08A') + ' class="m-glow"') + '</g>' +
+        f3(C(100, 12, 7.5), [92.5, 4.5, 15, 15], PAL.yellow, { sw: MDW, k: 0.12, hx: 0.3, hy: 0.3 }) + dot(97.6, 9.4, 1.8, '#fff'), '', 'm-ant');
+      // the round body, a soft seam and the chest light
+      b += white(P(BOTP), [29, 33, 142, 152], {
+        k: 0.07, hx: 0.24, hy: 0.14, hs: 1.1,
+        top: ln('M34 126Q100 143 166 126', 2.2, OL, 0.22) +
+          f3(C(100, 148, 14), [86, 134, 28, 28], TEAL, { sw: MDW, k: 0.1, hx: 0.3, hy: 0.3 }) +
+          C(100, 148, 7)(fl('#FFE08A') + ' class="m-glow"') + dot(97.4, 145.4, 1.8, '#fff')
+      });
+      // the face screen with LED eyes, cheeks and mouth (eyes blink as one group)
+      const lx = 78 + look[0], rx = 122 + look[0], ey = 78 + look[1];
+      let eyes;
+      if (M.eyes === 'oops') eyes = mEye('open', lx, ey, -1) + mEye('squint', rx, ey, 1);
+      else eyes = mEye(M.eyes, lx, ey, -1) + mEye(M.eyes, rx, ey, 1);
+      let face = g(eyes, '', 'm-eyes');
+      const bl = M.blush || 0.5;
+      face += E(61, 99, 8.5, 4.8)(fl(PINK, bl)) + E(139, 99, 8.5, 4.8)(fl(PINK, bl));
+      if (M.mouth === 'open') face += P('M88 94Q100 96 112 94Q110 108 100 108Q90 108 88 94Z')(fl(LED)) + E(100, 104, 5, 2.2)(fl('#FF8FA3'));
+      else if (M.mouth === 'o') face += E(100, 100, 4.6, 5.8)(stk(3.8, LED));
+      else face += led(MOUTH[M.mouth], 4);
+      b += f3(R(48, 47, 104, 66, 31), [48, 47, 104, 66], SCREEN, {
+        sw: MDW + 0.6, k: 0.1, hl: false,
+        top: P('M66 54Q57 55 55 65')(stk(3.4, '#fff')).replace('/>', ' opacity=".3"/>') + face
+      });
+      return b;
+    }
+  };
+
+  // Kids: one builder, the identity lives in the colours, hair and clothes.
+  const KB = 'M100 104C131 104 148 126 148 150C148 168 135 177 100 177C65 177 52 168 52 150C52 126 69 104 100 104Z';
+  const KBOX = [52, 104, 96, 73];
+  const KF = { ey: 82, edx: 21, erx: 7.6, ery: 10, my: 101, mw: 8, cdx: 36, cy: 97 };
+  const HAIRK = ['#2B1D14', '#4A3426', '#170F0A'];
+  function kid(p) {
+    const sk = [p.skin, mix(p.skin, '#FFF3E0', 0.3), mix(p.skin, '#5A2A14', 0.25)];
+    const hij = p.hair === 'hijab', f = Object.assign({}, KF, hij ? { ey: 84, edx: 19, my: 103, cdx: 30, cy: 99, crx: 7.5 } : {});
+    return {
+      name: p.name, kind: 'anak', arms: 'kid', eyesY: f.ey, shoulder: [135, 130], head: hij ? '34 8 132 132' : '38 10 124 124',
+      ex: hij ? { dots: [8, -6], sweat: [-7, 2], pop: [10, -4] } : { dots: [2, -4] },
+      arm: { w: 12, col: p.skin, osw: 2.8, hand: sk, hr: 8.6, hsw: 2.8, sleeve: { col: p.top, w: 15, t: 0.5 } },
+      draw(M) {
+        let b = '';
+        // stubby legs and chunky shoes
+        b += limb('M86 166V181', 12, p.skin, 2.6) + limb('M114 166V181', 12, p.skin, 2.6);
+        b += f3(E(85, 184, 15, 7.5), [70, 176.5, 30, 15], [p.shoe], { sw: 2.8, k: 0.16, hx: 0.32, hy: 0.3 }) + f3(E(115, 184, 15, 7.5), [100, 176.5, 30, 15], [p.shoe], { sw: 2.8, k: 0.16, hx: 0.32, hy: 0.3 });
+        // ponytail behind the head
+        if (p.hair === 'pony') b += f3(P('M136 44C168 36 186 62 176 96C172 108 164 116 156 118C162 100 164 82 150 62Z'), [136, 38, 46, 80], HAIRK, { hl: false, k: 0.12, sw: 2.8 });
+        // the chubby body is the shirt; shorts or skirt below
+        let shirt = '';
+        if (p.bag) shirt += limb('M75 112Q68 132 70 158', 6, p.bag, 2.2) + limb('M125 112Q132 132 130 158', 6, p.bag, 2.2);
+        b += f3(P(KB), KBOX, [p.top], { k: 0.1, hx: 0.26, hy: 0.36, top: shirt });
+        if (p.bt === 'shorts') b += clipTo(f3(P(KB), KBOX, [p.bot], { k: 0.1, hl: false }), 40, 152, 120, 40) + ln('M53 152H147', 2.6) + ln('M100 162V176', 2.2, mix(p.bot, '#000', 0.35));
+        if (p.bt === 'skirt') b += f3(P('M62 148L138 148L151 171Q100 181 49 171Z'), [49, 148, 102, 30], [p.bot], { k: 0.12, hl: false, top: ln('M82 150L77 175M100 150V177M118 150L123 175', 1.6, mix(p.bot, '#000', 0.3), 0.7) });
+        if (p.collar) {
+          b += f3(P('M100 135L96 126L104 126Z'), [96, 126, 8, 9], ['#D8342C'], { k: 0, hl: false, sw: 2 }) + solid(P('M97 128L103 128L105 146L100 151L95 146Z'), '#D8342C', 2.2);
+          b += solid(P('M100 122L78 110L80 131Z'), '#FFFFFF', 2.4) + solid(P('M100 122L122 110L120 131Z'), '#FFFFFF', 2.4);
+        }
+        // head: hijab or ears + round face
+        if (hij) {
+          const H = ['#FDFBF6', '#FFFFFF', '#DCD2C4'];
+          b += f3(P('M100 16C138 16 162 42 162 76C162 96 158 108 166 126C150 142 50 142 34 126C42 108 38 96 38 76C38 42 62 16 100 16Z'), [34, 16, 132, 124], H, { hx: 0.26, hy: 0.14, k: 0.08, top: ln('M58 124Q100 138 142 124', 1.8, OL, 0.25) });
+          b += f3(E(100, 84, 40, 37), [60, 47, 80, 74], sk, { k: 0.07, sw: 2.8, hx: 0.28, hy: 0.3 });
+          b += ln('M66 66Q100 40 134 66', 2, OL, 0.2);
+        } else {
+          b += solid(C(51, 82, 9), p.skin, 2.8) + solid(C(149, 82, 9), p.skin, 2.8) + E(52, 82, 3.6, 4.6)(fl(sk[2], 0.7)) + E(148, 82, 3.6, 4.6)(fl(sk[2], 0.7));
+          b += f3(E(100, 72, 50, 46), [50, 26, 100, 92], sk, { k: 0.08, hx: 0.24, hy: 0.42 });
+        }
+        // hair in front
+        if (p.hair === 'short') b += f3(P('M49 80C41 44 64 19 100 19C136 19 159 44 151 80C147 64 140 55 130 50C122 58 110 59 102 52C94 59 80 59 72 52C62 57 54 66 49 80Z'), [41, 19, 118, 61], HAIRK, { hl: false, k: 0.08, sw: 3, top: E(78, 32, 13, 5, 'rotate(-18 78 32)')(fl('#5A4232')) });
+        if (p.hair === 'pony') {
+          b += f3(P('M49 82C41 44 64 19 100 19C136 19 159 44 151 82C148 64 138 50 120 45C108 54 84 57 66 50C58 58 52 68 49 82Z'), [41, 19, 118, 63], HAIRK, { hl: false, k: 0.08, sw: 3, top: E(78, 32, 13, 5, 'rotate(-18 78 32)')(fl('#5A4232')) });
+          b += f3(C(147, 46, 7), [140, 39, 14, 14], ['#F59AB0'], { k: 0.14, sw: 2.4, hx: 0.3, hy: 0.3 });
+        }
+        if (p.hair === 'spiky') b += f3(P('M49 80C44 58 50 42 62 33L58 15L76 25L84 7L97 21L110 5L118 23L135 12L137 32C151 42 157 60 151 80C147 64 139 55 128 50C118 58 104 58 96 51C86 58 70 59 49 80Z'), [44, 5, 113, 75], HAIRK, { hl: false, k: 0.08, sw: 3 });
+        // face
+        b += cheeks(M, f) + g(inkEyes(M, f), '', 'm-eyes') + ln(`M98 ${f.my - 9}q2 1.6 4 0`, 1.8, sk[2]) + inkMouth(MOUTHK[M.mouth], 100, f.my, f.mw);
+        return b;
+      }
+    };
+  }
+  const MOUTHK = { smile: 'smile', grin: 'grin', open: 'open', hmm: 'hmm', o: 'o', wobble: 'wobble', smirk: 'smirk' };
+  CH.budi = kid({ name: 'Budi', skin: '#D9A273', hair: 'short', top: '#FFFFFF', bot: '#D8342C', bt: 'shorts', collar: 1, shoe: '#2E2A30' });
+  CH.siti = kid({ name: 'Siti', skin: '#F0C9A0', hair: 'hijab', top: '#FFFFFF', bot: '#D8342C', bt: 'skirt', shoe: '#2E2A30' });
+  CH.ani = kid({ name: 'Ani', skin: '#E3AE82', hair: 'pony', top: '#FFC83D', bot: '#2F80C9', bt: 'skirt', shoe: '#E2453C' });
+  CH.raka = kid({ name: 'Raka', skin: '#EBC39C', hair: 'spiky', top: '#0F8C7A', bot: '#5C4A3E', bt: 'shorts', bag: '#E2453C', shoe: '#2F80C9' });
+
+  // Mimi, the ginger kampung cat (colours of the 'kucing' item)
+  const FUR = ['#F2A65A', '#F8C891', '#C97B33'], FURD = '#C97B33', MILK = ['#FFF4E4', '#FFFFFF', '#EAD6BC'];
+  CH.kucing = {
+    name: 'Mimi', kind: 'hewan', arms: 'kid', eyesY: 80, shoulder: [135, 130], head: '34 4 132 132',
+    arm: { w: 13, col: FUR[0], osw: 2.8, hand: MILK, hr: 8.8, hsw: 2.8 },
+    draw(M) {
+      const f = { ey: 80, edx: 22, erx: 7.6, ery: 10, cdx: 38, cy: 95 };
+      let b = '';
+      // tail behind the body: sways from its base
+      b += g(limb('M128 166C162 172 182 148 174 114', 14, FUR[0], 2.8) + ln('M175 124C175 120 175 117 174 114', 14, FURD) + ln('M162 164Q166 158 172 158M174 140Q170 136 176 132', 2, FURD, 0.8), '', 'm-tail');
+      // paws
+      b += f3(E(84, 184, 14, 8), [70, 176, 28, 16], MILK, { sw: 2.8, k: 0.16, hl: false }) + f3(E(116, 184, 14, 8), [102, 176, 28, 16], MILK, { sw: 2.8, k: 0.16, hl: false }) + ln('M80 182v4M88 182v4M112 182v4M120 182v4', 1.6, OL, 0.5);
+      // body with a cream belly
+      b += f3(P(KB), KBOX, FUR, { k: 0.1, hx: 0.26, hy: 0.36, inner: E(100, 152, 26, 22)(fl(MILK[0])) + ln('M60 132q6 3 12 2M140 132q-6 3 -12 2M56 148q6 2 11 1M144 148q-6 2 -11 1', 2.4, FURD, 0.7) });
+      // ears (pink inside), then the round head with forehead stripes and a cream muzzle
+      b += solid(P('M49 66L55 20Q57 11 65 16L96 38Z'), FUR[0], 2.8) + solid(P('M151 66L145 20Q143 11 135 16L104 38Z'), FUR[0], 2.8);
+      b += P('M59 48L62 26L82 39Z')(fl(PINK)) + P('M141 48L138 26L118 39Z')(fl(PINK));
+      b += f3(E(100, 78, 54, 44), [46, 34, 108, 88], FUR, { k: 0.08, hx: 0.24, hy: 0.4, inner: E(100, 101, 23, 15)(fl(MILK[0])) + ln('M90 36L92 50M100 34V50M110 36L108 50', 3.4, FURD) + ln('M47 82h8M47 90h6M153 82h-8M153 90h-6', 3, FURD, 0.7) });
+      // face: eyes, pink nose, cat mouth, whiskers
+      b += cheeks(M, f) + g(inkEyes(M, f), '', 'm-eyes');
+      b += solid(P('M94.5 92Q100 90 105.5 92L100 98Z'), '#D9708C', 1.8);
+      if (M.mouth === 'smile') b += ln('M100 98V101M90 100Q95 106 100 101Q105 106 110 100', 2.8, EYE);
+      else b += ln('M100 98V100', 2.6, EYE) + inkMouth(MOUTHK[M.mouth], 100, 104, 7);
+      b += ln('M76 99L50 95M76 104L51 108M124 99L150 95M124 104L149 108', 1.8, OL, 0.8);
+      return b;
+    }
+  };
+
+  // Kiko, the green frog (colours of the 'katak' item): head and body one round shape, eyes on top
+  const FROG = ['#6CC05E', '#A3DD8F', '#46953F'], FROGF = ['#5DB050', '#8FD07E', '#3F8A38'];
+  const FROGP = 'M100 74C99 54 86 43 68 43C50 43 40 56 42 72C30 86 24 108 24 132C24 164 40 180 62 183C82 186 118 186 138 183C160 180 176 164 176 132C176 108 170 86 158 72C160 56 150 43 132 43C114 43 101 54 100 74Z';
+  CH.katak = {
+    name: 'Kiko', kind: 'hewan', arms: 'frog', eyesY: 66, shoulder: [159, 120], head: '30 16 140 140',
+    arm: { w: 14, col: FROGF[0], osw: 3, hand: FROGF, hr: 9, hsw: 3 },
+    ex: { sweat: [-8, 14], pop: [10, 6], dots: [4, 6] },
+    draw(M) {
+      const lk = M.look || [0, 0];
+      let b = '';
+      // webbed feet
+      const foot = x => f3(P(`M${x - 22} 186Q${x - 24} 176 ${x - 12} 175Q${x} 172 ${x + 12} 175Q${x + 24} 176 ${x + 22} 186Q${x + 14} 190 ${x + 7} 186Q${x} 191 ${x - 7} 186Q${x - 14} 190 ${x - 22} 186Z`), [x - 24, 172, 48, 18], FROGF, { sw: 2.8, k: 0.14, hl: false });
+      b += foot(62) + foot(138);
+      // one round body with the eye bumps, light belly and a few spots
+      b += f3(P(FROGP), [24, 43, 152, 143], FROG, {
+        k: 0.07, hx: 0.22, hy: 0.3, hs: 1.1,
+        inner: E(100, 154, 50, 28)(fl('#E3EEB0')) + dot(40, 128, 4, FROG[2]) + dot(160, 124, 3.4, FROG[2]) + dot(46, 146, 2.6, FROG[2]) + dot(154, 142, 3, FROG[2])
+      });
+      // eyes: white balls in the bumps; closed moods show a green lid with an ink line
+      const closed = M.eyes === 'happy' || M.eyes === 'cheer';
+      let eyes = '';
+      [-1, 1].forEach(sd => {
+        const x = 100 + sd * 32, k = M.eyes === 'oops' ? (sd < 0 ? 'open' : 'squint') : M.eyes, shut = closed || k === 'squint';
+        eyes += C(x, 66, 16.5)(`fill="${shut ? FROG[1] : '#fff'}" stroke="${OL}" stroke-width="2.6"`);
+        eyes += k === 'round' ? eye(x + lk[0], 66 + lk[1], 6.5, 6.5) : inkEye(k, x + lk[0] - sd * 1.5, 67 + lk[1], 7.4, 9.4, sd);
+      });
+      b += g(eyes, '', 'm-eyes');
+      // wide smile, cheeks and nostrils
+      b += cheeks(M, { cdx: 52, cy: 110, crx: 9 }) + dot(94, 94, 1.7, OL, 0.7) + dot(106, 94, 1.7, OL, 0.7);
+      if (M.mouth === 'smile') b += ln('M68 104Q100 126 132 104', 3.8, EYE);
+      else b += inkMouth(MOUTHK[M.mouth], 100, 108, M.mouth === 'o' ? 12 : 17);
+      return b;
+    }
+  };
+
+  const CHAR_IDS = ['chuppy', 'budi', 'siti', 'ani', 'raka', 'kucing', 'katak'];
+  art.CHARS = CHAR_IDS.map(id => ({ id, name: CH[id].name, kind: CH[id].kind }));
+  art.mascotName = id => (CH[id] || CH.chuppy).name;
+  const escA = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function pickChar(c) {
+    if (!c) { try { c = typeof GS.mascotChar === 'function' && GS.mascotChar(); } catch (e) { c = null; } }
+    return CH[c] ? c : 'chuppy';
+  }
+  /** GS.art.mascot({ mood, size, char, name }): the chosen companion (default: GS.mascotChar(), else Chuppy). */
   art.mascot = function (o) {
     o = o || {};
+    const id = pickChar(o.char), D = CH[id];
     const mood = MOODS.indexOf(o.mood) >= 0 ? o.mood : 'idle', size = o.size || 120, M = MCFG[mood];
-    const A = ARMS[M.arms], look = M.look || [0, 0];
-    const white = (shape, box, opt) => f3(shape, box, BOT, Object.assign({ sw: MSW }, opt || {}));
+    const A = ARMSETS[D.arms][M.arms], a = D.arm, ex = D.ex || {};
     let s = `<ellipse cx="100" cy="192" rx="46" ry="6" fill="${OL}" opacity=".18"/>`;
-    let b = '';
-    // feet: chubby teal booties peeking out under the body
-    b += f3(E(78, 183, 17, 9), [61, 174, 34, 18], TEAL, { sw: MDW + 0.6, hl: false, k: 0.18 }) + f3(E(122, 183, 17, 9), [105, 174, 34, 18], TEAL, { sw: MDW + 0.6, hl: false, k: 0.18 });
-    // headphone pods behind the body
-    b += f3(R(16, 66, 24, 40, 11), [16, 66, 24, 40], TEAL, { sw: MDW + 0.6, k: 0.12, hx: 0.4, hy: 0.25 }) + f3(R(160, 66, 24, 40, 11), [160, 66, 24, 40], TEAL, { sw: MDW + 0.6, k: 0.12, hx: 0.5, hy: 0.25 });
-    // antenna (sways from its base) with a light bulb that glows
-    b += g(limb('M100 36V18', 4.4, TEAL[0], 2.6) + '<g opacity=".5">' + C(100, 12, 13)(fl('#FFE08A') + ' class="m-glow"') + '</g>' +
-      f3(C(100, 12, 7.5), [92.5, 4.5, 15, 15], PAL.yellow, { sw: MDW, k: 0.12, hx: 0.3, hy: 0.3 }) + dot(97.6, 9.4, 1.8, '#fff'), '', 'm-ant');
-    // the round body, a soft seam and the chest light
-    b += white(P(BOTP), [29, 33, 142, 152], {
-      k: 0.07, hx: 0.24, hy: 0.14, hs: 1.1,
-      top: ln('M34 126Q100 143 166 126', 2.2, OL, 0.22) +
-        f3(C(100, 148, 14), [86, 134, 28, 28], TEAL, { sw: MDW, k: 0.1, hx: 0.3, hy: 0.3 }) +
-        C(100, 148, 7)(fl('#FFE08A') + ' class="m-glow"') + dot(97.4, 145.4, 1.8, '#fff')
-    });
-    // the face screen with LED eyes, cheeks and mouth (eyes blink as one group)
-    const lx = 78 + look[0], rx = 122 + look[0], ey = 78 + look[1];
-    let eyes;
-    if (M.eyes === 'oops') eyes = mEye('open', lx, ey, -1) + mEye('squint', rx, ey, 1);
-    else eyes = mEye(M.eyes, lx, ey, -1) + mEye(M.eyes, rx, ey, 1);
-    let face = g(eyes, '', 'm-eyes');
-    const bl = M.blush || 0.5;
-    face += E(61, 99, 8.5, 4.8)(fl(PINK, bl)) + E(139, 99, 8.5, 4.8)(fl(PINK, bl));
-    if (M.mouth === 'open') face += P('M88 94Q100 96 112 94Q110 108 100 108Q90 108 88 94Z')(fl(LED)) + E(100, 104, 5, 2.2)(fl('#FF8FA3'));
-    else if (M.mouth === 'o') face += E(100, 100, 4.6, 5.8)(stk(3.8, LED));
-    else face += led(MOUTH[M.mouth], 4);
-    b += f3(R(48, 47, 104, 66, 31), [48, 47, 104, 66], SCREEN, {
-      sw: MDW + 0.6, k: 0.1, hl: false,
-      top: P('M66 54Q57 55 55 65')(stk(3.4, '#fff')).replace('/>', ' opacity=".3"/>') + face
-    });
+    let b = D.draw(M);
     // arms + round mitten hands (the right arm is its own group so it can wave)
-    const hand = (x, y) => white(C(x, y, 9.5), [x - 9.5, y - 9.5, 19, 19], { sw: MDW + 0.6, k: 0.12, hx: 0.3, hy: 0.3 });
-    b += limb(A[0], 15, BOT[0], 3.2) + hand(A[1][0], A[1][1]);
-    b += g(limb(A[2], 15, BOT[0], 3.2) + hand(A[3][0], A[3][1]), '', 'm-arm-r');
-    // mood extras
-    if (M.extra === 'dots') b += [[160, 50, 3.2], [171, 38, 4.6], [184, 23, 6.6]].map(c => C(c[0], c[1], c[2])(`fill="#fff" stroke="${OL}" stroke-width="${MDW}"`)).join('');
-    if (M.extra === 'sweat') b += P('M40 42Q47 52 46 57Q45 63.5 39.5 63.5Q34 63 34 57.5Q34.5 51 40 42Z')(`fill="#3FA7C4" stroke="${OL}" stroke-width="${MDW}" stroke-linejoin="round"`) + E(38, 57, 1.6, 2.8)(fl('#fff', 0.9));
+    const hand = (x, y) => f3(C(x, y, a.hr), [x - a.hr, y - a.hr, 2 * a.hr, 2 * a.hr], a.hand, { sw: a.hsw, k: 0.12, hx: 0.3, hy: 0.3 });
+    const arm = q => limb(qp(q), a.w, a.col, a.osw) + (a.sleeve ? limb(qp(qhead(q, a.sleeve.t)), a.sleeve.w, a.sleeve.col, a.osw) : '') + hand(q[6], q[7]);
+    b += arm(A[0]);
+    b += g(arm(A[1]), '', 'm-arm-r');
+    // mood extras (a character may shift them clear of its head)
+    const at = (k, m) => ex[k] ? g(m, `translate(${ex[k][0]} ${ex[k][1]})`) : m;
+    if (M.extra === 'dots') b += at('dots', [[160, 50, 3.2], [171, 38, 4.6], [184, 23, 6.6]].map(c => C(c[0], c[1], c[2])(`fill="#fff" stroke="${OL}" stroke-width="${MDW}"`)).join(''));
+    if (M.extra === 'sweat') b += at('sweat', P('M40 42Q47 52 46 57Q45 63.5 39.5 63.5Q34 63 34 57.5Q34.5 51 40 42Z')(`fill="#3FA7C4" stroke="${OL}" stroke-width="${MDW}" stroke-linejoin="round"`) + E(38, 57, 1.6, 2.8)(fl('#fff', 0.9)));
     if (M.extra === 'sparkle') b += star4(14, 50, 8) + star4(186, 50, 8) + star4(36, 26, 5, '#F8B26A') + star4(164, 26, 5, '#F8B26A');
-    if (M.extra === 'pop') b += ln('M160 36L167 27M168 48L179 44M150 30L152 19', 3.2);
+    if (M.extra === 'pop') b += at('pop', ln('M160 36L167 27M168 48L179 44M150 30L152 19', 3.2));
     s += g(b, '', 'm-body');
-    return `<svg class="gs-mascot gs-mood-${mood}" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="Chuppy">${s}</svg>`;
+    return `<svg class="gs-mascot gs-mood-${mood} gs-char-${id}" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="${escA(o.name || D.name)}">${s}</svg>`;
   };
+  /** Square crop around the face of a mascot, for round avatar circles. */
+  art.mascotHead = function (c, size, mood) {
+    const id = pickChar(c);
+    return art.mascot({ char: id, mood: mood || 'happy', size: size || 64 })
+      .replace('viewBox="0 0 200 200"', `viewBox="${CH[id].head}"`).replace(/ role="img" aria-label="[^"]*"/, ' aria-hidden="true"');
+  };
+  // per-character motion origins: blink at eye height, wave from the right shoulder
+  const MCSS = CHAR_IDS.filter(id => id !== 'chuppy').map(id => `.gs-char-${id} .m-eyes{transform-origin:100px ${CH[id].eyesY}px}.gs-char-${id}.gs-mood-happy .m-arm-r{transform-origin:${CH[id].shoulder[0]}px ${CH[id].shoulder[1]}px}`);
 
   /* ========================== backgrounds ========================== */
   const SKY_MIX = '#CBEBEF';
@@ -1111,6 +1331,10 @@
     '.gs-mascot.gs-mood-happy .m-arm-r{transform-box:view-box;transform-origin:159px 120px;animation:gsWave 1.6s cubic-bezier(.37,0,.63,1) infinite alternate}',
     '.gs-mascot.gs-mood-cheer .m-body{animation:gsHop .9s cubic-bezier(.37,0,.63,1) infinite}',
     '.gs-mascot.walk{transform-origin:50% 96%;animation:gsWaddle .32s ease-in-out infinite alternate}',
+    // the cat's tail sways slowly from its base
+    '.gs-mascot .m-tail{transform-box:view-box;transform-origin:130px 166px;animation:gsTail 2.6s cubic-bezier(.37,0,.63,1) infinite alternate}',
+    '@keyframes gsTail{from{transform:rotate(-5deg)}to{transform:rotate(7deg)}}',
+    ...MCSS,
     '@keyframes gsPuff{0%,100%{transform:scale(1,1)}50%{transform:scale(1.025,.975)}}',
     '@keyframes gsHop{0%,100%{transform:translateY(0) scale(1.03,.97)}45%{transform:translateY(-9px) scale(.98,1.03)}}',
     '@keyframes gsAnt{from{transform:rotate(-7deg)}to{transform:rotate(7deg)}}',

@@ -63,6 +63,17 @@ Terinspirasi sifat robot gendut yang lembut (gerak pelan, empuk, seperti balon),
 Gerak (`shared/art.js` CSS): napas "mengembang" (squash 1.025 × 0.975 dari kaki, 3.2 detik), kedip, antena bergoyang ±7°, lampu berpendar, melambai pelan saat `happy`, melompat empuk saat `cheer`, berjalan megal-megol (kelas `walk` pada svg, dipakai di peta).
 Ekspresi: idle, happy, cheer, think, surprise, oops, point.
 
+### Karakter pilihan anak (sejak 2026-10-14)
+
+Anak memilih satu dari 7 karakter; karakter itu jadi foto profil sekaligus maskot yang menemani di semua game. Semua memakai rig yang sama dengan Chuppy (badan bulat empuk, tangan bulat seperti sarung tangan, 7 ekspresi yang sama, gerak yang sama), tapi kepala dan bajunya sendiri:
+- **Budi**: anak laki-laki, kemeja putih, dasi dan celana merah (seragam SD).
+- **Siti**: anak perempuan berhijab putih, rok merah.
+- **Ani**: anak perempuan berkuncir dengan pita merah muda, kaos kuning, rok biru.
+- **Raka**: anak laki-laki rambut jabrik, kaos teal, tali tas merah, celana cokelat.
+- **Mimi**: kucing kampung oranye belang, telinga dalam merah muda, kumis, ekor bergoyang.
+- **Kiko**: katak hijau, mata di atas kepala, perut terang, senyum lebar.
+Wajah selain Chuppy digambar dengan tinta (mata gelap dengan 2 titik cahaya), bukan LED. Nama karakter jadi nama panggilan bawaan kalau anak tidak mengisi nama. Lembar sprite PNG untuk desain atau iklan ada di `docs/sprites/` (permainan sendiri tetap memakai SVG supaya tajam dan ringan).
+
 ## 3. Gerak (motion)
 
 - Easing masuk `cubic-bezier(0.33,1,0.68,1)`, pop/overshoot `cubic-bezier(0.34,1.56,0.64,1)`, loop idle `cubic-bezier(0.37,0,0.63,1)`.

@@ -1,5 +1,6 @@
 /* Mat Sains: shared runtime for every mini-game.
- * Exposes window.GS with storage, sound, voice, tweening, SVG helpers,
+ * Exposes window.GS with storage, sound (channels sfx/music/voice under a master mute,
+ * synthesized backsound), voice, play log (GS.activity), tweening, SVG helpers,
  * drag handling, confetti, the in-game HUD, the start gate (fullscreen + audio unlock)
  * and the level-complete overlay.
  * No dependencies; works offline from file:// and on touch tablets. */
@@ -44,8 +45,39 @@
   GS.reducedMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   /* ---------------- sound: synthesized, no audio files ---------------- */
+  // Automated tests (Playwright) never hear music; the API keeps working there.
+  const AUTOTEST = /[?&]autotest\b/.test(location.search) || !!navigator.webdriver;
   GS.muted = GS.store.get('muted', false);
-  let actx = null;
+  /* Three sound channels under the master switch GS.muted (the HUD / [data-gs-sound] button):
+   *   sfx    synthesized effects (GS.sfx.*, GS.tone, GS.noise)
+   *   music  the backsound loop (GS.music)
+   *   voice  the narrator's audio (recorded clips or TTS); the caption bubble always shows.
+   * Each plays only when !GS.muted && its channel is on. Stored as snd.<ch> (default on).
+   * GS.audio.set fires 'gs:audio' on window with { ch, on }; GS.setMuted fires it with ch 'master'. */
+  const CHANNELS = ['sfx', 'music', 'voice'];
+  const chan = {};
+  const loadChannels = () => CHANNELS.forEach(c => { chan[c] = GS.store.get('snd.' + c, true) !== false; });
+  loadChannels();
+  // Another tab (e.g. the hub's settings) changed a switch: follow it.
+  window.addEventListener('storage', () => { loadChannels(); GS.muted = GS.store.get('muted', false); if (GS.music) GS.music._sync(); });
+  const chOn = c => !GS.muted && chan[c] !== false;
+  GS.audio = {
+    CHANNELS,
+    /** Is this channel's own switch on (ignores the master switch)? */
+    get(ch) { return chan[ch] !== false; },
+    /** Will this channel actually be heard (master switch on and channel on)? */
+    effective(ch) { return chOn(ch); },
+    set(ch, on) {
+      if (CHANNELS.indexOf(ch) < 0) return;
+      on = !!on;
+      chan[ch] = on;
+      GS.store.set('snd.' + ch, on);
+      if (ch === 'voice' && !on && GS.stopSpeech) GS.stopSpeech();
+      if (ch === 'music' && GS.music) { if (on) GS.music.start(); else GS.music._sync(); }
+      window.dispatchEvent(new CustomEvent('gs:audio', { detail: { ch, on } }));
+    }
+  };
+  let actx = null, gestured = false;
   function ac() {
     if (!actx) {
       const C = window.AudioContext || window.webkitAudioContext;
@@ -58,15 +90,18 @@
   // Browsers only allow audio after a user gesture. Touch pointerdown is not a "gesture" for
   // every browser, so try on each of these until the context is running.
   const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
-  function unlockAudio() {
+  function unlockAudio(e) {
+    if (e && e.isTrusted === false) return; // synthetic (worked-example) events are no gesture
     const a = ac();
+    if (!gestured) { gestured = true; if (GS.music) GS.music._autoStart(); }
     if (!a || a.state === 'running') GESTURES.forEach(t => window.removeEventListener(t, unlockAudio, true));
   }
   GESTURES.forEach(t => window.addEventListener(t, unlockAudio, true));
   GS.unlockAudio = function () { ac(); };
 
   function tone(o) {
-    const a = ac(); if (!a || GS.muted) return;
+    if (!chOn('sfx')) return;
+    const a = ac(); if (!a) return;
     const f = o.f || 440, dur = o.t || 0.15, vol = o.vol == null ? 0.2 : o.vol;
     const t0 = a.currentTime + (o.delay || 0);
     const osc = a.createOscillator(), g = a.createGain();
@@ -80,7 +115,8 @@
     osc.start(t0); osc.stop(t0 + dur + 0.05);
   }
   function noise(o) {
-    const a = ac(); if (!a || GS.muted) return;
+    if (!chOn('sfx')) return;
+    const a = ac(); if (!a) return;
     const dur = o.t || 0.2, t0 = a.currentTime + (o.delay || 0);
     const buf = a.createBuffer(1, Math.ceil(a.sampleRate * dur), a.sampleRate);
     const ch = buf.getChannelData(0);
@@ -117,6 +153,136 @@
     count(n) { tone({ f: 440 * Math.pow(2, Math.min(n, 24) / 12), t: 0.12, type: 'triangle', vol: 0.15 }); }
   };
 
+  /* ---------------- backsound: a gentle synthesized loop ----------------
+   * C major pentatonic, 88 BPM, 8 eighth-note steps per bar, 16 bars (A A' B A, about 44 s).
+   * Kalimba-like plucks (sine + a quiet, fast-fading 3rd partial) over a soft triangle bass
+   * (root on beat 1, fifth on beat 3) and a sine pad dyad that completes each chord.
+   * Every second pass plays another B phrase. No drums; the highest note is A5 (880 Hz).
+   * Bus: notes -> low-pass 2 kHz -> duck gain (narrator) -> master (MUSIC_GAIN) -> out.
+ * Measured output peak about 0.037 (offline render of two passes); sfx peak at 0.15-0.4.
+   * A lookahead scheduler (every 100 ms, 0.3 s ahead) creates short-lived oscillators. */
+  const MUSIC_GAIN = 0.045, MUSIC_CAP = 0.05, NOTE_CAP = 0.6, DUCK = 0.25;
+  const BPM = 88, STEP = 60 / BPM / 2, STEPS = 8, BARS = 16;
+  const MUSIC_FORCED = /[?&]music=1\b/.test(location.search);
+  const midiF = m => 440 * Math.pow(2, (m - 69) / 12);
+  const PENTA = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81]; // C4 D4 E4 G4 A4 C5 D5 E5 G5 A5
+  const CH = { // bass root (midi) + pad dyad: together a full triad
+    C: [48, 64, 67], Am: [45, 60, 64], F: [53, 57, 60], G: [43, 59, 62], Dm: [50, 53, 57], Em: [52, 55, 59]
+  };
+  const PROG = ['C', 'Am', 'F', 'G', 'C', 'Am', 'Dm', 'G', 'F', 'Em', 'Dm', 'G', 'C', 'Am', 'F', 'G'];
+  const _ = null;
+  const PHRASE_A = [[7, _, _, 8, 7, _, 5, _], [5, _, 4, _, 2, _, _, _], [4, _, _, 5, 6, _, 5, _], [6, _, 3, _, _, _, _, _]];
+  const PHRASE_A2 = [[7, _, _, 8, 9, _, 8, _], [7, _, 5, _, 4, _, _, _], [6, _, _, 5, 4, _, 6, _], [6, _, 5, _, 3, _, _, _]];
+  const PHRASE_B = [[_, _, 4, _, 5, _, _, 4], [3, _, _, 2, _, _, _, _], [_, _, 4, _, 6, _, _, 5], [6, _, _, _, 3, _, _, _]];
+  const PHRASE_B2 = [[5, _, _, 4, _, _, 3, _], [2, _, 3, _, _, _, _, _], [4, _, _, 5, 6, _, _, _], [3, _, _, _, 6, _, _, _]];
+  const PHRASE_END = [PHRASE_A[0], PHRASE_A[1], PHRASE_A[2], [6, _, _, _, _, _, _, _]];
+  const melody = pass => [].concat(PHRASE_A, PHRASE_A2, pass % 2 ? PHRASE_B2 : PHRASE_B, PHRASE_END);
+  let mBus = null, mDuck = null, mMaster = null, mTimer = 0, mNext = 0, mStep = 0, mPass = 0, mWanted = false;
+  const mStats = { notes: 0, maxFreq: 0, maxNote: 0, maxMaster: 0 };
+  function musicBus(a) {
+    if (mBus && mBus.context === a) return;
+    mBus = a.createBiquadFilter(); mBus.type = 'lowpass'; mBus.frequency.value = 2000; mBus.Q.value = 0.5;
+    mDuck = a.createGain(); mDuck.gain.value = 1;
+    mMaster = a.createGain(); mMaster.gain.value = 0.0001;
+    mBus.connect(mDuck).connect(mMaster).connect(a.destination);
+  }
+  function mNote(a, t, f, type, peak, attack, dur, hold, partial) {
+    peak = Math.min(peak, NOTE_CAP);
+    mStats.notes++; mStats.maxNote = Math.max(mStats.maxNote, peak);
+    if (!partial) mStats.maxFreq = Math.max(mStats.maxFreq, f); // fundamentals only
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.0001, t);
+    if (hold) { // pad: slow swell, hold, slow release
+      g.gain.linearRampToValueAtTime(peak, t + attack);
+      g.gain.setValueAtTime(peak, t + hold);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    } else {
+      g.gain.exponentialRampToValueAtTime(peak, t + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    }
+    o.connect(g).connect(mBus);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function mPluck(a, t, f, v) {
+    mNote(a, t, f, 'sine', 0.5 * v, 0.008, 0.55 + 0.25 * v);
+    mNote(a, t, f * 3, 'sine', 0.06 * v, 0.004, 0.1, 0, true);
+  }
+  function mStepAt(a, t) {
+    const bar = Math.floor(mStep / STEPS), pos = mStep % STEPS, c = CH[PROG[bar]];
+    if (pos === 0) {
+      mNote(a, t, midiF(c[0]), 'triangle', 0.36, 0.02, 1.6);
+      const len = STEP * STEPS;
+      mNote(a, t, midiF(c[1]), 'sine', 0.08, 0.8, len + 0.5, len - 0.4);
+      mNote(a, t, midiF(c[2]), 'sine', 0.08, 0.8, len + 0.5, len - 0.4);
+    } else if (pos === 4) mNote(a, t, midiF(c[0] + 7), 'triangle', 0.22, 0.02, 1.0);
+    const n = melody(mPass)[bar][pos];
+    if (n != null) mPluck(a, t + (Math.random() - 0.5) * 0.012, midiF(PENTA[n]), (pos === 0 ? 1 : 0.82) * (0.88 + Math.random() * 0.12));
+    if (++mStep >= STEPS * BARS) { mStep = 0; mPass++; }
+  }
+  function mSchedule() {
+    const a = actx;
+    if (!a || !mBus) return;
+    if (mNext < a.currentTime - 0.2) mNext = a.currentTime + 0.05; // throttled timer: skip ahead, no burst
+    while (mNext < a.currentTime + 0.3) { mStepAt(a, mNext); mNext += STEP; }
+  }
+  function mRamp(to, sec) {
+    const a = actx, g = mMaster.gain, t = a.currentTime;
+    mStats.maxMaster = Math.max(mStats.maxMaster, to);
+    g.cancelScheduledValues(t); g.setValueAtTime(Math.max(0.0001, g.value), t);
+    g.exponentialRampToValueAtTime(Math.max(0.0001, Math.min(to, MUSIC_CAP)), t + sec);
+  }
+  const musicAllowed = () => mWanted && gestured && chOn('music') && !document.hidden && (!AUTOTEST || MUSIC_FORCED) && GS._gateOpen !== false;
+  function musicRun() {
+    if (mTimer) return;
+    const a = ac(); if (!a) return;
+    musicBus(a);
+    mNext = a.currentTime + 0.12;
+    mRamp(MUSIC_GAIN, 1.5);
+    mSchedule();
+    mTimer = setInterval(mSchedule, 100);
+  }
+  function musicPause() {
+    if (!mTimer) return;
+    clearInterval(mTimer); mTimer = 0;
+    if (actx && mMaster) mRamp(0.0001, 0.35);
+  }
+  let duckOffT = 0, duckSafeT = 0;
+  GS.music = {
+    /** Ask for music. It plays once a gesture happened, the start gate is gone, the page is
+     *  visible and the master + music switches are on; otherwise it waits for that. */
+    start() { mWanted = true; GS.music._sync(); return !!mTimer; },
+    stop() { mWanted = false; musicPause(); },
+    playing: () => !!mTimer,
+    /** Narrator hook: duck(true) while a line is audible, duck(false) after. maxMs ends a
+     *  duck whose end event never comes (some TTS engines drop onend). */
+    duck(on, maxMs) {
+      clearTimeout(duckOffT);
+      const apply = (to, sec) => {
+        if (!mDuck || !actx) return;
+        const g = mDuck.gain, t = actx.currentTime;
+        g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(to, t + sec);
+      };
+      if (on) {
+        GS.music.ducked = true; apply(DUCK, 0.2);
+        clearTimeout(duckSafeT); duckSafeT = setTimeout(() => GS.music.duck(false), maxMs || 15000);
+      } else {
+        // Short grace so sentence-by-sentence clips do not pump the music between sentences.
+        duckOffT = setTimeout(() => { clearTimeout(duckSafeT); GS.music.ducked = false; apply(1, 0.6); }, 300);
+      }
+    },
+    ducked: false,
+    _sync() { if (musicAllowed()) musicRun(); else musicPause(); },
+    // First trusted gesture on any page: on game pages wait for the "Main!" gate.
+    // pages for grown-ups (landing.html) opt out with <body data-no-music>
+    _autoStart() { if (document.body && document.body.hasAttribute('data-no-music')) return; GS.afterGate ? GS.afterGate(() => GS.music.start()) : GS.music.start(); },
+    _stats: mStats,
+    _level: () => ({ master: mMaster ? mMaster.gain.value : 0, duck: mDuck ? mDuck.gain.value : 1 })
+  };
+  document.addEventListener('visibilitychange', () => GS.music._sync());
+  window.addEventListener('pagehide', () => musicPause());
+  window.addEventListener('pageshow', () => GS.music._sync());
+
   /* ---------------- voice (Bahasa Indonesia) ---------------- */
   let idVoice = null;
   function pickVoice() {
@@ -137,8 +303,14 @@
       .replace(/\s{2,}/g, ' ').trim();
   };
   GS.lastSay = '';
-  /** Audio output for GS.say. Overridable: shared/voice.js swaps in recorded clips + better TTS. */
-  GS.speakImpl = function (text, opts) {
+  /** Rough time a line takes to say, for the music duck's safety timeout. */
+  GS.speechMs = text => 2500 + String(text).length * 110;
+  /* Audio output for GS.say. Overridable: shared/voice.js swaps in recorded clips + better TTS.
+   * Whatever is assigned to GS.speakImpl is wrapped here, so the narrator switch (master +
+   * voice channel) is checked in ONE place for every path: core TTS, voice.js clips/TTS,
+   * the line queued until the first tap, and direct calls. Implementations should call
+   * GS.music.duck(true, ms) when audio actually starts and GS.music.duck(false) when it ends. */
+  let rawSpeak = function (text, opts) {
     if (!('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
@@ -147,22 +319,30 @@
       if (idVoice) u.voice = idVoice;
       u.rate = (opts && opts.rate) || 0.92;
       u.pitch = 1.15;
+      u.onstart = () => GS.music.duck(true, GS.speechMs(text));
+      u.onend = u.onerror = () => GS.music.duck(false);
       speechSynthesis.speak(u);
     } catch (e) { /* speech unavailable */ }
   };
+  const gatedSpeak = function (text, opts) { if (chOn('voice')) return rawSpeak.call(GS, text, opts); };
+  Object.defineProperty(GS, 'speakImpl', {
+    configurable: true, enumerable: true,
+    get: () => gatedSpeak,
+    set: fn => { if (typeof fn === 'function' && fn !== gatedSpeak) rawSpeak = fn; }
+  });
   /** Stop any speech in progress. Overridable together with GS.speakImpl. */
   GS.stopSpeech = function () {
     try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+    GS.music.duck(false);
   };
   // Mobile browsers drop speech that starts before the first user gesture. Until then the
   // latest line is queued (its caption still shows) and spoken on the first tap.
-  const AUTOTEST = /[?&]autotest\b/.test(location.search) || !!navigator.webdriver;
   let speechReady = AUTOTEST, pendingSay = null;
   GS.speechReady = () => speechReady;
   function flushSay() {
     speechReady = true;
     const p = pendingSay; pendingSay = null;
-    if (p && !GS.muted && GS.lastSay === p[0]) GS.speakImpl(p[0], p[1]);
+    if (p && GS.lastSay === p[0]) GS.speakImpl(p[0], p[1]);
   }
   function onFirstGesture() {
     if (GS._gateOpen === false) return; // the start gate's own button flushes the queue
@@ -174,13 +354,17 @@
   GS.say = function (text, opts) {
     GS.lastSay = text;
     if (GS._bubble) GS._bubble(text);
-    if (GS.muted) return;
+    if (!chOn('voice')) return;
     if (!speechReady) { pendingSay = [text, opts]; return; }
     GS.speakImpl(text, opts);
   };
   GS.setMuted = function (m) {
+    m = !!m;
+    const changed = m !== GS.muted;
     GS.muted = m; GS.store.set('muted', m);
     if (m) GS.stopSpeech();
+    GS.music._sync();
+    if (changed) window.dispatchEvent(new CustomEvent('gs:audio', { detail: { ch: 'master', on: !m } }));
     document.querySelectorAll('[data-gs-sound]').forEach(b => {
       b.setAttribute('aria-pressed', String(!m));
       b.innerHTML = m ? ICON.soundOff : ICON.soundOn;
@@ -866,6 +1050,51 @@
   demo.skip = () => { if (demoRun) demoRun.aborted = true; };
   demo._solved = () => { if (demoRun) demoRun.solved = true; };
 
+  /* ---------------- play log (parent dashboard, future leaderboard) ----------------
+   * Every real level win (never a worked example) appends to the raw store key 'log'
+   * (not tier-suffixed): { d: 'YYYY-MM-DD' local date, ts, g: game id, t: tier id, l: level
+   * index (0-based), s: stars 1-3 }, oldest first, capped at LOG_MAX entries. */
+  const LOG_KEY = 'log', LOG_MAX = 600;
+  const pad2 = n => (n < 10 ? '0' : '') + n;
+  const ymd = dt => dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate());
+  const asDate = now => (now == null ? new Date() : now instanceof Date ? now : new Date(now));
+  /** Monday 00:00 local time of the week that contains `now`. */
+  const weekStart = now => { const d = asDate(now); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7); };
+  function weekBest(now) {
+    const end = asDate(now).getTime(), start = weekStart(now).getTime(), best = {};
+    GS.activity.log().forEach(e => {
+      if (!e || !(e.ts >= start && e.ts <= end)) return;
+      const k = e.g + '|' + e.t + '|' + e.l;
+      best[k] = Math.max(best[k] || 0, e.s || 0);
+    });
+    return best;
+  }
+  GS.activity = {
+    /** All logged wins, oldest first. */
+    log() { const l = GS.store.get(LOG_KEY, []); return Array.isArray(l) ? l : []; },
+    add(gameId, level, stars) {
+      const now = new Date();
+      const l = GS.activity.log().concat({ d: ymd(now), ts: now.getTime(), g: gameId, t: GS.tier ? GS.tier() : '', l: level, s: Math.max(1, Math.min(3, stars || 1)) });
+      GS.store.set(LOG_KEY, l.slice(-LOG_MAX));
+    },
+    /** The last n local days ending today (or ending at `now`), oldest first: { date, levels, stars }. */
+    days(n, now) {
+      const d = asDate(now), by = {};
+      GS.activity.log().forEach(e => { if (!e) return; const b = by[e.d] || (by[e.d] = { levels: 0, stars: 0 }); b.levels++; b.stars += e.s || 0; });
+      const out = [];
+      for (let i = (n || 7) - 1; i >= 0; i--) {
+        const date = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - i));
+        out.push({ date, levels: by[date] ? by[date].levels : 0, stars: by[date] ? by[date].stars : 0 });
+      }
+      return out;
+    },
+    /** Stars this week (Monday 00:00 local to now); each game+tier+level counts once, with its best stars. */
+    weekStars(now) { const b = weekBest(now); return Object.keys(b).reduce((a, k) => a + b[k], 0); },
+    /** Distinct game+tier+level won this week. */
+    weekLevels(now) { return Object.keys(weekBest(now)).length; },
+    weekStart
+  };
+
   /**
    * Standard level runner used by every game.
    * GS.runner({ gameId, count, hud, start(i), demo(i) }) -> { go(i), next(), win(stars, text), playDemo(), offerDemo(), current }
@@ -910,6 +1139,7 @@
       win(stars, text) {
         if (demo.active) { demo._solved(); return Promise.resolve(); }
         GS.store.setStars(o.gameId, r.current, stars);
+        GS.activity.add(o.gameId, r.current, stars);
         const hasNext = r.current < o.count - 1;
         return GS.celebrate({ stars, text, hasNext, onNext: () => r.next(), onReplay: () => r.go(r.current) });
       }

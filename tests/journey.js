@@ -1,5 +1,5 @@
 /* End-to-end journey as a new player on a phone, with the login guard active:
- * hub -> redirected to the landing page -> tap the CTA -> welcome -> 3 questions -> login with the dev account ->
+ * hub -> redirected to the landing page -> tap the CTA -> welcome -> character, nickname, kelas -> login with the dev account ->
  * hub with profile chip -> tap the Timbangan landmark -> its sheet -> Main! -> start gate -> playing.
  * Screenshots go to $SHOTS (default: tests/shots). Usage: node tests/journey.js [phoneLandscape|phonePortrait|tablet] */
 const fs = require('fs');
@@ -31,19 +31,23 @@ const SHOTS = process.env.SHOTS || path.join(__dirname, 'shots');
   if (cb) await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2);
   await page.waitForURL(/welcome\.html/, { timeout: 8000 }).catch(() => {});
   step('landing CTA opens welcome', /welcome\.html/.test(page.url()));
-  await page.waitForSelector('#nick', { timeout: 8000 });
+  // 1. character first (it becomes the mascot), 2. nickname (empty = the character's name), 3. kelas
+  await page.waitForSelector('.av', { timeout: 8000 });
   await page.waitForTimeout(1200); // let the screen transition finish, as a person would
-  await shot('1-name');
+  step('all 7 characters fit inside the card', await page.evaluate(() => { const c = document.querySelector('.av-grid').getBoundingClientRect(); const a = [...document.querySelectorAll('.av')]; return a.length === 7 && a.every(t => { const r = t.getBoundingClientRect(); return r.right <= c.right + 1 && r.left >= c.left - 1; }); }));
+  await shot('1-character');
+  await page.click('.av[data-a="kucing"]');
+  await page.waitForSelector('#nick', { timeout: 8000 });
+  await page.waitForTimeout(600);
+  step('name step offers the character name as default', (await page.getAttribute('#nick', 'placeholder')) === 'Mimi');
+  await shot('2-name');
   await page.fill('#nick', 'Dimas');
   await page.click('#f-name button[type=submit]');
   await page.waitForSelector('.tile', { timeout: 8000 });
   await page.waitForTimeout(700);
   step('tiles fit inside the card', await page.evaluate(() => { const c = document.querySelector('.tiles').getBoundingClientRect(); return [...document.querySelectorAll('.tile')].every(t => { const r = t.getBoundingClientRect(); return r.right <= c.right + 1 && r.left >= c.left - 1; }); }));
-  await shot('2-kelas');
+  await shot('3-kelas');
   await page.click('.tile[data-k]:nth-child(2)');
-  await page.waitForSelector('.av', { timeout: 8000 });
-  await shot('3-avatar');
-  await page.click('.av:nth-child(1)');
   await page.waitForSelector('#tab-in', { timeout: 8000 });
   await page.click('#tab-in');
   await page.fill('#in-email', 'test@matsains.id');
@@ -57,6 +61,7 @@ const SHOTS = process.env.SHOTS || path.join(__dirname, 'shots');
   await page.waitForTimeout(900);
   step('hub shows the profile chip', await page.$eval('#profile', el => el.textContent.includes('Dimas')).catch(() => false));
   await shot('6-hub');
+  step('the map shows the chosen character', !!(await page.$('#cil .gs-char-kucing')));
 
   // Tap the Timbangan landmark: it stays in place and opens its sheet; "Main!" opens the game.
   const lm = await page.$('.node .lm');
@@ -84,6 +89,7 @@ const SHOTS = process.env.SHOTS || path.join(__dirname, 'shots');
   }
   step('gate closes after tapping Main!', !(await page.$('.gs-gate.show, .gs-gate:not([hidden])')) || !(await page.isVisible('.gs-gate')));
   await shot('8-playing');
+  step('the game mascot is the chosen character', !!(await page.$('.gs-caption-face .gs-char-kucing')));
   const scale = await page.evaluate(() => { const s = document.querySelector('svg.gs-stage'); const r = s && s.getBoundingClientRect(); return r ? [r.width, r.height] : null; });
   step('stage is visible', !!scale && scale[0] > 300);
 

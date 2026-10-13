@@ -1,5 +1,6 @@
 /* Hub per kelas: signed-in hub at several sizes, the profile editor, switching
- * kelas changes the sheet texts and level counts, the game sheet (open, fit, X closes), and the level-up banner.
+ * kelas changes the sheet texts and level counts, the game sheet (open, fit, X closes), the dock screens
+ * (Papan Juara, Orang Tua, Pengaturan), the sound switches and the level-up banner.
  * Screenshots go to $SHOTS (default tests/shots). */
 const fs = require('fs');
 const path = require('path');
@@ -68,6 +69,21 @@ const SIZES = { phoneWide: [1000, 452], phoneLandscape: [844, 390], phonePortrai
     check(name + ': sheet fits the screen with X and Main! visible', sh.fits && sh.xIn && sh.playIn && sh.playH >= 56);
     await page.tap('#sheetX'); await page.waitForTimeout(500);
     check(name + ': X closes the sheet and stays on the map', (await page.evaluate(() => document.getElementById('sheet').hidden)) && /index\.html/.test(page.url()));
+    // dock: every screen opens, fits the width, keeps the dock on screen; the back button returns to the map
+    for (const [btn, scr] of [['#navJuara', '#scr-juara'], ['#navParent', '#scr-ortu'], ['#navSet', '#scr-atur']]) {
+      await page.click(btn); await page.waitForTimeout(400);
+      const st = await page.evaluate(sel => {
+        const el = document.querySelector(sel), dk = document.getElementById('dock').getBoundingClientRect();
+        return { shown: !el.hidden && document.getElementById('scr-map').hidden, wide: document.documentElement.scrollWidth <= innerWidth + 1,
+          dock: dk.left >= 0 && dk.right <= innerWidth + 1 && dk.top >= 0 && dk.bottom <= innerHeight + 1, cur: !!document.querySelector('.dock-b[aria-current="page"]') };
+      }, scr);
+      check(name + ': ' + scr + ' opens from the dock and fits', st.shown && st.wide && st.dock && st.cur);
+      await page.screenshot({ path: path.join(SHOTS, 'screen-' + scr.slice(5) + '-' + name + '.png') });
+    }
+    await page.goBack(); await page.waitForTimeout(400);
+    check(name + ': back goes to the previous screen', !(await page.evaluate(() => document.getElementById('scr-ortu').hidden)));
+    await page.click('#navMap'); await page.waitForTimeout(400);
+    check(name + ': Peta returns to the map with the top bar', await page.evaluate(() => !document.getElementById('scr-map').hidden && !document.getElementById('dash').hidden));
     if (errors.length) { failed++; console.log('FAIL ' + name + ' errors:\n  ' + errors.join('\n  ')); }
     await ctx.close();
   }
@@ -85,6 +101,14 @@ const SIZES = { phoneWide: [1000, 452], phoneLandscape: [844, 390], phonePortrai
   await page.locator('#levelUp').screenshot({ path: path.join(SHOTS, 'levelup.png') });
   await page.click('#levelUpGo'); await page.waitForTimeout(1200);
   check('level-up moves to Kelas 1', (await page.textContent('#tierLabel')) === 'Kelas 1');
+  // Pengaturan: the three sound switches toggle and persist; account actions live here, not on the map
+  await page.goto(base + 'index.html?autotest#pengaturan'); await page.waitForTimeout(700);
+  check('settings show 3 sound switches', (await page.$$('.sw[role=switch]')).length === 3);
+  await page.click('.sw[data-ch="music"]'); await page.click('.sw[data-ch="voice"]');
+  await page.reload(); await page.waitForTimeout(700);
+  const sw = await page.evaluate(() => [...document.querySelectorAll('.sw')].map(b => b.getAttribute('data-ch') + '=' + b.getAttribute('aria-checked')).join(' '));
+  check('sound switches persist (' + sw + ')', sw === 'sfx=true music=false voice=false');
+  check('logout and reset are in Pengaturan only', !!(await page.$('#scr-atur #logout')) && !!(await page.$('#scr-atur #reset')) && !(await page.$('#scr-map #logout')));
   await browser.close(); server.close();
   process.exit(failed ? 1 : 0);
 })().catch(e => { console.error('FAILED', e.message); process.exit(1); });

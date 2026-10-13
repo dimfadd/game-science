@@ -4,7 +4,8 @@
  *    so "Hebat! Seimbang!" can use two clips.
  * 2. Otherwise the device's text-to-speech, tuned to sound younger (higher pitch)
  *    and using the best Indonesian voice the device has.
- * Plugs into core.js through GS.speakImpl / GS.stopSpeech. Load after core.js. */
+ * Plugs into core.js through GS.speakImpl / GS.stopSpeech (core wraps speakImpl with the
+ * narrator switch, so this file never checks mute itself). Load after core.js. */
 (function () {
   'use strict';
   const GS = window.GS;
@@ -50,11 +51,14 @@
   const sentences = t => (String(t).match(/[^.!?]+[.!?]*/g) || [String(t)]).map(s => s.trim()).filter(Boolean);
 
   /* ---------- playback ---------- */
+  // Background music ducks while the narrator is audible (core.js GS.music.duck).
+  const duck = (on, text) => { if (GS.music && GS.music.duck) GS.music.duck(on, on && GS.speechMs ? GS.speechMs(text) : undefined); };
   let token = 0, audio = null;
   function stop() {
     token++;
     if (audio) { try { audio.pause(); } catch (e) { /* ignore */ } audio = null; }
     if (hasTTS) { try { speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+    duck(false);
   }
   function tts(text, done) {
     if (!hasTTS) { done && done(); return; }
@@ -64,7 +68,8 @@
       if (voice) u.voice = voice;
       u.pitch = cfg.pitch;
       u.rate = cfg.rate;
-      if (done) { u.onend = done; u.onerror = done; }
+      u.onstart = () => duck(true, text);
+      u.onend = u.onerror = () => { duck(false); if (done) done(); };
       speechSynthesis.speak(u);
     } catch (e) { done && done(); }
   }
@@ -74,8 +79,9 @@
     const file = clips[keyOf(parts[i])];
     if (!file) { tts(parts[i], next); return; }
     const a = (audio = new Audio(new URL('audio/voice/' + file, root).href));
-    a.onended = next;
-    a.onerror = () => tts(parts[i], next);
+    a.onplaying = () => duck(true, parts[i]);
+    a.onended = () => { duck(false); next(); };
+    a.onerror = () => { duck(false); tts(parts[i], next); };
     const p = a.play();
     if (p && p.catch) p.catch(() => tts(parts[i], next));
   }
