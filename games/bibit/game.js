@@ -176,10 +176,20 @@
     GS.markup(g, sc + '<g class="gs-scene">' + s + '</g>');
   }
 
-  /* ================= level tables (docs/KURIKULUM.md, Kebun Bibit) ================= */
+  /* ================= level tables (docs/KURIKULUM.md, Kebun Bibit) =================
+   * Every level draws its numbers from a bank when it is BUILT (Math.random / GS.rand / GS.shuffle only,
+   * all rounds pre-generated), so a race that seeds Math.random gets the same task for every player,
+   * and a child replaying a level gets a new one. Banks never contain the worked example's numbers. */
   const add = (r, c) => Array(r).fill(c).join(' + ');
   const mulS = (r, c) => r + ' × ' + c + ' = ' + r * c;
   const addS = (r, c) => add(r, c) + ' = ' + r * c;
+  const pickN = (a, n) => GS.shuffle(a).slice(0, n);
+  const coin = () => Math.random() < 0.5;
+  /** Draw from gen() until ok(v) holds (bounded; stays deterministic under a seeded Math.random). */
+  function draw(gen, ok) { let v = gen(); for (let k = 0; k < 80 && ok && !ok(v); k++) v = gen(); return v; }
+  const same = (p, q) => p[0] === q[0] && p[1] === q[1];
+  const sameShape = (p, q) => same(p, q) || (p[0] === q[1] && p[1] === q[0]);
+  const someCells = (rows, cols, n) => n >= rows * cols ? rect(rows, cols) : sortCells(GS.shuffle(rect(rows, cols)).slice(0, n));
   function pairsRound(a, cols, b) {
     const cells = [];
     for (let c = 0; c < a; c++) cells.push([0, c]);
@@ -188,13 +198,19 @@
     return {
       kind: 'place', rows: 2, cols, cells, pre, tray: cols - b + 1, check: 'pairs', a,
       done: () => [a + ' + ' + a + ' = ' + 2 * a],
-      say: TK ? 'Buat baris bawah sama panjang dengan baris atas.' : 'Baris bawah harus sama banyak dengan baris atas.'
+      say: TK ? 'Buat baris bawah sama panjang dengan baris atas.' : 'Baris atas ada ' + a + ' bibit. Baris bawah harus sama banyak.'
     };
   }
-  function compareRound() {
-    let a = R(3, 6), b;
-    do { b = R(3, 6); } while (b === a || Math.abs(a - b) > 2);
+  function compareRound(not) {
+    // 3 to 7 seedlings, differing by 1 or 2; never the example's 7 and 5
+    const [a, b] = draw(() => [R(3, 7), R(3, 7)], ([x, y]) => x !== y && Math.abs(x - y) <= 2 && !(Math.min(x, y) === 5 && Math.max(x, y) === 7) && !(not && x === not.a && y === not.b));
     return { kind: 'compare', a, b, say: 'Baris bibit mana yang lebih banyak? Ketuk satu.' };
+  }
+  /** One seedling per hole: n holes in one line, or spread over two rows. */
+  function onePerHole(n, spread, say) {
+    let rows = 1, cols = n, cells = rect(1, n);
+    if (spread) { rows = 2; cols = Math.ceil(n / 2) + (n % 2 ? 0 : R(0, 1)); cells = someCells(2, cols, n); }
+    return { kind: 'place', rows, cols, cells, tray: n + R(1, 2), auto: true, say };
   }
   const tkBasket = (rows, cols, cells, say, tray) => ({ kind: 'basket', rows, cols, cells, tray: tray || 10, say });
   function basketRect(rows, cols, o) { return Object.assign({ kind: 'basket', rows, cols, cells: rect(rows, cols), shape: 'rect' }, o); }
@@ -206,9 +222,21 @@
     const H = rows * cols;
     return basketRect(rows, cols, { pre: rect(rows, cols).slice(0, k), tray: 12, done: () => [k + ' + ' + (H - k) + ' = ' + H], say: say || 'Lengkapi lahannya. Berapa bibit lagi?' });
   }
-  function dobel(n) {
-    const cells = rect(2, n).concat([[0, n]]);
-    return { kind: 'basket', rows: 2, cols: n + 1, cells: sortCells(cells), tray: 12, done: () => [n + ' + ' + n + ' + 1 = ' + (2 * n + 1)], say: 'Dobel tambah satu. Ambil bibit yang pas.' };
+  /** Five-frame (k1 L1): p seedlings already planted. */
+  function fiveRow(p) {
+    return {
+      kind: 'place', rows: 1, cols: 5, cells: rect(1, 5), pre: p ? rect(1, p) : null, tray: 5 - p + R(2, 3), auto: true,
+      done: () => [p ? p + ' + ' + (5 - p) + ' = 5' : '1 + 1 + 1 + 1 + 1 = 5'],
+      say: p ? 'Sudah ada ' + p + ' bibit. Isi sampai penuh.' : 'Isi satu baris dengan 5 bibit.'
+    };
+  }
+  /** Ten-frame with a full top row of 5 and n holes below (k1 L2): 5 + n. */
+  function fivePlus(n) {
+    return { kind: 'basket', rows: 2, cols: 5, cells: rect(1, 5).concat(rect(1, n).map(([, c]) => [1, c])), tray: 12, done: () => ['5 + ' + n + ' = ' + (5 + n)], say: 'Atas 5 lubang, bawah ' + n + '. Ambil bibit yang pas.' };
+  }
+  function dobel(n, low) {
+    const cells = rect(2, n).concat([[low ? 1 : 0, n]]);
+    return { kind: 'basket', rows: 2, cols: n + 1, cells: sortCells(cells), tray: Math.max(12, 2 * n + 3), done: () => [n + ' + ' + n + ' + 1 = ' + (2 * n + 1)], say: 'Dua baris isi ' + n + ', tambah satu. Ambil bibit yang pas.' };
   }
   function evenOdd(N) {
     const h = Math.floor(N / 2);
@@ -248,6 +276,8 @@
     const q = Math.floor(N / c), m = N % c, need = Math.ceil(N / c);
     return { kind: 'grid', N, lockC: c, maxR: 7, maxC: c, start: [1, c], ceil: true, live: 'mul', done: () => [N + ' : ' + c + ' = ' + q + ' sisa ' + m, 'jadi butuh ' + need + ' baris'], say: 'Ada ' + N + ' bibit, baris isi ' + c + '. Butuh berapa baris?' };
   }
+  /** N between lo*c and hi*c that does not fill its last row of c. */
+  const ceilN = (c, lo, hi) => draw(() => R(lo * c + 1, hi * c - 1), v => v % c !== 0);
   function splitRound(Rr, Cc) {
     return { kind: 'split', R: Rr, C: Cc, s: 5, say: 'Belah lahan dengan tali. Tiap keranjang harus pas.' };
   }
@@ -261,6 +291,10 @@
     const P = 2 * (rows + cols);
     return basketRect(rows, cols, { item: 'pole', fence: true, labels: true, tray: 9, bundles: 4, bundle: 5, done: () => [cols + ' + ' + rows + ' + ' + cols + ' + ' + rows + ' = ' + P + ' batang'], say: 'Kambing lapar! Ambil batang bambu untuk pagar keliling.' });
   }
+  /** Keliling sama, luas berbeda (k4 L2): P poles, the widest field is the most square one. */
+  function fenceMaxRound(P) {
+    return { kind: 'grid', N: 0, fence: P, maxR: 9, maxC: 9, start: [2, 3], live: null, say: 'Ada ' + P + ' batang pagar. Buat lahan yang paling luas.' };
+  }
   function lShape(Rr, Cc, cr, cc, split) {
     const cells = rect(Rr, Cc).filter(([r, c]) => !(r < cr && c >= Cc - cc));
     const A = Rr * (Cc - cc), B = (Rr - cr) * cc;
@@ -270,79 +304,104 @@
       say: split ? 'Lahan L ini dua persegi panjang. Berapa petak semuanya?' : 'Berapa petak luas lahan L ini? Ambil bibitnya.'
     };
   }
-  function randomL() { const Rr = R(5, 7), Cc = R(6, 8); return lShape(Rr, Cc, R(2, Rr - 2), R(2, Cc - 3), false); }
+  /** Random L (5..7 x 6..8 field, cut 2.. from the top-right), never the example's 5 x 6 cut 2 x 2. */
+  function lRand(not) {
+    return draw(() => { const Rr = R(5, 7), Cc = R(6, 8); return [Rr, Cc, R(2, Rr - 2), R(2, Cc - 3)]; },
+      v => v.join() !== '5,6,2,2' && !(not && v.join() === not.join()));
+  }
+  const lOf = (v, split) => lShape(v[0], v[1], v[2], v[3], split);
   function lcmRound(a, b) { return { kind: 'lcm', a, b, say: 'Baris isi ' + a + ' dan isi ' + b + '. Berapa bibit paling sedikit supaya pas?' }; }
+  const LCM_SHARED = [[4, 6], [6, 8], [4, 10], [6, 9]];          // a common factor: the answer is less than a x b
+  const LCM_MIX = [[3, 4], [2, 5], [3, 5], [4, 5], [2, 7], [3, 8]];
   function primeRound(N) {
     return { kind: 'grid', N, maxR: 7, maxC: 8, minR: 2, minC: 2, start: [2, 2], prime: true, live: 'mul', say: 'Ada ' + N + ' bibit. Bisa jadi persegi panjang? Kalau tidak, satu baris saja.' };
   }
   function freeRound(N) {
     return { kind: 'grid', N, maxR: 6, maxC: 8, start: [1, 1], live: 'mul', done: s => [mulS(s.r, s.c)], say: 'Ada ' + N + ' bibit. Buat lahan yang pas.' };
   }
-  function twoDiff(min, max, not) { let a, b; do { a = R(min, max); b = R(min, max); } while (not && a === not[0] && b === not[1]); return [a, b]; }
+  function stackRound(a, b, c) {
+    const N = (a + b) * c;
+    return { kind: 'grid', N, stack: [a, c], maxR: 6, maxC: c, start: [1, c], live: 'stack', done: () => [a + ' × ' + c + ' + ' + b + ' × ' + c + ' = ' + N, (a + b) + ' × ' + c + ' = ' + N], say: 'Ada ' + N + ' bibit. Lahan atas ' + a + ' × ' + c + '. Tarik lahan bawah.' };
+  }
+  /** All arrangements of N (k3 L3): need = factor pairs 2..12 (1 x N is given). */
+  function factorRound(N) {
+    let need = 0;
+    for (let r = 2; r * r <= N; r++) if (N % r === 0 && N / r <= 12) need++;
+    return { kind: 'grid', N, maxR: 12, maxC: 12, start: [1, 1], arr: { need, given: [1, N] }, live: 'mul', say: 'Ada ' + N + ' bibit. 1 baris isi ' + N + ' kepanjangan. Cari semua susunan lain!' };
+  }
 
   const LV = {
     tk: [
-      () => [
-        { kind: 'place', rows: 1, cols: 3, cells: rect(1, 3), tray: 5, auto: true, say: 'Tanam satu bibit di setiap lubang.' },
-        { kind: 'place', rows: 1, cols: 4, cells: rect(1, 4), tray: 6, auto: true, say: 'Satu lubang, satu bibit. Ayo tanam!' }
-      ],
-      () => [
-        tkBasket(2, 3, sortCells(GS.shuffle(rect(2, 3)).slice(0, 4)), 'Ambil bibit ke keranjang. Satu untuk setiap lubang.', 8),
-        tkBasket(2, 3, sortCells(GS.shuffle(rect(2, 3)).slice(0, 5)), 'Lubangnya ada berapa? Ambil bibit yang pas.', 8)
-      ],
-      () => { const a1 = R(3, 5), a2 = R(3, 5); return [pairsRound(a1, 6, R(1, a1 - 2)), pairsRound(a2, 6, R(1, a2 - 2))]; },
-      () => [compareRound(), compareRound()],
-      () => [
-        { kind: 'place', rows: 2, cols: 2, cells: rect(2, 2), tray: 6, auto: true, say: 'Isi semua lubang. Lalu kita hitung panennya!' },
-        { kind: 'place', rows: 2, cols: 3, cells: rect(2, 3), tray: 8, auto: true, say: 'Lahan 2 baris. Isi semua lubangnya.' }
-      ],
-      () => { const f = pick([[2, 4], [3, 3]]); return [tkBasket(f[0], f[1], rect(f[0], f[1]), 'Ambil bibit yang pas untuk semua lubang.', 12), tkBasket(2, 5, rect(2, 5), 'Lahan baru. Ambil bibit yang pas, ya.', 12)]; }
+      () => { const n1 = R(3, 5), n2 = draw(() => R(3, 5), v => v !== n1); return [onePerHole(n1, false, 'Tanam satu bibit di setiap lubang.'), onePerHole(n2, coin(), 'Satu lubang, satu bibit. Ayo tanam!')]; },
+      () => {
+        const F = [[2, 3], [2, 4], [3, 3]];
+        const one = (n, say) => { const f = pick(F); return tkBasket(f[0], f[1], someCells(f[0], f[1], n), say, 8); };
+        const n1 = R(3, 5), n2 = draw(() => R(3, 5), v => v !== n1);
+        return [one(n1, 'Ambil bibit ke keranjang. Satu untuk setiap lubang.'), one(n2, 'Lubangnya ada berapa? Ambil bibit yang pas.')];
+      },
+      () => { const one = a => pairsRound(a, R(6, 7), R(1, a - 2)); const a1 = R(3, 5), a2 = draw(() => R(3, 5), v => v !== a1); return [one(a1), one(a2)]; },
+      () => { const c1 = compareRound(); return [c1, compareRound(c1)]; },
+      () => {
+        const f1 = pick([[2, 2], [2, 3], [3, 2]]), f2 = draw(() => pick([[2, 3], [3, 2], [2, 4], [3, 3], [4, 2]]), v => !same(v, f1));
+        const pl = (f, say) => ({ kind: 'place', rows: f[0], cols: f[1], cells: rect(f[0], f[1]), tray: f[0] * f[1] + 2, auto: true, say });
+        return [pl(f1, 'Isi semua lubang. Lalu kita hitung panennya!'), pl(f2, 'Lahan ' + f2[0] + ' baris. Isi semua lubangnya.')];
+      },
+      () => {
+        const f1 = pick([[2, 4], [3, 3], [4, 2]]), f2 = draw(() => pick([[2, 5], [3, 4], [4, 3], [3, 3]]), v => !same(v, f1));
+        return [tkBasket(f1[0], f1[1], rect(f1[0], f1[1]), 'Ambil bibit yang pas untuk semua lubang.', 12), tkBasket(f2[0], f2[1], someCells(f2[0], f2[1], R(7, 10)), 'Lahan baru. Ambil bibit yang pas, ya.', 12)];
+      }
     ],
     k1: [
-      () => [
-        { kind: 'place', rows: 1, cols: 5, cells: rect(1, 5), tray: 7, auto: true, done: () => ['1 + 1 + 1 + 1 + 1 = 5'], say: 'Isi satu baris dengan 5 bibit.' },
-        { kind: 'place', rows: 1, cols: 5, cells: rect(1, 5), pre: rect(1, 2), tray: 5, auto: true, done: () => ['2 + 3 = 5'], say: 'Sudah ada 2 bibit. Isi sampai penuh.' }
-      ],
-      () => [basketRect(2, 5, { tray: 12, done: () => ['5 + 5 = 10'], say: 'Lahan 2 baris isi 5. Ambil bibit yang pas.' })],
-      () => [pairsRound(4, 7, R(1, 2)), pairsRound(6, 7, R(1, 3))],
-      () => [dobel(3), dobel(4)],
-      () => { const r2 = pick([[11, 2, 4], [10, 2, 4], [9, 2, 4]]); return [polyRound(12, 2, 5), polyRound(r2[0], r2[1], r2[2])]; },
+      () => { const p1 = pick([0, 0, 2, 3]), p2 = draw(() => pick([2, 3, 4]), v => v !== p1); return [fiveRow(p1), fiveRow(p2)]; },
+      () => GS.shuffle([basketRect(2, 5, { tray: 12, done: () => ['5 + 5 = 10'], say: 'Lahan 2 baris isi 5. Ambil bibit yang pas.' }), fivePlus(pick([1, 2, 4]))]),   // not 8: the example is 4 + 4
+      () => { const one = a => pairsRound(a, R(a + 1, 7), R(1, Math.min(3, a - 2))); return [one(R(4, 5)), one(6)]; },   // <= 7 columns: holes stay >= 90 u
+      () => [dobel(R(3, 4), coin()), dobel(R(5, 6), coin())],
+      () => { const f = pick([[2, 4], [3, 3], [2, 6], [3, 4]]); return [polyRound(10 + R(1, 4), 2, 5), polyRound(f[0] * f[1] + R(1, 4), f[0], f[1])]; },
       () => { const e = R(3, 6) * 2, o = R(3, 7) * 2 + 1; return GS.shuffle([evenOdd(e), evenOdd(o)]).concat([evenOdd(R(9, 15))]); },
-      () => [completeRound(2, 5, R(4, 7)), completeRound(4, 5, R(11, 15))],
-      () => [completeRound(2, 6, R(5, 7), 'Tantangan! Lahan 2 baris isi 6. Lengkapi.'), polyRound(13, 2, 5)]
+      () => { const f = pick([[4, 5], [2, 10]]); return [completeRound(2, 5, R(3, 7)), completeRound(f[0], f[1], R(11, 15))]; },
+      () => {
+        const f = pick([[2, 6], [3, 4], [2, 7]]), k = R(same(f, [2, 6]) ? 5 : 4, f[0] * f[1] - 3), g = pick([[2, 5], [2, 6], [3, 4]]);
+        return [completeRound(f[0], f[1], k, 'Tantangan! Lahan ' + f[0] + ' baris isi ' + f[1] + '. Lengkapi.'), polyRound(g[0] * g[1] + R(2, 4), g[0], g[1])];
+      }
     ],
     k2: [
-      () => [lockCRound(12, 4), lockCRound(15, 3)],
+      () => pickN([2, 3, 4, 5], 2).map(c => lockCRound(c * (c === 3 ? R(4, 5) : R(3, 5)), c)),
       () => [orderRound(R(3, 5), 2), orderRound(R(2, 4), 5), orderRound(R(2, 3), 10)],
-      () => { const p = pick([[3, 4], [4, 3], [2, 6], [3, 5]]); return [orderRound(2, 5, { rotate: true, maxR: 6, maxC: 8 }), orderRound(p[0], p[1], { rotate: true, maxR: 6, maxC: 8 })]; },
-      () => { const p = pick([[3, 6], [5, 3], [3, 5]]); return [basketRect(4, 5, { tray: 9, bundles: 4, bundle: 5, done: () => [mulS(4, 5), addS(4, 5)], say: 'Berapa bibit untuk 4 baris isi 5? Ambil, lalu tanam.' }), basketRect(p[0], p[1], { tray: 9, bundles: 4, bundle: 5, done: () => [mulS(p[0], p[1]), addS(p[0], p[1])], say: 'Lahan ' + p[0] + ' baris isi ' + p[1] + '. Berapa bibitnya?' })]; },
-      () => { const c = pick([3, 4]); return [divRound(15, 5), divRound(c * R(3, 5), c)]; },
-      () => [{ kind: 'grid', N: 12, maxR: 6, maxC: 8, start: [1, 1], arr: { need: 2 }, live: 'mul', say: 'Ada 12 bibit. Temukan dua susunan yang berbeda.' }],
-      () => [
-        { kind: 'grid', N: 20, stack: [3, 4], maxR: 6, maxC: 4, start: [1, 4], live: 'stack', done: () => ['3 × 4 + 2 × 4 = 20', '5 × 4 = 20'], say: 'Ada 20 bibit. Lahan atas 3 × 4. Tarik lahan bawah.' },
-        { kind: 'grid', N: 25, stack: [2, 5], maxR: 6, maxC: 5, start: [1, 5], live: 'stack', done: () => ['2 × 5 + 3 × 5 = 25', '5 × 5 = 25'], say: 'Ada 25 bibit. Lahan atas 2 × 5. Tarik lahan bawah.' }
-      ],
-      () => GS.shuffle([14, 16, 18, 20]).slice(0, 2).map(freeRound)
+      () => {
+        const B = [[2, 5], [5, 2], [3, 4], [4, 3], [2, 6], [6, 2], [3, 5], [5, 3], [4, 5], [5, 4]];
+        const p = pick(B), q = draw(() => pick(B), v => !sameShape(v, p)), o = { rotate: true, maxR: 6, maxC: 8 };
+        return [orderRound(p[0], p[1], o), orderRound(q[0], q[1], o)];
+      },
+      () => {
+        const B = [[4, 5], [3, 5], [5, 3], [3, 6], [4, 4], [2, 7], [4, 6], [5, 4], [6, 3], [2, 8]];
+        const p = pick(B), q = draw(() => pick(B), v => v[0] * v[1] !== p[0] * p[1]);
+        const o = (v, say) => ({ tray: 9, bundles: 4, bundle: 5, done: () => [mulS(v[0], v[1]), addS(v[0], v[1])], say });
+        return [basketRect(p[0], p[1], o(p, 'Berapa bibit untuk ' + p[0] + ' baris isi ' + p[1] + '? Ambil, lalu tanam.')), basketRect(q[0], q[1], o(q, 'Lahan ' + q[0] + ' baris isi ' + q[1] + '. Berapa bibitnya?'))];
+      },
+      () => { const c = pick([2, 3, 4]), r = draw(() => R(3, 6), v => !(c === 2 && v === 5)); return [divRound(5 * R(3, 5), 5), divRound(c * r, c)]; },
+      () => { const N = pick([12, 16, 18, 20]); return [{ kind: 'grid', N, maxR: 6, maxC: N <= 16 ? 8 : 10, start: [1, 1], arr: { need: 2 }, live: 'mul', say: 'Ada ' + N + ' bibit. Temukan dua susunan yang berbeda.' }]; },
+      () => pickN([3, 4, 5, 6], 2).map(c => { const a = R(2, 3); return stackRound(a, draw(() => R(2, 3), b => !(c === 3 && a + b === 6)), c); }),
+      () => pickN([12, 14, 16, 18, 20, 24], 2).map(freeRound)
     ],
     k3: [
-      () => [orderRound(6, 7, { maxR: 10, maxC: 10 }), orderRound(...twoDiff(6, 9, [6, 7]), { maxR: 10, maxC: 10 })],
-      () => { const r = pick([3, 5]); return [lockRRound(24, 4), lockRRound(r * R(5, 8), r)]; },
-      () => [{ kind: 'grid', N: 24, maxR: 12, maxC: 12, start: [1, 1], arr: { need: 3, given: [1, 24] }, live: 'mul', say: 'Ada 24 bibit. 1 baris isi 24 kepanjangan. Cari semua susunan lain!' }],
-      () => [splitRound(7, 6), splitRound(R(6, 9), R(4, 8))],
-      () => [remRound(26, 4), remRound(5 * R(4, 6) + R(1, 4), 5)],
-      () => { const p = pick([[4, 8], [6, 6], [4, 9], [6, 5]]); return [areaRound(5, 7), areaRound(p[0], p[1])]; },
-      () => { const p = pick([[4, 5], [3, 6], [4, 4]]); return [fenceRound(3, 4), fenceRound(p[0], p[1])]; },
-      () => [orderRound(...twoDiff(7, 9), { maxR: 10, maxC: 10, say: 'Tantangan! Pesanan baru. Tarik pojoknya.' }), splitRound(R(6, 9), R(4, 8)), remRound(6 * R(3, 5) + R(1, 5), 6)]
+      () => { const o = { maxR: 10, maxC: 10 }, p = [R(5, 9), R(5, 9)], q = draw(() => [R(6, 10), R(6, 10)], v => !same(v, p)); return [orderRound(p[0], p[1], o), orderRound(q[0], q[1], o)]; },
+      () => { const r1 = R(3, 4), r2 = R(5, 6); return [lockRRound(r1 * R(5, 9), r1), lockRRound(r2 * R(4, 8), r2)]; },
+      () => [factorRound(pick([16, 18, 20, 24]))],
+      () => { const p = [R(6, 9), R(4, 8)], q = draw(() => [R(6, 9), R(4, 8)], v => !same(v, p)); return [splitRound(p[0], p[1]), splitRound(q[0], q[1])]; },
+      () => { const c1 = R(3, 4), N1 = draw(() => c1 * R(4, 7) + R(1, c1 - 1), v => !(c1 === 3 && v === 14)), c2 = R(5, 6); return [remRound(N1, c1), remRound(c2 * R(3, 6) + R(1, c2 - 1), c2)]; },
+      () => { const gen = () => [R(3, 6), R(4, 9)], p = draw(gen, v => !same(v, [4, 6])), q = draw(gen, v => !same(v, [4, 6]) && v[0] * v[1] !== p[0] * p[1]); return [areaRound(p[0], p[1]), areaRound(q[0], q[1])]; },
+      () => { const gen = () => [R(2, 5), R(3, 7)], ok = v => !sameShape(v, [2, 5]) && v[0] + v[1] <= 12, p = draw(gen, ok), q = draw(gen, v => ok(v) && v[0] + v[1] !== p[0] + p[1]); return [fenceRound(p[0], p[1]), fenceRound(q[0], q[1])]; },
+      () => [orderRound(R(7, 9), R(7, 9), { maxR: 10, maxC: 10, say: 'Tantangan! Pesanan baru. Tarik pojoknya.' }), splitRound(R(6, 9), R(4, 8)), remRound(6 * R(3, 5) + R(1, 5), 6)]
     ],
     k4: [
-      () => { let a, b; do { a = R(11, 15); b = R(11, 15); } while (a === 12 && b === 13); return [split2Round(12, 13), split2Round(a, b)]; },
-      () => [{ kind: 'grid', N: 0, fence: 20, maxR: 9, maxC: 9, start: [2, 3], live: null, say: 'Ada 20 batang pagar. Buat lahan yang paling luas.' }],
-      () => GS.shuffle(GS.shuffle([7, 11, 13]).slice(0, 2).concat(GS.shuffle([9, 10, 12, 14, 15]).slice(0, 2))).map(primeRound),
-      () => { const p = pick([[3, 4], [6, 8], [2, 5], [3, 5]]); return [lcmRound(4, 6), lcmRound(p[0], p[1])]; },
-      () => { const c = pick([6, 7, 9]); let N; do { N = R(2 * c + 1, 6 * c - 1); } while (N % c === 0); return [ceilRound(30, 8), ceilRound(N, c)]; },
-      () => [lShape(6, 8, 3, 4, true), randomL()],
-      () => { const p = pick([[3, 4], [2, 5], [3, 5]]), c = pick([6, 7]); let N; do { N = R(2 * c + 1, 5 * c - 1); } while (N % c === 0); return [split2Round(R(11, 14), R(11, 14)), ceilRound(N, c), lcmRound(p[0], p[1])]; },
-      () => [randomL(), lcmRound(6, 8), split2Round(R(13, 15), R(13, 15))]
+      () => { const p = draw(() => [R(11, 14), R(11, 14)], v => !same(v, [11, 14])), q = draw(() => [R(11, 15), R(11, 15)], v => !same(v, p) && !same(v, [11, 14])); return [split2Round(p[0], p[1]), split2Round(q[0], q[1])]; },
+      () => [fenceMaxRound(pick([12, 18, 20, 22, 24]))],
+      () => GS.shuffle(pickN([7, 11, 13, 17], 2).concat(pickN([9, 10, 12, 14, 15, 16, 21], 2))).map(primeRound),
+      () => [lcmRound(...pick(LCM_SHARED)), lcmRound(...pick(LCM_MIX))],
+      () => { const c1 = R(7, 8), c2 = draw(() => pick([6, 7, 9]), v => v !== c1); return [ceilRound(ceilN(c1, 3, 5), c1), ceilRound(ceilN(c2, 2, 6), c2)]; },
+      () => { const a = lRand(); return [lOf(a, true), lOf(lRand(a), false)]; },
+      () => { const p = pick([[3, 4], [2, 5], [3, 5]]), c = pick([6, 7]), s = draw(() => [R(11, 14), R(11, 14)], v => !same(v, [11, 14])); return [split2Round(s[0], s[1]), ceilRound(ceilN(c, 2, 5), c), lcmRound(p[0], p[1])]; },
+      () => [lOf(lRand(), false), lcmRound(...pick(LCM_SHARED)), split2Round(R(13, 15), R(13, 15))]
     ]
   };
   const LEVELS = LV[TIER] || LV.k1;
@@ -354,8 +413,8 @@
   const DT = {
     tk: [
       () => ({ kind: 'place', rows: 1, cols: 2, cells: rect(1, 2), tray: 4, auto: true }),
-      () => tkBasket(2, 3, [[0, 0], [0, 2], [1, 1]], '', 8),
-      () => pairsRound(3, 6, 1),
+      () => tkBasket(2, 3, [[0, 2], [1, 0]], '', 8),
+      () => pairsRound(2, 5, 0),
       () => ({ kind: 'compare', a: 7, b: 5 }),
       () => ({ kind: 'place', rows: 2, cols: 1, cells: rect(2, 1), tray: 4, auto: true }),
       () => tkBasket(2, 2, rect(2, 2), '', 8)
@@ -542,10 +601,11 @@
   function buildLevel(i, demo) {
     tries = 0; ri = 0; LS = {};
     demoMode = !!demo;
-    if (demo) { rounds = [DEMO[i]()]; demoSig = sigOf(rounds[0]); }
+    // the banks never hold the example's numbers, so this safety loop does not run (races stay identical)
+    if (demo) { rounds = [DEMO[i]()]; demoSig = i + '#' + sigOf(rounds[0]); }
     else {
       rounds = LEVELS[i]();
-      for (let k = 0; k < 12 && rounds.some(r => sigOf(r) === demoSig); k++) rounds = LEVELS[i]();
+      for (let k = 0; k < 12 && rounds.some(r => i + '#' + sigOf(r) === demoSig); k++) rounds = LEVELS[i]();
     }
     startRound();
   }
@@ -1136,7 +1196,8 @@
   function buildBasket() {
     const poly = C.basketN != null;
     S.mode = poly ? 'poly' : 'basket';
-    const box = C.labels ? { x0: 140, y0: 190, x1: 800, y1: 760 } : { x0: 90, y0: 200, x1: 800, y1: 760 };
+    // an L also has a side-length chip under the field: keep room for it inside the 800 u canvas
+    const box = C.labels ? { x0: 140, y0: 190, x1: 800, y1: C.shape === 'L' ? 725 : 760 } : { x0: 90, y0: 200, x1: 800, y1: 760 };
     const g = S.g = geom(C.rows, C.cols, box, TK ? 140 : C.fence ? 100 : 120);
     g.id = 'f';
     const preKeys = new Set((C.pre || []).map(p => p.join(',')));
@@ -1494,7 +1555,7 @@
     setBoard([mulS(r, c)], true);
     GS.sfx.star(LS.found.length - 1);
     if (LS.found.length >= C.arr.need) {
-      GS.say(C.arr.need === 2 ? 'Dua susunan untuk ' + C.N + ' bibit. Hebat!' : 'Semua susunan untuk ' + C.N + ' sudah ketemu!');
+      GS.say(C.arr.need === 2 && !C.arr.given ? 'Dua susunan untuk ' + C.N + ' bibit. Hebat!' : 'Semua susunan untuk ' + C.N + ' sudah ketemu!');
       await wait(1600);
       if (my !== tok) return;
       nextRound();
@@ -1563,6 +1624,8 @@
     const e = LS.found.slice().sort((a, b) => b.r * b.c - a.r * a.c).map(f => ({ t: f.r + ' × ' + f.c, r: f.r, c: f.c, note: 'luas ' + f.r * f.c, fs: 38 }));
     drawCatatan(e.slice(0, 4), 'Pagar ' + C.fence + ' batang', 54);
   }
+  /** The widest field for P poles: sides as equal as whole petak allow. */
+  function fenceBest(P) { const half = P / 2, a = Math.floor(half / 2); return [a, half - a]; }
   async function fenceAttempt() {
     const my = tok, r = S.r, c = S.c, B = S.basket;
     const res = await buildFence(S.g, 0, 0, r, c, C.fence, B);
@@ -1591,9 +1654,9 @@
       nextRound();
       return;
     }
-    const best = LS.found.some(f => f.key === '5x5');
+    const [br, bc] = fenceBest(C.fence), best = LS.found.some(f => f.key === br + 'x' + bc);
     if (best && LS.found.length >= 3) {
-      GS.say('5 × 5 paling luas: 25 petak! Kelilingnya sama, luasnya beda.');
+      GS.say(br + ' × ' + bc + ' paling luas: ' + br * bc + ' petak! Kelilingnya sama, luasnya beda.');
       await wait(2200);
       if (my !== tok) return;
       nextRound();
@@ -2056,7 +2119,8 @@
         if (C.fence) {
           const cands = []; for (let r = 1; r <= C.maxR; r++) { const c = C.fence / 2 - r; if (c >= 1 && c <= C.maxC) cands.push([r, c]); }
           const has = k => LS.found.some(f => f.key === k);
-          const pickC = !has('5x5') ? [5, 5] : cands.find(([r, c]) => !has(Math.min(r, c) + 'x' + Math.max(r, c)));
+          const bst = fenceBest(C.fence);
+          const pickC = !has(bst[0] + 'x' + bst[1]) ? bst : cands.find(([r, c]) => !has(Math.min(r, c) + 'x' + Math.max(r, c)));
           setRegion(pickC[0], pickC[1]);
         } else if (C.prime) {
           if (isPrime(N)) { onOneRow(); return; }
@@ -2104,7 +2168,12 @@
     toScreen: (x, y) => { const q = toScreen(x, y); return q ? { x: q.x, y: q.y } : null; },
     handle: () => { const p = S.handle ? handlePos() : null; return p ? window.__game.toScreen(p.x, p.y) : null; },
     cellScreen: (r, c) => S.g ? window.__game.toScreen(cxOf(S.g, c), cyOf(S.g, r)) : null,
-    geom: () => S.g
+    geom: () => S.g,
+    // variety / race checks: the built rounds, the round signature the example is compared with
+    roundsSig: () => JSON.stringify(rounds, (k, v) => (k === 'crop' ? undefined : v)),
+    sigs: () => rounds.map(sigOf),
+    bank: (i, n) => { const out = []; for (let k = 0; k < (n || 1); k++) out.push(LEVELS[i]().map(sigOf)); return out; },
+    demoSig: i => sigOf(DEMO[i]())
   };
 
   run.go(GS.store.nextLevel(GAME, LEVELS.length));

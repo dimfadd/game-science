@@ -2,6 +2,10 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-15: Kebun Bibit levels vary every time
+
+Races (and replays) need real variety: every Kebun Bibit level built the same numbers each time. Now every level draws its numbers when it is built (field sizes, seed counts, factors, remainders, area and fence sizes, primes, LCM pairs, the L-shape cut...), all rounds made at build time so a race seed reproduces them; example numbers never overlap the child's. Variety over 6 builds: 4 to 6 distinct rounds per level in every kelas (k3 L3 has 4 variants). Done by a sub-agent; levels, demos (all tiers) and visual-qc (0 of 76 fail) pass, also re-run by the lead. KURIKULUM notes the ranges.
+
 ## 2026-10-15: Balapan (race) inside the real games, with bots and rooms
 
 Requested by the owner: multiplayer with public or private rooms shared by a code, a race where the right answers move you forward (3 stars farther than 2 or 1, no move when you keep missing until the question changes), highest score and fastest finish win, bots when nobody else joins. A first version used a new quiz bank; the owner wanted the races to use the existing games instead (pick timbangan, angkot, ...), so the quiz page was dropped before release.

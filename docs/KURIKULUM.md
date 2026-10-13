@@ -86,6 +86,8 @@ Dipilih untuk menutup elemen Kurikulum Merdeka yang belum tersentuh: **Pengukura
 
 ## Kebun Bibit (`bibit`)
 
+> Sejak 2026-10-15 angka setiap level diacak saat level dibuat (untuk Balapan dan supaya tidak dihafal): angka di bawah adalah contoh dari rentangnya. Rentang: k1 L5, k2 L5-L6, k3 L1-L2 dan L4-L7, k4 L1-L2 dan L4-L6 memakai beberapa ukuran; k4 L2 ladang terlebar adalah yang hampir persegi.
+
 **Mekanik inti.** Lahan sawah/kebun berpetak (grid). Anak menanam bibit dalam **larik baris × kolom**: menyeret pojok lahan (pegangan besar) untuk memperbesar/memperkecil petak yang dicangkul, atau menyeret bibit dari keranjang ke lubang. Bibit di keranjang **harus habis tepat**: kalau lahan kebesaran, ada lubang kosong yang dimakan burung/ditumbuhi rumput; kalau kekecilan, bibit sisa layu di keranjang. Yang menilai adalah dunia (bibit tumbuh, panen), bukan tanda salah. Setelah ditanam, tanaman tumbuh dan dipanen baris demi baris sambil dihitung ("4, 8, 12"), sehingga penjumlahan berulang terlihat. Pagar bambu (keliling) dan petak (luas) memakai satuan petak yang sama.
 
 | Jenjang | Level |
