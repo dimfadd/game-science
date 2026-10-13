@@ -849,32 +849,40 @@
       say: EV[ev].say + ' ' + timeWords(t) + '. Atur jamnya!'
     }, extra || {}));
   }
+  /* Every level draws its numbers when it is built (runner.start -> buildLevel), only through
+   * Math.random (pick, rand, shuffle), so a race that seeds Math.random gets the same task for
+   * every player. The pools below keep each level's concept and difficulty; they leave out the
+   * worked example's numbers, so the child's task never repeats the example. */
+  const range = (a, b) => [...Array(b - a + 1)].map((_, i) => a + i);
+  const pickN = (arr, n) => shuffle(arr).slice(0, n);
+  const nowSay = s => 'Sekarang ' + timeWords(s, true) + '. ';
   const tk = {
-    rooster: start => clockR({
-      start: start == null ? HM(3) : start, target: HM(6), sunDrag: true, ev: 'ayam', card: { icon: 'ayam' },
+    rooster: (start = HM(3)) => clockR({
+      start, target: HM(6), sunDrag: true, ev: 'ayam', card: { icon: 'ayam' },
       check: t => tod(t) >= HM(5, 30) && tod(t) <= HM(6),
-      say: 'Masih malam. Putar jam sampai ayam berkokok!',
+      say: nowSay(start) + 'Masih gelap. Putar jam sampai ayam berkokok!',
       okSay: 'Kukuruyuk! Matahari terbit. Selamat pagi!',
       miss: t => (elevAt(t) > 0 ? 'Matahari sudah tinggi. Ayamnya sudah berkokok tadi.' : 'Masih gelap. Ayamnya masih tidur. Putar lagi!')
     }),
-    noon: start => clockR({
-      start: start == null ? HM(8) : start, target: HM(12), sunDrag: true, ev: 'makan', card: { icon: 'sunHigh' },
-      say: 'Buat matahari paling tinggi. Bayangan tiang jadi pendek!',
+    noon: (start = HM(8)) => clockR({
+      start, target: HM(12), sunDrag: true, ev: 'makan', card: { icon: 'sunHigh' },
+      say: nowSay(start) + 'Buat matahari paling tinggi. Bayangan tiang jadi pendek!',
       okSay: 'Matahari paling tinggi. Bayangannya paling pendek!',
       miss: t => (elevAt(t) <= 0 ? 'Wah, malam. Tidak ada matahari, tidak ada bayangan.' : tod(t) < HM(12) ? 'Matahari masih naik. Bayangannya masih panjang.' : 'Matahari sudah turun. Bayangannya memanjang lagi.')
     }),
-    night: start => clockR({
-      start: start == null ? HM(15) : start, target: HM(20), sunDrag: true, ev: 'tidur', card: { icon: 'moon' }, sleepAt: HM(19),
+    night: (start = HM(15)) => clockR({
+      start, target: HM(20), sunDrag: true, ev: 'tidur', card: { icon: 'moon' }, sleepAt: HM(19),
       check: t => elevAt(t) <= -15,
-      say: 'Buat kampung jadi malam. Bulan dan bintang muncul!',
+      say: nowSay(start) + 'Buat kampung jadi malam. Bulan dan bintang muncul!',
       okSay: 'Malam sudah tiba. Ada bulan dan bintang.',
       miss: t => (elevAt(t) > 0 ? 'Langitnya masih terang. Putar lagi!' : 'Hampir malam. Langitnya belum gelap. Putar lagi!')
     }),
-    longShadow: start => clockR({
-      start: start == null ? HM(12) : start, target: HM(7), sunDrag: true, stones: 2.5, card: { icon: 'longShadow' },
-      // the shadow reaches a stone 2.5 pole heights away when tan(e) <= 1/2.5, i.e. e <= 21.8 deg
-      check: t => { const L = shadowLen(POLE.h, elevAt(t)); return L != null && L >= POLE.h * 2.5 - 0.5; },
-      say: 'Buat bayangan tiang panjang sampai ke batu!',
+    // the stones lie `mult` pole heights away; the shadow reaches them when tan(e) <= 1/mult
+    // (2 -> e <= 26.6 deg, 2.5 -> e <= 21.8 deg): with the hour grid that is 07.00 or 17.00
+    longShadow: (start = HM(12), mult = 2.5, target) => clockR({
+      start, target: target != null ? target : start > HM(12) ? HM(17) : HM(7), sunDrag: true, stones: mult, card: { icon: 'longShadow' },
+      check: t => { const L = shadowLen(POLE.h, elevAt(t)); return L != null && L >= POLE.h * mult - 0.5; },
+      say: nowSay(start) + 'Buat bayangan tiang panjang sampai ke batu!',
       okSay: 'Matahari rendah, bayangannya panjang sekali!',
       miss: t => (elevAt(t) <= 0 ? 'Matahari belum ada. Tidak ada bayangan.' : 'Bayangannya belum sampai batu. Matahari masih tinggi.')
     }),
@@ -886,38 +894,67 @@
       miss: t => 'Ini angka ' + h12(hmOf(t).h) + '. Cari angka dengan ' + n + ' titik.'
     })
   };
-  const TK_ORDER = demo => (demo ? {
-    kind: 'order', mode: 'tk', start: HM(5),
-    slots: [{ t: HM(6), icon: 'sunrise' }, { t: HM(12), icon: 'sunHigh' }, { t: HM(19), icon: 'moon' }],
-    cards: shuffle([{ id: 'warung', t: HM(6), icon: 'warung', demo: 'Warung buka pagi, matahari terbit.' },
-      { id: 'makan', t: HM(12), icon: 'makan', demo: 'Makan siang, matahari tinggi.' },
-      { id: 'makanmalam', t: HM(19), icon: 'makanmalam', demo: 'Makan malam, ada bulan.' }]),
-    say: '', win: 'Pagi, siang, lalu malam. Urutannya pas!'
-  } : {
-    kind: 'order', mode: 'tk', start: HM(5),
-    slots: [{ t: HM(6), icon: 'sunrise' }, { t: HM(7), icon: 'sunMid' }, { t: HM(20), icon: 'moon' }],
-    cards: shuffle([{ id: 'bangun', t: HM(6), icon: 'ayam', why: 'Bangun tidur itu pagi, waktu ayam berkokok.' },
-      { id: 'sekolah', t: HM(7), icon: 'bus', why: 'Berangkat sekolah itu pagi, sesudah bangun.' },
-      { id: 'tidur', t: HM(20), icon: 'tidur', why: 'Tidur itu malam, waktu ada bulan.' }]),
-    say: 'Taruh gambar di jalur matahari. Pagi, siang, malam.',
-    win: 'Bangun, sekolah, lalu tidur. Urutannya pas!'
-  });
+  /** TK rounds with drawn start times (the examples use 17.00 for night and 14.00 for the stones). */
+  const tkGen = {
+    rooster: () => tk.rooster(HM(pick([1, 2, 3, 4]))),
+    noon: () => tk.noon(HM(pick([8, 9, 10, 14, 15, 16]))),
+    night: () => tk.night(HM(pick([14, 15, 16]))),
+    longShadow: () => { const s = HM(pick([9, 10, 11, 12, 13, 15])); return tk.longShadow(s, pick([2, 2.25, 2.5]), s === HM(12) ? pick([HM(7), HM(17)]) : null); }
+  };
+  const TK_SLOTS = { pagi: { t: HM(6), icon: 'sunrise' }, pagi2: { t: HM(7), icon: 'sunMid' }, siang: { t: HM(12), icon: 'sunHigh' }, malam: { t: HM(20), icon: 'moon' } };
+  const TK_ACTS = {
+    pagi: [{ id: 'bangun', icon: 'ayam', name: 'bangun', why: 'Bangun tidur itu pagi sekali, waktu matahari terbit.' },
+      { id: 'warung', icon: 'warung', name: 'warung buka', why: 'Warung buka pagi sekali, waktu matahari terbit.' }],
+    pagi2: [{ id: 'sekolah', icon: 'bus', name: 'sekolah', why: 'Berangkat sekolah itu pagi, sesudah matahari terbit.' },
+      { id: 'pos', icon: 'pos', name: 'Pak Pos datang', why: 'Pak Pos datang pagi, sesudah matahari terbit.' }],
+    siang: [{ id: 'makan', icon: 'makan', name: 'makan siang', why: 'Makan siang itu waktu matahari paling tinggi.' },
+      { id: 'pulang', icon: 'bus', name: 'pulang sekolah', why: 'Pulang sekolah itu siang, waktu matahari tinggi.' }],
+    malam: [{ id: 'tidur', icon: 'tidur', name: 'tidur', why: 'Tidur itu malam, waktu ada bulan.' },
+      { id: 'makanmalam', icon: 'makanmalam', name: 'makan malam', why: 'Makan malam itu malam, waktu ada bulan.' }]
+  };
+  function TK_ORDER(demo) {
+    if (demo) return {
+      kind: 'order', mode: 'tk', start: HM(5), homes: shuffle([0, 1, 2]),
+      slots: [{ t: HM(6), icon: 'sunrise' }, { t: HM(12), icon: 'sunHigh' }, { t: HM(19), icon: 'moon' }],
+      cards: shuffle([{ id: 'warung', t: HM(6), icon: 'warung', demo: 'Warung buka pagi, matahari terbit.' },
+        { id: 'makan', t: HM(12), icon: 'makan', demo: 'Makan siang, matahari tinggi.' },
+        { id: 'makanmalam', t: HM(19), icon: 'makanmalam', demo: 'Makan malam, ada bulan.' }]),
+      say: '', win: 'Pagi, siang, lalu malam. Urutannya pas!'
+    };
+    const parts = pick([['pagi', 'pagi2', 'malam'], ['pagi', 'siang', 'malam']]);
+    const acts = parts.map(p => Object.assign({}, pick(TK_ACTS[p]), { t: TK_SLOTS[p].t }));
+    return {
+      kind: 'order', mode: 'tk', start: HM(5), homes: shuffle([0, 1, 2]),
+      slots: parts.map(p => Object.assign({}, TK_SLOTS[p])), cards: shuffle(acts),
+      say: 'Taruh gambar di jalur matahari. Pagi, siang, malam.',
+      win: cap(acts[0].name) + ', ' + acts[1].name + ', lalu ' + acts[2].name + '. Urutannya pas!'
+    };
+  }
   const ACTS = [
     { id: 'bangun', ts: [HM(5, 30), HM(6)], icon: 'ayam' }, { id: 'sekolah', ts: [HM(7)], icon: 'bus' },
     { id: 'istirahat', ts: [HM(9, 30), HM(10)], icon: 'bola' }, { id: 'makan', ts: [HM(12), HM(12, 30)], icon: 'makan' },
     { id: 'layangan', ts: [HM(16), HM(16, 30)], icon: 'layangan' }, { id: 'makanmalam', ts: [HM(19)], icon: 'makanmalam' },
     { id: 'tidur', ts: [HM(20, 30), HM(21)], icon: 'tidur' }
   ];
-  function K1_ORDER() {
-    const picks = shuffle(ACTS.slice()).slice(0, 4).map(a => ({ id: a.id, icon: a.icon, t: pick(a.ts) }));
-    return { kind: 'order', mode: 'k1', start: HM(5), slots: [0, 1, 2, 3].map(() => ({})), cards: shuffle(picks), say: 'Lihat jam di kartu. Urutkan dari pagi sampai malam!', win: 'Urut dari pagi sampai malam. Hebat!' };
+  // the example uses activities the child's pool never has
+  const K1_DEMO_ACTS = [{ id: 'warung', icon: 'warung', t: HM(6, 30) }, { id: 'pos', icon: 'pos', t: HM(8, 30) }, { id: 'kue', icon: 'kue', t: HM(10) }, { id: 'azan', icon: 'azan', t: HM(18) }];
+  function K1_ORDER(demo) {
+    const picks = demo ? K1_DEMO_ACTS.slice() : shuffle(ACTS).slice(0, 4).map(a => ({ id: a.id, icon: a.icon, t: pick(a.ts) }));
+    return { kind: 'order', mode: 'k1', start: HM(5), homes: shuffle([0, 1, 2, 3]), slots: [0, 1, 2, 3].map(() => ({})), cards: shuffle(picks), say: 'Lihat jam di kartu. Urutkan dari pagi sampai malam!', win: 'Urut dari pagi sampai malam. Hebat!' };
   }
-  const K1POOL = [['bus', HM(7)], ['pos', HM(7, 30)], ['warung', HM(8)], ['warung', HM(8, 30)], ['makan', HM(12)], ['layangan', HM(15, 30)], ['layangan', HM(16)],
-    ['azan', HM(18)], ['makanmalam', HM(18, 30)], ['makanmalam', HM(19)], ['tidur', HM(20)], ['tidur', HM(20, 30)]];
+  // k1 pools (makan malam 19.00 and layangan 15.30 are the examples' tasks)
+  const K1_TEPAT = [['bus', 7], ['warung', 6], ['warung', 8], ['pos', 9], ['pos', 10], ['kue', 10], ['makan', 12], ['layangan', 15], ['layangan', 16],
+    ['bola', 17], ['azan', 18], ['tidur', 20], ['tidur', 21]].map(p => [p[0], HM(p[1])]);
+  const K1_SETENGAH = [['bus', HM(6, 30)], ['pos', HM(7, 30)], ['pos', HM(8, 30)], ['warung', HM(6, 30)], ['warung', HM(9, 30)], ['kue', HM(9, 30)], ['kue', HM(10, 30)],
+    ['makan', HM(12, 30)], ['layangan', HM(16, 30)], ['bola', HM(16, 30)], ['makanmalam', HM(18, 30)], ['tidur', HM(20, 30)]];
+  const K1POOL = [['bus', HM(7)], ['bus', HM(6, 30)], ['pos', HM(7, 30)], ['pos', HM(9)], ['warung', HM(8)], ['warung', HM(8, 30)], ['kue', HM(10)], ['makan', HM(12)],
+    ['layangan', HM(16)], ['layangan', HM(16, 30)], ['bola', HM(17)], ['azan', HM(18)], ['makanmalam', HM(18, 30)], ['makanmalam', HM(19, 30)], ['tidur', HM(20)], ['tidur', HM(20, 30)]];
+  /** Two events with different pictures, in the order they happen. */
+  function twoEvents(pool) { const a = pick(pool), b = pick(pool.filter(p => p[0] !== a[0])); return [a, b].sort((x, y) => x[1] - y[1]); }
   const evExtra = (ev, t) => (ev === 'warung' ? { warungAt: t } : ev === 'tidur' ? { sleepAt: t } : {});
   const k1Ev = (ev, t, back) => setEv(ev, t, back == null ? 1800 * rand(3, 5) : back, evExtra(ev, t));
   function k1Mix(n, needHalf) {
-    let pool = shuffle(K1POOL.slice()), out = [], used = {};
+    let pool = shuffle(K1POOL), out = [], used = {};
     if (needHalf) { const h = pool.find(p => p[1] % 3600); out.push(h); used[h[0]] = 1; }
     for (const p of pool) { if (out.length >= n) break; if (!used[p[0]]) { out.push(p); used[p[0]] = 1; } }
     return shuffle(out).map(p => k1Ev(p[0], p[1]));
@@ -932,6 +969,35 @@
     return clockR(Object.assign({
       start, target: wrap(start + d, DAY), ev, arc: true, card: { icon: EV[ev].icon, lines, counter: TIER === 'k1' ? 'pips' : null }, counter: TIER === 'k1' ? 'pips' : null, pin: true, say
     }, extra || {}));
+  }
+  // "1 jam lagi" stories (the example: kue from 11.00)
+  const K1_SEJAM = [
+    { ev: 'kue', hs: [7, 8, 9, 10, 13, 14], start: true, say: w => 'Kue dikukus ' + w + '. Matang 1 jam lagi!' },
+    { ev: 'bola', hs: [8, 9, 14, 15, 16], start: true, say: w => 'Main bola mulai ' + w + '. Selesai 1 jam lagi!' },
+    { ev: 'pos', hs: [7, 8, 9, 10], say: w => 'Sekarang ' + w + '. Pak Pos datang 1 jam lagi!' },
+    { ev: 'angkot', hs: [6, 7, 13, 15], say: w => 'Sekarang ' + w + '. Angkot datang 1 jam lagi!' }
+  ];
+  function sejamR(spec, half) {
+    const s = HM(pick(spec.hs), half ? 30 : 0), w = timeWords(s);
+    return afterR(s, 3600, spec.ev, [spec.start ? 'Mulai ' + w : cap(w), '1 jam lagi'], spec.say(w));
+  }
+  function k1Shadow() {
+    if (Math.random() < 0.5) {
+      // morning or afternoon first, then noon: the shadow gets shorter
+      const t = HM(pick([8, 9, 10, 14, 15])), w = timeWords(t, true);
+      return { rounds: [
+        clockR({ start: t - HM(2), target: t, markShadow: true, card: { icon: 'longShadow', lines: [cap(w) + '.', 'Lihat bayangan.'] }, say: 'Atur ' + w + '. Lihat bayangan tiangnya!', okSay: cap(w) + '. Bayangannya sampai di bendera biru.' }),
+        predictR('pendek', 'Tebak dulu! Kalau jam 12 siang, bayangannya lebih panjang atau lebih pendek?'),
+        clockR({ start: t, target: HM(12), ev: 'makan', card: { icon: 'sunHigh', lines: ['Jam 12 siang.', 'Bayangannya?'] }, say: 'Sekarang atur jam 12 siang. Lihat bayangannya!', okSay: 'Jam 12 siang. Matahari paling tinggi, bayangan paling pendek!' })
+      ], win: 'Siang hari bayangannya paling pendek!' };
+    }
+    // noon first, then morning or afternoon: the shadow gets longer
+    const s0 = HM(pick([10, 14])), t2 = HM(pick([8, 9, 15, 16])), w2 = timeWords(t2, true);
+    return { rounds: [
+      clockR({ start: s0, target: HM(12), markShadow: true, card: { icon: 'sunHigh', lines: ['Jam 12 siang.', 'Lihat bayangan.'] }, say: 'Atur jam 12 siang. Lihat bayangan tiangnya!', okSay: 'Jam 12 siang. Bayangannya pendek sekali, di bendera biru.' }),
+      predictR('panjang', 'Tebak dulu! Kalau ' + w2 + ', bayangannya lebih panjang atau lebih pendek?'),
+      clockR({ start: HM(12), target: t2, card: { icon: 'longShadow', lines: [cap(w2) + '.', 'Bayangannya?'] }, say: 'Sekarang atur ' + w2 + '. Lihat bayangannya!', okSay: cap(w2) + '. Matahari lebih rendah, bayangannya lebih panjang!' })
+    ], win: 'Matahari tinggi, bayangan pendek. Matahari rendah, bayangan panjang!' };
   }
   const quarterR = (h, late) => {
     const t = late ? HM(h, 45) : HM(h, 15), w = timeWords(t);
@@ -953,6 +1019,10 @@
     start: HM(12), target, mod: DAY, ev, card: { icon: EV[ev].icon, lines: [EV[ev].card, cap(timeWords(target, true))] }, sleepAt: ev === 'tidur' ? target : HM(21),
     say: EV[ev].say + ' ' + timeWords(target, true) + '. Atur jamnya!'
   });
+  // k2 "pagi atau malam": the same hour twice, morning and evening (06.00/18.00 look alike, so 7 to 9)
+  const AMPM = { 7: [['bus', 'warung'], ['makanmalam']], 8: [['warung', 'pos'], ['tidur', 'makanmalam']], 9: [['pos', 'warung'], ['tidur']] };
+  const EVENING = [[HM(19), 'makanmalam'], [HM(20), 'makanmalam'], [HM(20), 'tidur'], [HM(21), 'tidur']];
+  const eveningR = () => { const p = pick(EVENING); return ampmR(p[0], p[1]); };
   const schedR = (start, every) => {
     const target = Math.ceil((start + 1) / every) * every;
     return clockR({ start, target, schedule: every, ev: 'angkot', card: { icon: 'angkot', lines: ['Angkot datang', 'tiap ' + every / 60 + ' menit', { t: 'Sekarang ' + digital(start), size: 36 }] },
@@ -961,12 +1031,15 @@
       miss: t => (tod(t) < target ? 'Jam ' + digital(t) + '. Belum ada angkot.' : tod(t) < target + 60 * 30 && tod(t) > target ? 'Angkotnya sudah lewat. Kamu menunggu kelamaan.' : 'Hmm, itu bukan angkot berikutnya.') });
   };
   const backR = (end, d, ev, lines, say) => clockR({ start: end, target: wrap(end - d, DAY), ev, arc: true, pin: true, counter: 'after', cunit: 'm', card: { icon: EV[ev].icon, lines, counter: true }, say });
-  const secR = d => clockR({
-    mode: 'sec', grid: 5, start: HM(7, 10), target: HM(7, 10) + d, arc: true, pin: true, counter: 'after', cunit: 's', nudge: true,
-    card: { icon: 'clock', lines: d === 60 ? ['1 menit = 60 detik', 'Putar jarum detik', 'satu putaran'] : [d + ' detik', 'Putar jarum detik'], counter: true },
-    say: d === 60 ? 'Satu menit sama dengan 60 detik. Putar jarum merah satu putaran!' : 'Lompat tali ' + d + ' detik. Putar jarum detiknya!',
-    okSay: d + ' detik sama dengan ' + (d % 60 ? Math.floor(d / 60) + ' menit ' + (d % 60) + ' detik' : d / 60 + ' menit') + '!'
-  });
+  const secR = (d, act, start) => {
+    start = start == null ? HM(7, 10) : start;
+    return clockR({
+      mode: 'sec', grid: 5, start, target: start + d, arc: true, pin: true, counter: 'after', cunit: 's', nudge: true,
+      card: { icon: 'clock', lines: d === 60 ? ['1 menit = 60 detik', 'Putar jarum detik', 'satu putaran'] : [act || 'Lompat tali', d + ' detik'], counter: true },
+      say: d === 60 ? (act ? act + ' satu menit. ' : '') + 'Satu menit sama dengan 60 detik. Putar jarum merah satu putaran!' : (act || 'Lompat tali') + ' ' + d + ' detik. Putar jarum detiknya!',
+      okSay: d + ' detik sama dengan ' + (d % 60 ? Math.floor(d / 60) + ' menit ' + (d % 60) + ' detik' : d / 60 + ' menit') + '!'
+    });
+  };
   const trainFwd = (dep, dur) => clockR({ start: dep, target: wrap(dep + dur, DAY), ev: 'kereta', arc: true, pin: true, counter: 'after', cunit: 'hm',
     card: { icon: 'kereta', lines: ['Berangkat ' + digital(dep), 'Lama ' + durWords(dur), 'Tiba jam?'], counter: true },
     say: 'Kereta berangkat ' + digital(dep) + ', perjalanan ' + durWords(dur) + '. Tiba jam berapa?' });
@@ -976,8 +1049,8 @@
   const convR = (start, dur, shownAs) => clockR({ start, target: wrap(start + dur, DAY), ev: 'kue', arc: true, pin: true, counter: 'live', cunit: shownAs === 'm' ? 'hm' : 'm',
     card: { icon: 'kue', lines: ['Mulai ' + digital(start), 'Lama ' + durWords(dur, shownAs === 'm' ? 'm' : 'hm')], counter: true },
     say: 'Kue mulai dikukus ' + digital(start) + '. Lamanya ' + durWords(dur, shownAs === 'm' ? 'm' : 'hm') + '. Kapan matang?' });
-  const zoneR = (zi, local) => clockR({
-    start: HM(7), target: wrap(local - zi * 3600, DAY), zones: zi, noPole: true,
+  const zoneR = (zi, local, start) => clockR({
+    start: start == null ? HM(7) : start, target: wrap(local - zi * 3600, DAY), zones: zi, noPole: true,
     card: { icon: 'peta', lines: ['Di ' + CITY[zi], digital(local) + ' ' + ZN[zi], 'Jakarta jam?'] },
     say: 'Di ' + CITY[zi] + ' jam ' + digital(local) + ' ' + ZN[zi] + '. Atur jam Jakarta!',
     okSay: 'Pas! Jakarta ' + digital(local - zi * 3600) + ', ' + CITY[zi] + ' ' + digital(local) + '.'
@@ -1002,40 +1075,119 @@
     if (cur) out.push(cur);
     return out;
   }
-  const predictR = () => ({ kind: 'predict', say: 'Tebak dulu! Jam 12 nanti, bayangannya lebih panjang atau lebih pendek?', correct: 'pendek' });
-  const hours = (n, lo, hi) => shuffle([...Array(hi - lo + 1)].map((_, i) => lo + i)).slice(0, n);
+  const predictR = (correct, say) => ({ kind: 'predict', say: say || 'Tebak dulu! Jam 12 nanti, bayangannya lebih panjang atau lebih pendek?', correct: correct || 'pendek' });
+  const hours = (n, lo, hi) => shuffle(range(lo, hi)).slice(0, n);
+
+  /* ---- k3/k4 generators ---- */
+  // trips and jobs with a start and an end (the examples: angkot 10.45 to 11.10, bus 09.30 to 11.45)
+  const TRIP = {
+    angkot: { ev: 'angkot', a: 'Berangkat', b: 'Tiba', say: (s, e) => 'Angkot berangkat ' + s + ', tiba ' + e + '.', short: 'Angkotnya belum sampai.', long: 'Angkotnya sudah sampai dari tadi.' },
+    bus: { ev: 'bus', a: 'Berangkat', b: 'Tiba', say: (s, e) => 'Bus berangkat ' + s + ', tiba ' + e + '.', short: 'Busnya belum sampai.', long: 'Busnya sudah sampai dari tadi.' },
+    kereta: { ev: 'kereta', a: 'Berangkat', b: 'Tiba', say: (s, e) => 'Kereta berangkat ' + s + ', tiba ' + e + '.', short: 'Keretanya belum sampai.', long: 'Keretanya sudah sampai dari tadi.' },
+    kue: { ev: 'kue', a: 'Mulai', b: 'Matang', say: (s, e) => 'Kue dikukus ' + s + ', matang ' + e + '.', short: 'Kuenya belum matang.', long: 'Kuenya sudah matang dari tadi.' },
+    bola: { ev: 'bola', a: 'Mulai', b: 'Selesai', say: (s, e) => 'Main bola mulai ' + s + ', selesai ' + e + '.', short: 'Main bolanya belum selesai.', long: 'Main bolanya sudah selesai dari tadi.' }
+  };
+  const tripR = (sp, s, e, unit) => howR(s, e, unit, sp.ev, [sp.a + ' ' + digital(s), sp.b + ' ' + digital(e)], sp.say(digital(s), digital(e)) + (unit === 'm' ? ' Berapa menit?' : ' Berapa lama?'), { short: sp.short, long: sp.long });
+  /** k3: minutes across the hour (h.35 to h.55 plus 10 to 50 minutes, always into the next hour). */
+  function crossM(sp) {
+    const h = rand(6, 16), m = pick([35, 40, 45, 50, 55]);
+    let d = 5 * rand((65 - m) / 5, 10);
+    if (h === 10 && m === 45 && d === 25) d = 30;
+    return tripR(sp, HM(h, m), HM(h, m + d), 'm');
+  }
+  /** k4: hours and minutes (1 to 3 hours and 5 to 55 minutes); `cross` makes the minutes pass the hour. */
+  function crossHM(sp, cross) {
+    const h = rand(5, 13), m = 5 * (cross ? rand(2, 11) : rand(0, 11)), dh = rand(1, 3);
+    let dm = 5 * (cross ? rand(Math.max(1, 13 - m / 5), 11) : rand(1, 11));
+    if (h === 9 && m === 30 && dh === 2 && dm === 15) dm = 20;
+    return tripR(sp, HM(h, m), HM(h, m) + HM(dh, dm), 'hm');
+  }
+  const ODD_LATE = range(31, 59).filter(m => m % 5), ODD_EARLY = range(1, 29).filter(m => m % 5);
+  const K3_SORE = [['makan', 13], ['kue', 14], ['layangan', 15], ['layangan', 16], ['bola', 16], ['bola', 17]];
+  const K3_MALAM = [['azan', 18], ['makanmalam', 19], ['makanmalam', 20], ['tidur', 20], ['tidur', 21]];
+  const K3_MIN = [0, 10, 15, 20, 30, 40, 45, 50];
+  function sore24() { const p = pick(K3_SORE); let m = pick(K3_MIN); if (p[1] === 14 && m === 40) m = 45; return digCardR(HM(p[1], m), true, p[0]); }
+  function malam24() { const p = pick(K3_MALAM); return digCardR(HM(p[1], p[0] === 'azan' ? pick([0, 5, 10]) : pick(K3_MIN)), true, p[0]); }
+  /** Next angkot: every 10, 15 or 20 minutes from a time that is not on the schedule. */
+  function schedGen(every) {
+    const h = rand(6, 17);
+    let m = pick(range(1, 59).filter(x => x % (every / 60)));
+    if (every === 900 && h === 8 && m === 5) m = 7;
+    return schedR(HM(h, m), every);
+  }
+  const K3_BACK = [
+    { ev: 'bola', a: 'Selesai', q: 'Mulai jam?', say: (e, d) => 'Main bola selesai ' + e + ', lamanya ' + d + ' menit. Mulai jam berapa?' },
+    { ev: 'kue', a: 'Matang', q: 'Mulai jam?', say: (e, d) => 'Kue matang ' + e + ' sesudah ' + d + ' menit. Mulai jam berapa?' },
+    { ev: 'angkot', a: 'Tiba', q: 'Berangkat jam?', say: (e, d) => 'Angkot tiba ' + e + ', perjalanannya ' + d + ' menit. Berangkat jam berapa?' }
+  ];
+  /** Back in time across the hour: 25 to 55 minutes from a time whose minutes are fewer. */
+  function backGen(sp) {
+    const d = 5 * rand(5, 11), h = rand(7, 16);
+    let m = rand(0, d - 1);
+    if (sp.ev === 'bola' && h === 9 && m === 30 && d === 35) m = 31;
+    const end = HM(h, m);
+    return backR(end, d * 60, sp.ev, [sp.a + ' ' + digital(end), 'Lama ' + d + ' menit', sp.q], sp.say(digital(end), d));
+  }
+  const SEC_ACTS = ['Lompat tali', 'Sikat gigi', 'Tepuk tangan', 'Main gasing'];
+  const secStart = () => HM(rand(6, 17), rand(0, 59));
+  /** k4 conversions: 65 to 175 minutes, never whole hours (the example: 80 minutes from 10.00). */
+  function convGen(shownAs) {
+    const d = 5 * pick(range(13, 35).filter(k => k % 12)), s = HM(rand(6, 14), 5 * rand(0, 11));
+    return convR(s === HM(10) && d === 80 ? HM(10, 5) : s, d * 60, shownAs);
+  }
+  /** Trains: 1 to 3 hours and 5 to 55 minutes (the example: 07.15 plus 1 jam 40 menit). */
+  function trainGen(back) {
+    const dur = HM(rand(1, 3), 5 * rand(1, 11));
+    if (back) return trainBack(HM(rand(10, 18), 5 * rand(0, 11)), dur);
+    const dep = HM(rand(6, 14), 5 * rand(0, 11));
+    return trainFwd(dep === HM(7, 15) && dur === HM(1, 40) ? HM(7, 20) : dep, dur);
+  }
+  /** Time zones: a local time in Makassar (WITA) or Jayapura (WIT); the tower (Jakarta) starts 1 to 4 hours away. */
+  function zoneGen(zi) {
+    const local = HM(rand(6, 20), 5 * rand(0, 11)), target = local - zi * 3600;
+    const off = (Math.random() < 0.5 ? -1 : 1) * HM(rand(1, 3), 5 * rand(0, 11));
+    const start = zi === 1 && local === HM(10) && off === HM(7) - target ? HM(6, 30) : wrap(target + off, DAY);
+    return zoneR(zi, local, start);
+  }
+  /** Speed: 2 to 5 minutes per km, 4 to 8 km, at most 40 minutes (the example: 2 minutes x 6 km). */
+  function speedGen(notPer) {
+    const opts = [];
+    [2, 3, 4, 5].forEach(p => [4, 5, 6, 7, 8].forEach(k => { if (p * k <= 40 && !(p === 2 && k === 6) && p !== notPer) opts.push([p, k]); }));
+    const o = pick(opts);
+    return speedR(o[0], o[1], HM(rand(6, 16), 5 * rand(0, 11)));
+  }
+  // sundial: the shadow end must stay inside the design area (07.00 reaches x 770, 16.30 x 95);
+  // 13.00 is the example
+  const SUN_AM = [HM(7), HM(7, 30), HM(8), HM(8, 30), HM(9), HM(9, 30), HM(10)];
+  const SUN_PM = [HM(14), HM(14, 30), HM(15), HM(15, 30), HM(16), HM(16, 30)];
 
   const TIERS = {
     tk: [
-      () => ({ rounds: [tk.rooster()] }),
-      () => ({ rounds: [tk.noon()] }),
+      () => ({ rounds: [Math.random() < 0.5 ? tkGen.rooster() : tkGen.night()] }),
+      () => ({ rounds: [tkGen.noon()] }),
       () => ({ rounds: [TK_ORDER()] }),
       () => { const [a, b] = hours(2, 1, 6); return { rounds: [tk.hour(a), tk.hour(b)], win: 'Jarum pendek menunjuk angkanya. Hebat!' }; },
-      () => ({ rounds: [tk.longShadow()] }),
-      () => ({ rounds: shuffle([tk.rooster(HM(2)), tk.noon(HM(9)), tk.night(HM(16)), tk.longShadow(HM(12))]).slice(0, 2), win: 'Kamu bisa mengatur pagi, siang, dan malam!' })
+      () => ({ rounds: [tkGen.longShadow()] }),
+      () => ({ rounds: pickN(['rooster', 'noon', 'night', 'longShadow'], 2).map(k => tkGen[k]()), win: 'Kamu bisa mengatur pagi, siang, dan malam!' })
     ],
     k1: [
-      () => { const p = pick([['makan', HM(12)], ['layangan', HM(16)], ['tidur', HM(20)]]); return { rounds: [k1Ev('bus', HM(7), HM(2)), k1Ev(p[0], p[1], HM(2))] }; },
+      () => { const [a, b] = twoEvents(K1_TEPAT); return { rounds: [k1Ev(a[0], a[1], 3600 * rand(2, 4)), k1Ev(b[0], b[1], 3600 * rand(2, 4))] }; },
       () => { const [a, b] = hours(2, 1, 11); return { rounds: [matchR(HM(a)), matchR(HM(b))], win: 'Jam menara sama dengan jam tugu!' }; },
-      () => { const h = pick([9, 10]); return { rounds: [k1Ev('pos', HM(7, 30), HM(1, 30)), k1Ev('warung', HM(h, 30), HM(2))], win: 'Setengah jam: jarum panjang di angka 6!' }; },
-      () => {
-        const h = pick([8, 9, 10]), h2 = pick([15, 16]);
-        return { rounds: [afterR(HM(h), 3600, 'kue', ['Mulai ' + timeWords(HM(h)), '1 jam lagi'], 'Kue dikukus ' + timeWords(HM(h)) + '. Matang 1 jam lagi!'),
-          afterR(HM(h2, 30), 3600, 'bola', ['Mulai ' + timeWords(HM(h2, 30)), '1 jam lagi'], 'Main bola ' + timeWords(HM(h2, 30)) + '. Selesai 1 jam lagi!')], win: 'Satu jam: jarum panjang berputar satu kali!' };
-      },
+      () => { const [a, b] = twoEvents(K1_SETENGAH); return { rounds: [k1Ev(a[0], a[1]), k1Ev(b[0], b[1])], win: 'Setengah jam: jarum panjang di angka 6!' }; },
+      () => { const [A, B] = pickN(K1_SEJAM, 2); return { rounds: [sejamR(A, false), sejamR(B, true)], win: 'Satu jam: jarum panjang berputar satu kali!' }; },
       () => ({ rounds: [K1_ORDER()] }),
-      () => ({ rounds: [clockR({ start: HM(7), target: HM(9), markShadow: true, card: { icon: 'longShadow', lines: ['Jam 9 pagi.', 'Lihat bayangan.'] }, say: 'Atur jam 9 pagi. Lihat bayangan tiangnya!', okSay: 'Jam 9 pagi. Bayangannya sampai di bendera biru.' }),
-        predictR(), clockR({ start: HM(9), target: HM(12), ev: 'makan', card: { icon: 'sunHigh', lines: ['Jam 12 siang.', 'Bayangannya?'] }, say: 'Sekarang atur jam 12 siang. Lihat bayangannya!', okSay: 'Jam 12 siang. Matahari paling tinggi, bayangan paling pendek!' })], win: 'Siang hari bayangannya paling pendek!' }),
+      () => k1Shadow(),
       () => ({ rounds: k1Mix(3, true) }),
-      () => { const h = rand(1, 11), h2 = pick([8, 9, 10]); return { rounds: [matchR(HM(h, 30)), afterR(HM(h2, 30), 3600, 'kue', ['Mulai ' + timeWords(HM(h2, 30)), '1 jam lagi'], 'Kue dikukus ' + timeWords(HM(h2, 30)) + '. Matang 1 jam lagi!'), k1Mix(1, true)[0]], win: 'Tantangan selesai. Kamu pintar membaca jam!' }; }
+      () => { const h = rand(1, 11), S = pick(K1_SEJAM); return { rounds: shuffle([matchR(HM(h, 30)), sejamR(S, true), k1Mix(1, true)[0]]), win: 'Tantangan selesai. Kamu pintar membaca jam!' }; }
     ],
     k2: [
-      () => { const [a, b] = hours(2, 1, 11); return { rounds: [quarterR(a, false), quarterR(b, true)], win: 'Seperempat jam sama dengan 15 menit!' }; },
-      () => { const [a, b] = hours(2, 1, 11); return { rounds: [fiveR(a, 5 * rand(1, 5)), fiveR(b, 5 * rand(7, 11))], win: 'Menghitung lima, lima. Hebat!' }; },
-      () => { const t1 = HM(rand(1, 11), 5 * rand(1, 11)), t2 = HM(rand(1, 11), 5 * rand(1, 11)); return { rounds: [digCardR(t1), digSetR(t2)], win: 'Jam digital dan jam dinding sama!' }; },
+      // the examples: 4 lewat seperempat, 2 lewat 20 menit, digital 02.15
+      () => { const a = pick(range(1, 11).filter(h => h !== 4)), b = pick(range(1, 11).filter(h => h !== a)); return { rounds: [quarterR(a, false), quarterR(b, true)], win: 'Seperempat jam sama dengan 15 menit!' }; },
+      () => { const a = pick(range(1, 11).filter(h => h !== 2)), b = pick(range(1, 11).filter(h => h !== a)); return { rounds: [fiveR(a, 5 * rand(1, 5)), fiveR(b, 5 * rand(7, 11))], win: 'Menghitung lima, lima. Hebat!' }; },
+      () => { const t1 = HM(rand(1, 11), 5 * rand(1, 11)), t2 = HM(pick(range(1, 11).filter(h => h !== 2)), 5 * rand(1, 11)); return { rounds: [digCardR(t1), digSetR(t2)], win: 'Jam digital dan jam dinding sama!' }; },
       () => {
-        const s2 = pick([6, 13]), d2 = rand(3, 5);
-        return { rounds: [howR(HM(7), HM(12), 'h', 'bus', ['Berangkat jam 7', 'Pulang jam 12'], 'Siti berangkat sekolah jam 7, pulang jam 12. Berapa jam?', { short: 'Siti masih di sekolah.', long: 'Siti sudah pulang dari tadi.' }),
+        const nm = pick(['Siti', 'Budi', 'Ani', 'Raka']), s1 = pick([6, 7]), e1 = pick([11, 12]), s2 = pick([5, 6, 7, 13, 14]), d2 = rand(3, 5);
+        return { rounds: [howR(HM(s1), HM(e1), 'h', 'bus', ['Berangkat jam ' + s1, 'Pulang jam ' + e1], nm + ' berangkat sekolah jam ' + s1 + ', pulang jam ' + e1 + '. Berapa jam?', { short: nm + ' masih di sekolah.', long: nm + ' sudah pulang dari tadi.' }),
           howR(HM(s2), HM(s2 + d2), 'h', null, ['Buka jam ' + h12(s2), 'Tutup jam ' + h12(s2 + d2)], 'Pasar buka jam ' + h12(s2) + ', tutup jam ' + h12(s2 + d2) + '. Berapa jam?', { short: 'Pasarnya masih buka.', long: 'Pasarnya sudah tutup dari tadi.', icon: 'warung', ok: 'Pasarnya tutup. Saatnya pulang.' })], win: 'Menghitung lama waktu dalam jam. Pintar!' };
       },
       () => {
@@ -1043,34 +1195,32 @@
         return { rounds: [afterR(s1, d1, 'kue', ['Mulai ' + digital(s1), d1 / 60 + ' menit lagi'], 'Kue dikukus jam ' + digital(s1) + '. Matang ' + d1 / 60 + ' menit lagi!', { counter: 'live', cunit: 'm', card: { icon: 'kue', lines: ['Mulai ' + digital(s1), d1 / 60 + ' menit lagi'], counter: true } }),
           afterR(s2, d2, 'bola', ['Mulai ' + digital(s2), d2 / 60 + ' menit lagi'], 'Main bola mulai ' + digital(s2) + '. Selesai ' + d2 / 60 + ' menit lagi!', { counter: 'live', cunit: 'm', card: { icon: 'bola', lines: ['Mulai ' + digital(s2), d2 / 60 + ' menit lagi'], counter: true } })], win: 'Menit demi menit, tepat waktu!' };
       },
-      () => ({ rounds: shuffle([ampmR(HM(19), 'makanmalam'), ampmR(HM(pick([7, 8])), pick(['bus', 'warung']))]), win: 'Jam 7 pagi terang, jam 7 malam gelap!' }),
-      () => { const [a, b, c] = hours(3, 1, 11); return { rounds: shuffle([quarterR(a, Math.random() < 0.5), fiveR(b, 5 * pick([1, 2, 4, 5, 7, 8, 10, 11])), digCardR(HM(c, 5 * rand(1, 11)))]) }; },
-      () => { const s = HM(pick([8, 9, 10]), 5 * rand(9, 10)), d = 60 * pick([20, 25]); return { rounds: [digSetR(HM(rand(1, 11), 5 * rand(1, 11))), afterR(s, d, 'kue', ['Mulai ' + digital(s), d / 60 + ' menit lagi'], 'Kue dikukus ' + digital(s) + '. Matang ' + d / 60 + ' menit lagi!', { counter: 'live', cunit: 'm', card: { icon: 'kue', lines: ['Mulai ' + digital(s), d / 60 + ' menit lagi'], counter: true } }), ampmR(HM(20), 'tidur')], win: 'Tantangan selesai. Kamu jago jam!' }; }
+      () => { const H = pick([7, 8, 9]), A = AMPM[H]; return { rounds: shuffle([ampmR(HM(H + 12), pick(A[1])), ampmR(HM(H), pick(A[0]))]), win: 'Jam ' + H + ' pagi terang, jam ' + H + ' malam gelap!' }; },
+      () => {
+        const [a, b, c] = hours(3, 1, 11), late = a === 4 ? true : Math.random() < 0.5;
+        return { rounds: shuffle([quarterR(a, late), fiveR(b, 5 * pick(b === 2 ? [1, 4, 5, 7, 8, 10, 11] : [1, 2, 4, 5, 7, 8, 10, 11])), digCardR(HM(c, 5 * rand(1, 11)))]) };
+      },
+      () => { const s = HM(pick([8, 9, 10]), 5 * rand(9, 10)), d = 60 * pick([20, 25]); return { rounds: shuffle([digSetR(HM(pick(range(1, 11).filter(h => h !== 2)), 5 * rand(1, 11))), afterR(s, d, 'kue', ['Mulai ' + digital(s), d / 60 + ' menit lagi'], 'Kue dikukus ' + digital(s) + '. Matang ' + d / 60 + ' menit lagi!', { counter: 'live', cunit: 'm', card: { icon: 'kue', lines: ['Mulai ' + digital(s), d / 60 + ' menit lagi'], counter: true } }), eveningR()]), win: 'Tantangan selesai. Kamu jago jam!' }; }
     ],
     k3: [
-      () => { const t1 = HM(8, pick([47, 43, 52, 38])), t2 = HM(rand(1, 11), pick([12, 23, 34, 41, 56])); return { rounds: [digCardR(t1), digCardR(t2)], win: 'Tepat sampai menitnya!' }; },
-      () => ({ rounds: [digCardR(HM(19, 30), true, 'makanmalam'), digCardR(HM(pick([15, 16]), pick([15, 45, 20])), true, 'layangan')], win: 'Jam 13 sampai 24 itu siang, sore, dan malam!' }),
-      () => ({ rounds: [howR(HM(8, 40), HM(9, 15), 'm', 'angkot', ['Berangkat 08.40', 'Tiba 09.15'], 'Angkot berangkat 08.40, tiba 09.15. Berapa menit?', { short: 'Angkotnya belum sampai.', long: 'Angkotnya sudah sampai dari tadi.' }),
-        (() => { const s = HM(pick([10, 13]), 50), d = 60 * pick([25, 35, 40]); return howR(s, s + d, 'm', 'kue', ['Mulai ' + digital(s), 'Matang ' + digital(s + d)], 'Kue dikukus ' + digital(s) + ', matang ' + digital(s + d) + '. Berapa menit?', { short: 'Kuenya belum matang.', long: 'Kuenya sudah matang dari tadi.' }); })()], win: 'Menghitung menit melewati jam. Hebat!' }),
-      () => ({ rounds: [schedR(HM(7, 20), 900), schedR(HM(pick([9, 10]), pick([50, 35])), 900)], win: 'Angkot tiap 15 menit. Tidak perlu menunggu lama!' }),
-      () => ({ rounds: [backR(HM(11, 20), 45 * 60, 'bola', ['Selesai 11.20', 'Lama 45 menit', 'Mulai jam?'], 'Main bola selesai 11.20, lamanya 45 menit. Mulai jam berapa?'),
-        backR(HM(14, 10), 50 * 60, 'kue', ['Matang 14.10', 'Lama 50 menit', 'Mulai jam?'], 'Kue matang 14.10 sesudah 50 menit. Mulai jam berapa?')], win: 'Menghitung mundur waktu. Pintar!' }),
-      () => ({ rounds: [secR(60), secR(90)], win: 'Satu menit sama dengan 60 detik!' }),
-      () => ({ rounds: shuffle([digCardR(HM(rand(1, 11), pick([7, 18, 29, 44, 53]))), digCardR(HM(pick([17, 20, 21]), pick([10, 25, 40])), true, 'tidur'), schedR(HM(pick([7, 8]), pick([5, 40])), 900)]) }),
-      () => ({ rounds: [backR(HM(10, 5), 40 * 60, 'kue', ['Matang 10.05', 'Lama 40 menit', 'Mulai jam?'], 'Kue matang 10.05 sesudah 40 menit. Mulai jam berapa?'),
-        howR(HM(13, 45), HM(14, 30), 'm', 'angkot', ['Berangkat 13.45', 'Tiba 14.30'], 'Angkot berangkat 13.45, tiba 14.30. Berapa menit?', { short: 'Angkotnya belum sampai.', long: 'Angkotnya sudah sampai dari tadi.' }),
-        digCardR(HM(18, pick([35, 50])), true, 'azan')], win: 'Tantangan selesai. Kamu ahli waktu!' })
+      () => ({ rounds: shuffle([digCardR(HM(rand(1, 11), pick(ODD_LATE))), digCardR(HM(rand(1, 11), pick(ODD_EARLY)))]), win: 'Tepat sampai menitnya!' }),
+      () => ({ rounds: [malam24(), sore24()], win: 'Jam 13 sampai 24 itu siang, sore, dan malam!' }),
+      () => ({ rounds: pickN([TRIP.angkot, TRIP.bus, TRIP.kue, TRIP.bola], 2).map(crossM), win: 'Menghitung menit melewati jam. Hebat!' }),
+      () => ({ rounds: [schedGen(900), schedGen(pick([600, 1200]))], win: 'Jadwal angkot terbaca. Tidak perlu menunggu lama!' }),
+      () => ({ rounds: pickN(K3_BACK, 2).map(backGen), win: 'Menghitung mundur waktu. Pintar!' }),
+      () => { const [a1, a2] = pickN(SEC_ACTS, 2); return { rounds: [secR(60, a1, secStart()), secR(pick([70, 75, 80, 90, 100, 105, 110, 120]), a2, secStart())], win: 'Satu menit sama dengan 60 detik!' }; },
+      () => ({ rounds: shuffle([digCardR(HM(rand(1, 11), pick(ODD_LATE.concat(ODD_EARLY)))), malam24(), schedGen(pick([600, 900, 1200]))]) }),
+      () => ({ rounds: [backGen(pick(K3_BACK)), crossM(pick([TRIP.angkot, TRIP.bus, TRIP.kue, TRIP.bola])), malam24()], win: 'Tantangan selesai. Kamu ahli waktu!' })
     ],
     k4: [
-      () => ({ rounds: [howR(HM(6, 45), HM(10, 10), 'hm', 'bus', ['Berangkat 06.45', 'Tiba 10.10'], 'Bus berangkat 06.45, tiba 10.10. Berapa lama?', { short: 'Busnya belum sampai.', long: 'Busnya sudah sampai dari tadi.' }),
-        howR(HM(13, 20), HM(15, 5), 'hm', 'kereta', ['Berangkat 13.20', 'Tiba 15.05'], 'Kereta berangkat 13.20, tiba 15.05. Berapa lama?', { short: 'Keretanya belum sampai.', long: 'Keretanya sudah sampai dari tadi.' })], win: 'Jam dan menit dihitung sekaligus. Hebat!' }),
-      () => ({ rounds: [convR(HM(8), 135 * 60, 'm'), convR(HM(13), 100 * 60, 'hm')], win: '2 jam 15 menit sama dengan 135 menit!' }),
-      () => ({ rounds: [trainFwd(HM(9, 50), HM(1, 25)), trainBack(HM(14, 5), HM(2, 10))], win: 'Jadwal kereta terbaca semua!' }),
-      () => ({ rounds: [zoneR(2, HM(12)), zoneR(1, HM(8, 30))], win: 'WIB, WITA, WIT: selisihnya satu jam!' }),
-      () => ({ rounds: [speedR(3, 6, HM(8)), speedR(4, 5, HM(13, 10))], win: 'Jarak dan waktu. Angkot tepat sampai!' }),
-      () => { const [a, b] = shuffle([HM(8), HM(9), HM(10)]).slice(0, 1).concat(shuffle([HM(14), HM(15), HM(16)]).slice(0, 1)); return { rounds: shuffle([sunR(a), sunR(b)]), win: 'Kamu bisa membaca jam matahari!' }; },
-      () => ({ rounds: shuffle([zoneR(pick([1, 2]), HM(pick([9, 10, 14]), 30)), convR(HM(pick([7, 9])), 60 * pick([95, 125, 150]), 'm'), trainFwd(HM(10, 35), HM(1, 50))]) }),
-      () => ({ rounds: [sunR(pick([HM(8), HM(16)])), speedR(5, 4, HM(15, 15)), howR(HM(7, 55), HM(11, 20), 'hm', 'kereta', ['Berangkat 07.55', 'Tiba 11.20'], 'Kereta berangkat 07.55, tiba 11.20. Berapa lama?', { short: 'Keretanya belum sampai.', long: 'Keretanya sudah sampai dari tadi.' })], win: 'Tantangan selesai. Kamu juara waktu!' })
+      () => { const sp = shuffle([TRIP.bus, TRIP.kereta]); return { rounds: [crossHM(sp[0], true), crossHM(sp[1], false)], win: 'Jam dan menit dihitung sekaligus. Hebat!' }; },
+      () => { const r1 = convGen('m'), r2 = convGen('hm'), d1 = r1.target - r1.start; return { rounds: [r1, r2], win: cap(durWords(wrap(d1, DAY), 'hm')) + ' sama dengan ' + durWords(wrap(d1, DAY), 'm') + '!' }; },
+      () => ({ rounds: [trainGen(false), trainGen(true)], win: 'Jadwal kereta terbaca semua!' }),
+      () => { const z = pick([1, 2]); return { rounds: [zoneGen(z), zoneGen(3 - z)], win: 'WIB, WITA, WIT: selisihnya satu jam!' }; },
+      () => { const r1 = speedGen(0); return { rounds: [r1, speedGen(r1.speed.per / 60)], win: 'Jarak dan waktu. Angkot tepat sampai!' }; },
+      () => ({ rounds: shuffle([sunR(pick(SUN_AM)), sunR(pick(SUN_PM))]), win: 'Kamu bisa membaca jam matahari!' }),
+      () => ({ rounds: shuffle([zoneGen(pick([1, 2])), convGen('m'), trainGen(false)]) }),
+      () => ({ rounds: shuffle([sunR(pick(SUN_AM.concat(SUN_PM))), speedGen(0), crossHM(TRIP.kereta, true)]), win: 'Tantangan selesai. Kamu juara waktu!' })
     ]
   };
   const LEVELS = TIERS[TIER] || TIERS.k1;
@@ -1270,7 +1420,7 @@
       const ring = el('rect', { x: -cw / 2 - 6, y: -chh / 2 - 6, width: cw + 12, height: chh + 12, rx: 22, fill: 'none', stroke: '#0F8C7A', 'stroke-width': 7, opacity: 0 }, g);
       orderS.slots.push(Object.assign({}, s, { x: xs[i], y: sy, card: null, ring }));
     });
-    const homes = shuffle(xs.slice());
+    const homes = r.homes ? r.homes.map(k => xs[k]) : shuffle(xs.slice());   // drawn when the level was built
     r.cards.forEach((c, i) => {
       const g = el('g', {}, orderG);
       const body = el('g', {}, g);
@@ -1487,7 +1637,7 @@
   }
   function passAngkot() {
     if (live.size > 1 || GS.reducedMotion) return;
-    const my = tok, g = actor(`<g transform="scale(.8)">${angkotArt(pick([P.teal, P.blue, P.orange]))}</g>`);
+    const my = tok, g = actor(`<g transform="scale(.8)">${angkotArt([P.teal, P.blue, P.orange][Math.floor((GS.fxRandom || Math.random)() * 3)])}</g>`);
     live.add(g);
     GS.tone({ f: 520, t: 0.1, type: 'square', vol: 0.04 });
     GS.tween(ms(1700), e => place(g, GS.lerp(-500, 1900, e), 784), 'linear').then(() => { live.delete(g); if (my === tok) g.remove(); });
@@ -1591,8 +1741,11 @@
    * presses Cek! / Jalan!. On k3/k4 it stops one grid step short and taps the +/- nudge.
    * Mixed and challenge levels replay the closest type's example (auto: false). */
   function rSig(r) {
-    const tg = r.target != null ? wrap(r.target, r.mod === HALF ? HALF : DAY) : '';
-    return [r.kind, tg, r.kind === 'digital' ? r.start : '', r.answer != null ? r.start + '+' + r.answer : '',
+    const M = r.mod === HALF ? HALF : DAY, tg = r.target != null ? wrap(r.target, M) : '';
+    // the start counts too (same target from another start is another task), except for the TK
+    // hour hand, where the example's number itself must differ from the child's
+    const st = r.start != null && r.mode !== 'hour' ? wrap(r.start, M) : '';
+    return [r.kind, tg, st, r.answer != null ? r.answer : '', r.stones || '', r.zones != null ? r.zones : '', r.speed ? r.speed.per + 'x' + r.speed.km : '',
       r.cards ? r.cards.map(c => c.id + '@' + c.t).sort().join(',') : ''].join('|');
   }
   function demoDef(i) {
@@ -1611,7 +1764,7 @@
         () => ({ key: 'k1-tugu', r: matchR(HM(4), HM(2)), say: ['Jam tugu menunjuk jam 4.', 'Aku putar jam menara sampai sama.'], after: 'Jarum pendek di 4, jarum panjang di 12. Sama!' }),
         () => ({ key: 'k1-setengah', r: k1Ev('layangan', HM(15, 30), HM(1, 30)), say: ['Main layangan jam setengah 4.', 'Setengah 4 itu jam 3 lewat 30 menit.'], after: 'Jarum panjang di angka 6. Jarum pendek di antara 3 dan 4.' }),
         () => ({ key: 'k1-sejam', r: afterR(HM(11), 3600, 'kue', ['Mulai jam 11', '1 jam lagi'], 'Kue dikukus jam 11. Matang 1 jam lagi!'), say: ['Kue mulai jam 11. Matang 1 jam lagi.', 'Satu jam: jarum panjang berputar satu kali.'], after: 'Satu putaran penuh. Sekarang jam 12.' }),
-        () => ({ key: 'k1-urut', r: K1_ORDER(), say: ['Lihat jam di setiap kartu.'], cardSay: (c, k) => (k ? 'Lalu ' : 'Paling pagi: ') + timeWords(c.t, true) + '.', after: 'Urut dari pagi sampai malam.' }),
+        () => ({ key: 'k1-urut', r: K1_ORDER(true), say: ['Lihat jam di setiap kartu.'], cardSay: (c, k) => (k ? 'Lalu ' : 'Paling pagi: ') + timeWords(c.t, true) + '.', after: 'Urut dari pagi sampai malam.' }),
         () => ({ key: 'k1-bayang', r: clockR({ start: HM(14), target: HM(16), markShadow: true, card: { icon: 'longShadow', lines: ['Jam 4 sore.', 'Lihat bayangan.'] }, okSay: 'Jam 4 sore. Bayangannya memanjang ke timur.' }),
           say: ['Atur jam 4 sore.', 'Lihat bayangan tiangnya bergerak.'], after: 'Sore hari, bayangannya ke arah timur.' }),
         () => Object.assign(D.k1[0](), { key: 'k1-campur', auto: false }),
@@ -1761,7 +1914,8 @@
     get state() { return { level: run.current, round: RI, rounds: LV ? LV.rounds.length : 0, kind: RD && RD.kind, time: digital(T), T: Math.round(T - 2 * DAY), tries, busy, inputOn }; },
     toScreen(x, y) { const pt = svg.createSVGPoint(); pt.x = x; pt.y = y; const r = pt.matrixTransform(svg.getScreenCTM()); return { x: r.x, y: r.y }; },
     clock: { cx: CX, cy: CY, r: FR },
-    words: timeWords, digital, setTime: s => setTime(T0 + s)
+    words: timeWords, digital, setTime: s => setTime(T0 + s),
+    sig: () => (LV ? LV.rounds.map(rSig).join(' / ') : '')
   };
   run.go(GS.store.nextLevel(GAME, LEVELS.length));
 })();
