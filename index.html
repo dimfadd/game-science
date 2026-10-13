@@ -25,8 +25,9 @@
   html, body { height: auto; }
   body { overflow-x: hidden; overflow-y: auto; background: var(--sky); }
   .map-wrap { position: relative; background: var(--sky); }
-  /* Dashboard: the map is the home screen; Papan Juara, Orang Tua and Pengaturan are screens of
-     their own (hash routes #juara, #orang-tua, #pengaturan) so the map page only holds the map.
+  /* Dashboard: the map is the home screen; Balapan (race + Papan Juara), Orang Tua and Pengaturan
+     are screens of their own (hash routes #balapan, #orang-tua, #pengaturan; #juara is an alias)
+     so the map page only holds the map.
      A floating status bar on the map (the child's character, name and kelas; stars and this week's
      stars) and a floating dock in the thumb zone on every screen. On short landscape phones the dock
      becomes a rail on the left. */
@@ -139,6 +140,28 @@
   .rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
   .rules li { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; font-size: 17px; line-height: 1.4; }
   .rules li svg { width: 40px; height: 40px; }
+
+  /* Balapan */
+  .race-games { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; margin: 0 0 14px; }
+  .rg { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 112px; padding: 6px 4px 8px; border: 3px solid var(--line); border-radius: 18px; background: #fff; cursor: pointer; font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1.1; color: var(--ink); text-align: center; }
+  .rg svg { width: 70px; height: 64px; display: block; overflow: visible; }
+  .rg[aria-checked="true"] { background: var(--sun); box-shadow: inset 0 0 0 2px var(--line); }
+  .rg:focus-visible { outline: 4px solid var(--primary); outline-offset: 2px; }
+  .race-btns { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .btn.big { min-height: 72px; font-size: 21px; }
+  .btn .ic { width: 34px; height: 34px; display: inline-grid; }
+  .btn .ic svg { width: 34px; height: 34px; }
+  .race-box { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; align-items: center; }
+  .race-box[hidden] { display: none; }
+  .race-box .btn { flex: 1 1 200px; flex-direction: column; gap: 0; min-height: 76px; line-height: 1.15; }
+  .race-box .btn small { font-family: var(--font-body); font-weight: 700; font-size: 14px; color: #5C4636; }
+  .race-code { flex: 1 1 160px; min-width: 0; height: 64px; padding: 0 14px; border: 3px solid var(--line); border-radius: 18px; background: #fff; text-align: center; font-family: var(--font-num); font-weight: 600; font-size: 34px; letter-spacing: 8px; text-transform: uppercase; color: var(--ink); }
+  .race-code:focus-visible { outline: 4px solid var(--primary); outline-offset: 2px; }
+  .pub-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .pub-list li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 8px 8px 14px; border: 3px solid var(--line); border-radius: 18px; background: #fff; }
+  .pub-list li b { font-family: var(--font-num); font-weight: 600; font-size: 24px; letter-spacing: 3px; }
+  .pub-list li span { flex: 1; font-weight: 700; font-size: 16px; }
+  .pub-list li.empty { border-style: dashed; border-color: #B9A68B; background: #F6EEDF; color: #6B5444; font-weight: 700; }
 
   /* Orang Tua */
   .seg { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -370,11 +393,38 @@
   <div class="down-hint gone" id="downHint" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Geser ke bawah</div>
 </main>
 
-<!-- Papan Juara: the screen is ready, the ranking itself waits for a server (no other players are shown) -->
-<section class="scr" id="scr-juara" data-route="#juara" aria-labelledby="juaraTitle" hidden>
+<!-- Balapan: start a race (bots now, rooms when a server is configured) + Papan Juara of the week -->
+<section class="scr" id="scr-juara" data-route="#balapan" aria-labelledby="juaraTitle" hidden>
   <div class="scr-band"><div><span class="art" id="juaraArt" aria-hidden="true"></span>
-    <div><h2 id="juaraTitle" tabindex="-1">Papan Juara</h2><p>Kumpulkan bintang minggu ini!</p></div></div></div>
+    <div><h2 id="juaraTitle" tabindex="-1">Balapan</h2><p>Adu teliti dengan teman atau bot!</p></div></div></div>
   <div class="scr-body">
+    <div class="card race">
+      <h3>Mulai balapan</h3>
+      <p class="small muted" style="margin:0 0 12px">Pilih game, lalu main 5 soal yang sama dengan lawanmu. Bintang di tiap soal jadi langkah: 3 bintang maju 3 langkah. Kalau soal diganti, tidak maju. Yang paling jauh menang.</p>
+      <div class="race-games" id="raceGames" role="radiogroup" aria-label="Pilih game untuk balapan"></div>
+      <div class="race-btns">
+        <a class="btn blue big" id="raceBot" href="#"><span class="ic" id="raceBotIc" aria-hidden="true"></span>Lawan bot</a>
+        <button type="button" class="btn big" id="raceHost" aria-expanded="false">Buat ruang</button>
+        <button type="button" class="btn big" id="raceJoin" aria-expanded="false">Gabung pakai kode</button>
+      </div>
+      <p class="hint" id="raceOff" hidden style="margin-top:12px">Balapan online belum aktif: orang tua atau guru perlu menyambungkan server dulu. Sementara itu, ayo lawan bot!</p>
+      <div class="race-box" id="raceHostBox" hidden>
+        <a class="btn" id="raceHostPriv" href="#">Ruang privat<small>hanya yang tahu kodenya</small></a>
+        <a class="btn" id="raceHostPub" href="#">Ruang publik<small>siapa saja boleh gabung</small></a>
+      </div>
+      <form class="race-box" id="raceJoinBox" hidden novalidate>
+        <label class="sr" for="raceCode">Kode ruang</label>
+        <input class="race-code" id="raceCode" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="KODE" enterkeyhint="go">
+        <button type="submit" class="btn blue">Gabung</button>
+        <p class="small" id="raceCodeErr" style="margin:0;width:100%" aria-live="polite"></p>
+      </form>
+      <div id="racePubBox" hidden>
+        <h3 class="sec-h" style="margin-top:16px;font-size:19px">Ruang publik yang terbuka</h3>
+        <ul class="pub-list" id="racePub"></ul>
+      </div>
+      <p class="small muted" id="raceLast" style="margin:12px 0 0"></p>
+    </div>
+    <h3 class="sec-h" style="margin:6px 0 -6px">Papan Juara minggu ini</h3>
     <div class="card me-card">
       <div class="mascot" id="juaraMe" aria-hidden="true"></div>
       <div class="nm" id="juaraName"></div>
@@ -480,7 +530,7 @@
 
 <nav class="dock" id="dock" aria-label="Menu">
   <button type="button" class="dock-b" data-go="" id="navMap"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 8.5 4l7 2.5L21 4v13.5L15.5 20l-7-2.5L3 20z" fill="#9ED8EC" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.5 4v13.5M15.5 6.5V20" stroke="currentColor" stroke-width="2.2"/><path d="M5.5 15c2-1 3.5-3 6.5-2.5S17 9 18.5 8.5" fill="none" stroke="#C8643B" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 2.2"/></svg></span><span>Peta</span></button>
-  <button type="button" class="dock-b" data-go="#juara" id="navJuara"><span class="ic"></span><span>Juara</span></button>
+  <button type="button" class="dock-b" data-go="#balapan" id="navJuara"><span class="ic"></span><span>Balapan</span></button>
   <button type="button" class="dock-b" data-go="#orang-tua" id="navParent"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="6.5" r="3.2" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M2.8 21v-3.3a5.7 5.7 0 0 1 11.4 0V21z" fill="#2F80C9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="17.4" cy="10.4" r="2.5" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M13.4 21v-2.1a4 4 0 0 1 8 0V21z" fill="#F28C28" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span><span>Orang Tua</span></button>
   <button type="button" class="dock-b" data-go="#pengaturan" id="navSet"><span class="ic"></span><span>Pengaturan</span></button>
 </nav>
@@ -509,6 +559,7 @@
 <script src="shared/profile.js"></script>
 <script src="shared/voice.js"></script>
 <script src="shared/pwa.js"></script>
+<script src="shared/net.js"></script>
 <script>
 (function () {
   'use strict';
@@ -855,6 +906,8 @@
 
   /* ---------------- dashboard: top bar, dock and the three screens ---------------- */
   const IC = {
+    flag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M5 4h14v9H5z" fill="#fff" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M5 4h3.5v3H5zM12 4h3.5v3H12zM8.5 7H12v3H8.5zM15.5 7H19v3h-3.5zM5 10h3.5v3H5zM12 10h3.5v3H12z" fill="#2B1D14"/></svg>',
+    bot: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="2.6" r="1.6" fill="#FFC83D"/><rect x="3.5" y="5.5" width="17" height="14" rx="6" fill="#fff" stroke="currentColor" stroke-width="2"/><rect x="6" y="8.5" width="12" height="7" rx="3" fill="#22304A"/><circle cx="9.5" cy="12" r="1.3" fill="#7CF5EA"/><circle cx="14.5" cy="12" r="1.3" fill="#7CF5EA"/></svg>',
     cup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h10v5a5 5 0 0 1-10 0z" fill="#FFC83D" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M7 5.5H4.2a3 3 0 0 0 3.3 4M17 5.5h2.8a3 3 0 0 1-3.3 4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><path d="M12 13.5v3.5" stroke="currentColor" stroke-width="2.1"/><path d="M8 20.5h8l-1-3.5H9z" fill="#C68654" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/></svg>',
     cal: '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="8" width="30" height="27" rx="6" fill="#fff" stroke="#3B2A20" stroke-width="3"/><path d="M5 16h30" stroke="#3B2A20" stroke-width="3"/><path d="M13 5v6M27 5v6" stroke="#3B2A20" stroke-width="3" stroke-linecap="round"/><path d="M5 14V13a5 5 0 0 1 5-5h20a5 5 0 0 1 5 5v1z" fill="#E2453C"/><text x="20" y="31" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="13" fill="#2B1D14">0</text></svg>',
     once: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="m20 4 4.7 9.6 10.5 1.5-7.6 7.4 1.8 10.5L20 28l-9.4 5 1.8-10.5-7.6-7.4 10.5-1.5z" fill="#FFC83D" stroke="#3B2A20" stroke-width="2.6" stroke-linejoin="round"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="12" fill="#2B1D14">1x</text></svg>',
@@ -897,23 +950,26 @@
   $('weekIc').innerHTML = IC.cup;
   $('weekN').textContent = week;
   $('starBtn').setAttribute('aria-label', total + ' bintang di ' + TINFO.label);
-  $('weekBtn').setAttribute('aria-label', week + ' bintang minggu ini. Buka Papan Juara');
+  $('weekBtn').setAttribute('aria-label', week + ' bintang minggu ini. Buka Balapan dan Papan Juara');
   $('starBtn').addEventListener('click', () => {
     GS.sfx.pop();
     GS.say(total ? 'Kamu sudah punya ' + total + ' bintang. Hebat!' : 'Ayo main dan kumpulkan bintang!');
   });
-  $('weekBtn').addEventListener('click', () => go('#juara'));
+  $('weekBtn').addEventListener('click', () => go('#balapan'));
   $('tierNote').textContent = 'Sedang dimainkan: ' + TINFO.label + (TINFO.fase ? ' (' + TINFO.fase + ')' : '');
   // dock icons (map and parents drawn inline in the markup helpers below)
-  $('navJuara').querySelector('.ic').innerHTML = IC.cup;
+  $('navJuara').querySelector('.ic').innerHTML = IC.flag;
   $('navSet').querySelector('.ic').innerHTML = BIG.gear.replace('<svg ', '<svg aria-hidden="true" ');
 
-  /* ---------- routing: '' = map, #juara, #orang-tua, #pengaturan (the back button works) ---------- */
-  const SCR = { '': $('scr-map'), '#juara': $('scr-juara'), '#orang-tua': $('scr-ortu'), '#pengaturan': $('scr-atur') };
-  const TITLE = { '#juara': 'juaraTitle', '#orang-tua': 'ortuTitle', '#pengaturan': 'aturTitle' };
+  /* ---------- routing: '' = map, #balapan, #orang-tua, #pengaturan (the back button works) ---------- */
+  const SCR = { '': $('scr-map'), '#balapan': $('scr-juara'), '#orang-tua': $('scr-ortu'), '#pengaturan': $('scr-atur') };
+  const TITLE = { '#balapan': 'juaraTitle', '#orang-tua': 'ortuTitle', '#pengaturan': 'aturTitle' };
+  const ALIAS = { '#juara': '#balapan' };
   let route = null, mapY = 0;
   function show(r) {
+    r = ALIAS[r] || r;
     if (!(r in SCR)) r = '';
+    if (route === '#balapan' && r !== '#balapan') pubLeave();
     if (r === route) return;
     if (route === '') mapY = scrollY;
     if (!sheet.hidden) closeSheet();
@@ -947,7 +1003,67 @@
   }
 
   /* ---------- Papan Juara (no server yet: only the child's own week, no other players) ---------- */
+  /* ---------- Balapan: start a race. Bots always work; rooms need a configured server (shared/net.js) ---------- */
+  const NET = window.MS && MS.net;
+  let raceGame = GAMES.some(g => g.id === GS.store.get('lastGame', '')) ? GS.store.get('lastGame', '') : GAMES[0].id;
+  const RACE = () => 'games/' + raceGame + '/index.html';
+  let pub = null;
+  function pubLeave() { try { if (pub) pub.leave(); } catch (e) { /* ignore */ } pub = null; }
+  function raceSetup() {
+    $('raceBotIc').innerHTML = IC.bot;
+    // the game to race in: the landmarks of the map, the last one played is picked first
+    const grid = $('raceGames');
+    grid.innerHTML = GAMES.map(g => '<button type="button" role="radio" class="rg" data-g="' + g.id + '" aria-checked="' + (g.id === raceGame) + '">' +
+      (has('landmark') ? '<svg viewBox="-110 -190 220 200" aria-hidden="true">' + art.landmark(g.lm) + '</svg>' : '') + '<span>' + g.name + '</span></button>').join('');
+    grid.querySelectorAll('.rg').forEach(b => b.addEventListener('click', () => {
+      GS.sfx.pop(); raceGame = b.getAttribute('data-g');
+      grid.querySelectorAll('.rg').forEach(o => o.setAttribute('aria-checked', String(o === b)));
+    }));
+    $('raceBot').addEventListener('click', e => { e.preventDefault(); GS.sfx.click(); location.href = RACE() + '?race=bot'; });
+    const online = !!(NET && NET.available());
+    const net = NET && NET.mode() === 'bc' ? '&net=bc' : ''; // dev/test transport travels along
+    const toggle = (btn, box) => {
+      GS.sfx.click();
+      if (!online) { $('raceOff').hidden = false; return; }
+      const open = box.hidden;
+      ['raceHostBox', 'raceJoinBox'].forEach(id => { $(id).hidden = true; });
+      $('raceHost').setAttribute('aria-expanded', 'false'); $('raceJoin').setAttribute('aria-expanded', 'false');
+      box.hidden = !open; btn.setAttribute('aria-expanded', String(open));
+      if (open && box.id === 'raceJoinBox') try { $('raceCode').focus(); } catch (e) { /* ignore */ }
+    };
+    $('raceHost').addEventListener('click', () => toggle($('raceHost'), $('raceHostBox')));
+    $('raceJoin').addEventListener('click', () => toggle($('raceJoin'), $('raceJoinBox')));
+    const host = pubFlag => () => { location.href = RACE() + '?race=host&room=' + NET.code() + (pubFlag ? '&pub=1' : '') + net; };
+    $('raceHostPriv').addEventListener('click', e => { e.preventDefault(); host(false)(); });
+    $('raceHostPub').addEventListener('click', e => { e.preventDefault(); host(true)(); });
+    $('raceCode').addEventListener('input', e => { e.target.value = NET.cleanCode(e.target.value); $('raceCodeErr').textContent = ''; });
+    $('raceJoinBox').addEventListener('submit', e => {
+      e.preventDefault();
+      const c = NET.cleanCode($('raceCode').value);
+      if (c.length !== 5) { $('raceCodeErr').textContent = 'Kodenya 5 huruf atau angka, ya.'; return; }
+      location.href = RACE() + '?race=join&room=' + c + net; // the room moves the guest to the host's game
+    });
+    raceSetup.net = net;
+  }
+  raceSetup();
+  function renderRace() {
+    const log = GS.store.get('race.log', []), last = log[log.length - 1];
+    const gname = last && (GAMES.find(g => g.id === last.game) || {}).name;
+    $('raceLast').textContent = last ? 'Balapan terakhir' + (gname ? ' (' + gname + ')' : '') + ': juara ' + last.place + ' dari ' + last.of + ', ' + last.dist + ' dari ' + last.max + ' langkah.' : '';
+    pubLeave();
+    if (!(NET && NET.available())) { $('racePubBox').hidden = true; return; }
+    $('racePubBox').hidden = false;
+    $('racePub').innerHTML = '<li class="empty">Mencari ruang...</li>';
+    NET.lobby({
+      onRooms: rooms => {
+        rooms = rooms.filter(r => r && r.code && r.n < r.max);
+        $('racePub').innerHTML = rooms.length ? rooms.map(r => '<li><b>' + r.code + '</b><span>' + (r.gameName || '') + ', ' + r.label + ', ' + r.n + '/' + r.max + ' pemain</span><a class="btn blue" href="games/' + encodeURIComponent(r.game || raceGame) + '/index.html?race=join&pub=1&room=' + r.code + raceSetup.net + '">Gabung</a></li>').join('')
+          : '<li class="empty">Belum ada ruang publik. Buat satu, yuk!</li>';
+      }
+    }).then(l => { if (route === '#balapan') pub = l; else l.leave(); }).catch(() => { $('racePub').innerHTML = '<li class="empty">Tidak bisa tersambung.</li>'; });
+  }
   function renderJuara() {
+    renderRace();
     $('juaraArt').innerHTML = BIG.cup;
     $('juaraMe').innerHTML = buddy('happy', 120);
     $('juaraName').textContent = myName;
@@ -1063,7 +1179,7 @@
     (KUR ? KUR.TIERS : [{ id: TIER }]).forEach(t => GAMES.forEach(g => GS.store.set('stars.' + g.id + '@' + t.id, [])));
     location.reload();
   });
-  const SCREEN = { '#juara': renderJuara, '#orang-tua': renderOrtu, '#pengaturan': renderAtur };
+  const SCREEN = { '#balapan': renderJuara, '#orang-tua': renderOrtu, '#pengaturan': renderAtur };
 
   /* ---------------- every level of this kelas has a star: offer the next kelas ---------------- */
   (function levelUp() {
@@ -1087,7 +1203,7 @@
     stay.addEventListener('click', () => { box.hidden = true; });
   })();
 
-  show(location.hash in SCR ? location.hash : '');
+  show(ALIAS[location.hash] || (location.hash in SCR ? location.hash : ''));
 
   /* ---------------- start where Chuppy is, and hint that the route goes on below ---------------- */
   requestAnimationFrame(() => {

@@ -2,6 +2,15 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-15: Balapan (race) inside the real games, with bots and rooms
+
+Requested by the owner: multiplayer with public or private rooms shared by a code, a race where the right answers move you forward (3 stars farther than 2 or 1, no move when you keep missing until the question changes), highest score and fastest finish win, bots when nobody else joins. A first version used a new quiz bank; the owner wanted the races to use the existing games instead (pick timbangan, angkot, ...), so the quiz page was dropped before release.
+- `shared/race.js` (new, on every game page, inert without `?race`): replaces the runner, plays 5 seeded levels of the kelas easiest first, seeds `Math.random` per round so every device builds the same numbers (`GS.fxRandom` keeps effects off that stream; core.js noise, music jitter and confetti now use it), steps = the game's own stars, "Ganti soal" in the HUD after 25 s (two taps, 0 steps), race view between rounds, HUD shows round and place, results ranked by steps then finish time, bots (always BOT) with mild rubber-banding, rooms with lobby, share code/link, bots filling empty seats, guests moved to the host's game and kelas, public rooms list only character names. Race rounds do not touch level stars or the play log; results in `race.log`.
+- `shared/net.js` (new): rooms over Supabase Realtime (presence + broadcast, nothing stored) when `SUPABASE_URL` + `SUPABASE_ANON_KEY` are set in `shared/config.js`; `?net=bc` (BroadcastChannel) for tests. Without keys, online buttons say online is off and offer bots.
+- Hub: the Juara tab is now Balapan (`#balapan`, `#juara` still works): pick a game, Lawan bot / Buat ruang (privat, publik) / Gabung pakai kode, public rooms, last result, then Papan Juara of the week.
+- Tests: new `tests/race.js` (31 checks: scoring, skip, bots, results, same content from the same seed in all 10 games, a 2-device room, hub picker); hub-tiers 51 ok.
+- Open: online rooms are untested against a real Supabase project (needs the owner's free project and keys); ketapel, bibit, kembalian, jam and wayang build the same numbers every time today, so their races repeat until their level variety lands (in progress).
+
 ## 2026-10-15: Backsound was too quiet to hear
 
 The owner heard no backsound on a phone. It did run (checked without autotest, with a real touch tap, on the hub and after "Main!" in a game: playing, 12 notes scheduled, master gain up), but an offline render measured RMS 0.0048 (-46 dBFS) and peak 0.036: far below the sound effects and lost on small phone speakers, whose low end also drops the bass and pad. Fix in `shared/core.js`: music gain 0.045 to 0.24 (cap 0.28) and an octave partial on the plucks so the melody sits where phone speakers are loud. New render: peak 0.22, RMS 0.026 (-32 dBFS), still under the sound effects (0.06 to 0.4 peak) and ducked to 25% under the narrator.

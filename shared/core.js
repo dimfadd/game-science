@@ -6,7 +6,11 @@
  * No dependencies; works offline from file:// and on touch tablets. */
 (function () {
   'use strict';
+  // Effects (noise, music, confetti) use the real Math.random: in Balapan, Math.random is seeded per
+  // round (shared/race.js) so every player gets the same level content, and effects must not eat that stream.
+  const fxRandom = Math.random.bind(Math);
   const GS = (window.GS = window.GS || {});
+  GS.fxRandom = fxRandom;
 
   /* ---------------- storage (survives missing localStorage) ---------------- */
   // The key keeps the old product name (Kampung Sains) on purpose: renaming it would
@@ -120,7 +124,7 @@
     const dur = o.t || 0.2, t0 = a.currentTime + (o.delay || 0);
     const buf = a.createBuffer(1, Math.ceil(a.sampleRate * dur), a.sampleRate);
     const ch = buf.getChannelData(0);
-    for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+    for (let i = 0; i < ch.length; i++) ch[i] = fxRandom() * 2 - 1;
     const src = a.createBufferSource(); src.buffer = buf;
     const filt = a.createBiquadFilter(); filt.type = 'bandpass';
     filt.frequency.setValueAtTime(o.freq || 1000, t0);
@@ -219,7 +223,7 @@
       mNote(a, t, midiF(c[2]), 'sine', 0.08, 0.8, len + 0.5, len - 0.4);
     } else if (pos === 4) mNote(a, t, midiF(c[0] + 7), 'triangle', 0.22, 0.02, 1.0);
     const n = melody(mPass)[bar][pos];
-    if (n != null) mPluck(a, t + (Math.random() - 0.5) * 0.012, midiF(PENTA[n]), (pos === 0 ? 1 : 0.82) * (0.88 + Math.random() * 0.12));
+    if (n != null) mPluck(a, t + (fxRandom() - 0.5) * 0.012, midiF(PENTA[n]), (pos === 0 ? 1 : 0.82) * (0.88 + fxRandom() * 0.12));
     if (++mStep >= STEPS * BARS) { mStep = 0; mPass++; }
   }
   function mSchedule() {
@@ -571,8 +575,8 @@
     ensureCanvas();
     x = x == null ? innerWidth / 2 : x; y = y == null ? innerHeight / 2 : y;
     for (let i = 0; i < (n || 70); i++) {
-      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, s = 6 + Math.random() * 9;
-      parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, w: 7 + Math.random() * 6, h: 4 + Math.random() * 4, c: CONFETTI[i % CONFETTI.length], life: 0 });
+      const a = -Math.PI / 2 + (fxRandom() - 0.5) * 2.2, s = 6 + fxRandom() * 9;
+      parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, r: fxRandom() * 6, vr: (fxRandom() - 0.5) * 0.4, w: 7 + fxRandom() * 6, h: 4 + fxRandom() * 4, c: CONFETTI[i % CONFETTI.length], life: 0 });
     }
     if (!running) { running = true; requestAnimationFrame(loop); }
   };
