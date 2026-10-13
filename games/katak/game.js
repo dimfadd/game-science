@@ -673,7 +673,7 @@
 
   /* ---------------- worked example (GS.demo, SOP docs/CONTOH.md) ----------------
    * The ghost hand plans the hops on the real panel with OTHER numbers and presses Lompat!,
-   * while Si Cil thinks aloud. Challenge levels only replay on request (auto: false). */
+   * while Chuppy thinks aloud. Challenge levels only replay on request (auto: false). */
   function demoSpec(i) {
     return {
       key: 'L' + (i + 1),

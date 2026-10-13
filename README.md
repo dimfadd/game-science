@@ -32,7 +32,7 @@ Panduan lengkap proyek untuk developer atau AI ada di `CLAUDE.md`.
 | Jam Kampung | Membaca jam, lama waktu, jadwal, WIB/WITA/WIT, matahari dan bayangan |
 | Wayang Bayangan | Cahaya dan bayangan, bahan tembus cahaya, perbandingan, pantulan cermin |
 
-`assets.html` menampilkan semua aset visual (maskot Si Cil, benda, makhluk, latar, landmark). Halaman ini hanya untuk developer dan tidak ikut di-deploy.
+`assets.html` menampilkan semua aset visual (maskot Chuppy, benda, makhluk, latar, landmark). Halaman ini hanya untuk developer dan tidak ikut di-deploy.
 
 ## Struktur
 
@@ -47,4 +47,4 @@ docs/DESIGN.md        prinsip pedagogi, gaya visual, aturan fisika
 docs/KURIKULUM.md     daftar level setiap game per kelas
 ```
 
-Tanpa build step dan tanpa library eksternal. Semua gambar adalah SVG buatan tangan, semua suara disintesis dengan Web Audio, dan instruksi diucapkan dengan Web Speech API (`id-ID`). Kalau perangkat tidak punya suara Bahasa Indonesia, teks tetap muncul di gelembung Si Cil.
+Tanpa build step dan tanpa library eksternal. Semua gambar adalah SVG buatan tangan, semua suara disintesis dengan Web Audio, dan instruksi diucapkan dengan Web Speech API (`id-ID`). Kalau perangkat tidak punya suara Bahasa Indonesia, teks tetap muncul di gelembung Chuppy.

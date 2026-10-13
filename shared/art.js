@@ -550,105 +550,96 @@
     return `<g class="gs-person gs-person-${(((i | 0) % 8) + 8) % 8}">${s}</g>`;
   };
 
-  /* ======================= Si Cil the kancil ======================= */
+  /* ===================== Chuppy the robot friend ===================== */
+  // A chubby, soft "bakpao" robot: head and body are ONE round dumpling shape (no separate small
+  // head), a dark screen for a face with LED eyes, teal headphone pods, an antenna with a light
+  // bulb and a glowing chest light. Moves slowly and softly, like something inflatable: it puffs
+  // while idle, waddles when it walks (class "walk" on the svg), waves when happy, hops on cheer.
   const MOODS = ['idle', 'happy', 'cheer', 'think', 'surprise', 'oops', 'point'];
-  const FUR = PAL.fur, BAND = PAL.orange, HOOF = '#4A2F22', MSW = 4.2, MDW = 2.6;
+  const BOT = PAL.white, TEAL = ['#2BB3A6', '#7DD8CE', '#1D8278'], SCREEN = ['#22304A', '#3A4E70', '#141E30'];
+  const LED = '#7CF5EA', MSW = 4.2, MDW = 2.6;
+  const BOTP = 'M100 33C146 33 170 64 171 108C172 146 165 171 141 179C122 186 78 186 59 179C35 171 28 146 29 108C30 64 54 33 100 33Z';
+  // [left arm path, left hand, right arm path, right hand]; arms start just inside the body edge
   const ARMS = {
-    down: ['M80 124Q70 138 72 151', [72, 154], 'M120 124Q130 138 128 151', [128, 154]],
-    out: ['M80 124Q66 134 64 147', [63, 150], 'M120 124Q134 134 136 147', [137, 150]],
-    up: ['M81 124Q60 116 52 94', [50, 89], 'M119 124Q140 116 148 94', [150, 89]],
-    chin: ['M80 124Q74 146 94 150', [96, 150], 'M120 124Q146 140 116 119', [112, 116]],
-    wide: ['M80 124Q62 130 57 114', [56, 109], 'M120 124Q138 130 143 114', [144, 109]],
-    together: ['M80 124Q76 146 93 152', [95, 153], 'M120 124Q124 146 107 152', [105, 153]],
-    point: ['M80 124Q62 134 72 149', [74, 151], 'M120 124Q150 126 170 117', [175, 115]]
+    down: ['M41 120Q25 134 27 152', [27, 155], 'M159 120Q175 134 173 152', [173, 155]],
+    out: ['M41 120Q22 126 16 141', [15, 144], 'M159 120Q178 126 184 141', [185, 144]],
+    up: ['M41 118Q22 102 21 79', [21, 75], 'M159 118Q178 102 179 79', [179, 75]],
+    chin: ['M41 120Q25 134 27 152', [27, 155], 'M159 122Q174 138 140 120', [136, 119]],
+    wide: ['M41 118Q20 112 14 97', [13, 93], 'M159 118Q180 112 186 97', [187, 93]],
+    scratch: ['M41 120Q25 134 27 152', [27, 155], 'M159 120Q184 104 172 66', [170, 62]],
+    point: ['M41 120Q25 134 27 152', [27, 155], 'M159 118Q180 114 191 103', [194, 101]]
   };
   const MCFG = {
-    idle: { eyes: 'open', mouth: 'smile', arms: 'down', ears: [0, 0] },
-    happy: { eyes: 'happy', mouth: 'grin', arms: 'out', ears: [-5, 5], blush: 0.75 },
-    cheer: { eyes: 'cheer', mouth: 'open', arms: 'up', ears: [9, -9], blush: 0.75, extra: 'sparkle' },
-    think: { eyes: 'open', look: [2.5, -2.5], brow: 'think', mouth: 'hmm', arms: 'chin', ears: [0, -14], extra: 'dots' },
-    surprise: { eyes: 'round', mouth: 'o', arms: 'wide', ears: [16, -16], extra: 'pop' },
-    oops: { eyes: 'oops', brow: 'worry', mouth: 'wobble', arms: 'together', ears: [-58, 4], extra: 'sweat' },
-    point: { eyes: 'open', look: [3, 0], mouth: 'smirk', arms: 'point', ears: [0, 6] }
+    idle: { eyes: 'open', mouth: 'smile', arms: 'down' },
+    happy: { eyes: 'happy', mouth: 'grin', arms: 'out', blush: 0.8 },
+    cheer: { eyes: 'cheer', mouth: 'open', arms: 'up', blush: 0.8, extra: 'sparkle' },
+    think: { eyes: 'open', look: [3, -3], mouth: 'hmm', arms: 'chin', extra: 'dots' },
+    surprise: { eyes: 'round', mouth: 'o', arms: 'wide', extra: 'pop' },
+    oops: { eyes: 'oops', mouth: 'wobble', arms: 'scratch', extra: 'sweat' },
+    point: { eyes: 'open', look: [4, 0], mouth: 'smirk', arms: 'point' }
   };
-  const HEAD = 'M100 36C126 36 144 50 148 70C153 90 151 104 138 112C126 120 74 120 62 112C49 104 47 90 52 70C56 50 74 36 100 36Z';
-  const BODY = 'M100 108C115 108 123 121 126 136C131 158 127 175 100 177C73 175 69 158 74 136C77 121 85 108 100 108Z';
+  const led = (d, w) => ln(d, (w || 4.6) + 5, LED, 0.22) + ln(d, w || 4.6, LED);
   function mEye(kind, x, y, side) {
-    if (kind === 'happy') return ln(`M${x - 7} ${y + 3}Q${x} ${y - 8} ${x + 7} ${y + 3}`, 4.2, EYE);
-    if (kind === 'cheer') return ln(`M${x - 7} ${y + 4}L${x} ${y - 4}L${x + 7} ${y + 4}`, 4.2, EYE);
-    if (kind === 'squint') return ln(side < 0 ? `M${x - 6} ${y - 6}L${x + 5} ${y}L${x - 6} ${y + 6}` : `M${x + 6} ${y - 6}L${x - 5} ${y}L${x + 6} ${y + 6}`, 4.2, EYE);
-    if (kind === 'round') return C(x, y, 10)(fl(EYE)) + dot(x - 3.2, y - 3.6, 3.2, '#fff') + dot(x + 3.4, y + 3.8, 1.5, '#fff');
-    return E(x, y, 7, 10)(fl(EYE)) + dot(x - 2.3, y - 4, 2.7, '#fff') + dot(x + 2.5, y + 3.8, 1.3, '#fff');
+    if (kind === 'happy') return led(`M${x - 9} ${y + 4}Q${x} ${y - 9} ${x + 9} ${y + 4}`);
+    if (kind === 'cheer') return led(`M${x - 9} ${y + 5}L${x} ${y - 5}L${x + 9} ${y + 5}`);
+    if (kind === 'squint') return led(side < 0 ? `M${x - 7} ${y - 7}L${x + 6} ${y}L${x - 7} ${y + 7}` : `M${x + 7} ${y - 7}L${x - 6} ${y}L${x + 7} ${y + 7}`);
+    if (kind === 'round') return C(x, y, 14)(fl(LED, 0.2)) + C(x, y, 10.5)(stk(4.4, LED)) + dot(x, y, 4.2, LED);
+    return R(x - 11.5, y - 15.5, 23, 31, 11.5)(fl(LED, 0.2)) + R(x - 8.5, y - 12.5, 17, 25, 8.5)(fl(LED)) + R(x - 5.2, y - 8.5, 4.6, 7.2, 2.3)(fl('#fff', 0.85));
   }
   const MOUTH = {
-    smile: 'M100 99.5V103M91 103Q95.5 108.5 100 103Q104.5 108.5 109 103',
-    grin: 'M100 99.5V103M87 101.5Q94 112 100 103Q106 112 113 101.5',
-    hmm: 'M100 99.5V102.5M93 106Q97.5 103.5 101 105.5Q104.5 107.5 108 104.5',
-    wobble: 'M100 99.5V102.5M90 107Q93 103.5 96 107Q99 110.5 102 107Q105 103.5 108 107',
-    smirk: 'M100 99.5V103M90 103Q99 110.5 111 101'
+    smile: 'M92 97Q100 103 108 97',
+    grin: 'M88 95Q100 107 112 95',
+    hmm: 'M91 99Q95.5 96 100 99Q104.5 102 109 99',
+    wobble: 'M89 100L93.5 96.5L98 100L102.5 96.5L107 100L111 97',
+    smirk: 'M91 99Q101 103 110 94'
   };
   art.mascot = function (o) {
     o = o || {};
     const mood = MOODS.indexOf(o.mood) >= 0 ? o.mood : 'idle', size = o.size || 120, M = MCFG[mood];
-    const ms = (shape, box, col, opt) => f3(shape, box, col, Object.assign({ sw: MSW }, opt || {}));
     const A = ARMS[M.arms], look = M.look || [0, 0];
-    let s = `<ellipse cx="100" cy="192" rx="38" ry="6" fill="${OL}" opacity=".18"/>`;
-    [90, 110].forEach(x => {
-      s += limb(`M${x} 164V185`, 8, FUR[2], 3.4) + P(`M${x - 6} 184h12v3.6q0 4.4 -4.4 4.4h-3.2q-4.4 0 -4.4 -4.4z`)(`fill="${HOOF}" stroke="${OL}" stroke-width="${MDW}" stroke-linejoin="round"`) + ln(`M${x} 186.5V191`, 1.3, '#7A5A48');
-    });
+    const white = (shape, box, opt) => f3(shape, box, BOT, Object.assign({ sw: MSW }, opt || {}));
+    let s = `<ellipse cx="100" cy="192" rx="46" ry="6" fill="${OL}" opacity=".18"/>`;
     let b = '';
-    // short tail peeking out at the back
-    b += ms(P('M121 160C131 156 139 148 139 139C133 141 125 147 119 153Z'), [119, 139, 20, 21], FUR, { hl: false, sw: MDW + 0.6 }) + P('M139 139C138 145 135 149 130 153C134 148 136 144 139 139Z')(fl(CREAM));
-    // body with cream belly and the three throat chevrons
-    b += ms(P(BODY), [68, 108, 64, 70], FUR, {
-      hx: 0.3, hy: 0.24, k: 0.09,
-      inner: E(100, 157, 18, 16.5)(fl(CREAM)) + ln('M93 121L100 125L107 121M93.5 127.5L100 131.5L106.5 127.5M94 134L100 138L106 134', 3, CREAM)
+    // feet: chubby teal booties peeking out under the body
+    b += f3(E(78, 183, 17, 9), [61, 174, 34, 18], TEAL, { sw: MDW + 0.6, hl: false, k: 0.18 }) + f3(E(122, 183, 17, 9), [105, 174, 34, 18], TEAL, { sw: MDW + 0.6, hl: false, k: 0.18 });
+    // headphone pods behind the body
+    b += f3(R(16, 66, 24, 40, 11), [16, 66, 24, 40], TEAL, { sw: MDW + 0.6, k: 0.12, hx: 0.4, hy: 0.25 }) + f3(R(160, 66, 24, 40, 11), [160, 66, 24, 40], TEAL, { sw: MDW + 0.6, k: 0.12, hx: 0.5, hy: 0.25 });
+    // antenna (sways from its base) with a light bulb that glows
+    b += g(limb('M100 36V18', 4.4, TEAL[0], 2.6) + '<g opacity=".5">' + C(100, 12, 13)(fl('#FFE08A') + ' class="m-glow"') + '</g>' +
+      f3(C(100, 12, 7.5), [92.5, 4.5, 15, 15], PAL.yellow, { sw: MDW, k: 0.12, hx: 0.3, hy: 0.3 }) + dot(97.6, 9.4, 1.8, '#fff'), '', 'm-ant');
+    // the round body, a soft seam and the chest light
+    b += white(P(BOTP), [29, 33, 142, 152], {
+      k: 0.07, hx: 0.24, hy: 0.14, hs: 1.1,
+      top: ln('M34 126Q100 143 166 126', 2.2, OL, 0.22) +
+        f3(C(100, 148, 14), [86, 134, 28, 28], TEAL, { sw: MDW, k: 0.1, hx: 0.3, hy: 0.3 }) +
+        C(100, 148, 7)(fl('#FFE08A') + ' class="m-glow"') + dot(97.4, 145.4, 1.8, '#fff')
     });
-    // headband tails (flutter) + ears (twitch); both sit behind the head
-    b += g(g(ms(P('M57 62C50 56 42 60 34 56C30 54 26 50 21 50L27 58L18 63C26 64 31 67 38 67C46 67 51 66 57 69Z'), [18, 50, 39, 19], BAND, { hl: false, k: 0.14, sw: MDW + 0.8 })), '', 'm-tail-a');
-    b += g(g(ms(P('M57 68C53 74 50 80 44 84C40 87 36 89 30 93L38 94L37 102C44 97 48 92 53 86C57 81 59 77 61 73Z'), [30, 68, 31, 34], BAND, { hl: false, k: 0.14, sw: MDW + 0.8 })), '', 'm-tail-b');
-    const ear = (bx, tx, rot, cls) => g(g(ms(P(leaf(bx, 52, tx, 12, 15)), [Math.min(bx, tx) - 8, 10, 46, 44], FUR, { hl: false, k: 0.08 }) +
-      P(leaf(bx + (tx > bx ? 1 : -1), 48, tx + (tx > bx ? -5 : 5), 21, 6.8))(fl(PINK)), `rotate(${rot} ${bx} 52)`), '', cls);
-    b += ear(76, 42, M.ears[0], 'm-ear-l') + ear(124, 158, M.ears[1], 'm-ear-r');
-    // head with the ikat kepala band (clipped to the head) and cheeks
-    let kaw = '';
-    [0.2, 0.4, 0.6, 0.8].forEach(t => {
-      const x = 46 + 108 * t, y = (1 - t) * (1 - t) * 64 + 2 * t * (1 - t) * 43 + t * t * 64;
-      kaw += [45, 135, 225, 315].map(a => E(x, y - 2.3, 1.3, 2.1, `rotate(${a} ${n1(x)} ${n1(y)})`)(fl('#FFE3B3'))).join('') + dot(x, y, 0.9, '#C76A12');
-    });
-    const bl = M.blush || 0.5;
-    b += ms(P(HEAD), [50, 36, 100, 84], FUR, {
-      k: 0.07, hx: 0.27, hy: 0.15, hs: 0.9,
-      inner: E(64, 98, 7.5, 4.6)(fl(PINK, bl)) + E(136, 98, 7.5, 4.6)(fl(PINK, bl)),
-      top: P('M44 58Q100 35 156 58L156 71Q100 50 44 71Z')(fl(BAND[0])) + P('M44 58Q100 35 156 58L156 61.5Q100 39 44 61.5Z')(fl(BAND[1])) +
-        P('M44 67.5Q100 46.5 156 67.5L156 71Q100 50 44 71Z')(fl(BAND[2])) + P('M120 50L156 58L156 71L120 54Z')(fl(BAND[2], 0.35)) +
-        ln('M44 58Q100 35 156 58M44 71Q100 50 156 71', MDW * 0.8) + kaw
-    });
-    b += ms(E(54, 66, 7, 8.5), [47, 57.5, 14, 17], BAND, { hl: false, k: 0.14, sw: MDW + 0.8 }) + ln('M51 62Q55 66 52 71', 1.4, '#C76A12');
-    // snout, nose, mouth
-    b += f3(E(100, 102, 24, 15.5), [76, 86.5, 48, 31], [CREAM, '#FFF6E8', '#E3C79E'], { sw: MDW, k: 0.1, hx: 0.34, hy: 0.32, hs: 0.8 });
-    if (M.mouth === 'open') b += P('M87.5 102Q100 106 112.5 102Q111 116.5 100 116.5Q89 116.5 87.5 102Z')(`fill="#7A2E22" stroke="${OL}" stroke-width="${MDW}" stroke-linejoin="round"`) + E(100, 112.6, 6.4, 3.2)(fl('#F27A8A'));
-    else if (M.mouth === 'o') b += ln('M100 99.5V101.5', MDW) + E(100, 108.5, 4.6, 6)(`fill="#7A2E22" stroke="${OL}" stroke-width="${MDW}"`);
-    else b += ln(MOUTH[M.mouth], MDW);
-    b += P('M92.5 92Q100 88 107.5 92Q106 98.5 100 99.5Q94 98.5 92.5 92Z')(fl(OL)) + dot(96.4, 91.6, 1.5, '#fff');
-    // eyes (blink group)
-    const lx = 80 + look[0], rx = 120 + look[0], ey = 81 + look[1];
+    // the face screen with LED eyes, cheeks and mouth (eyes blink as one group)
+    const lx = 78 + look[0], rx = 122 + look[0], ey = 78 + look[1];
     let eyes;
     if (M.eyes === 'oops') eyes = mEye('open', lx, ey, -1) + mEye('squint', rx, ey, 1);
     else eyes = mEye(M.eyes, lx, ey, -1) + mEye(M.eyes, rx, ey, 1);
-    b += g(eyes, '', 'm-eyes');
-    if (M.brow === 'think') b += ln('M72 67.5Q79 65.5 86 67.5', 2.8) + ln('M113 64Q121 59.5 129 63', 2.8);
-    if (M.brow === 'worry') b += ln('M72 66.5Q78 66.5 86 63.5', 2.8);
-    // arms + hooves
-    const hoof = (x, y, el) => (el ? E(x, y, 8.5, 5.4, `rotate(-20 ${x} ${y})`) : E(x, y, 6, 6.4))(`fill="${HOOF}" stroke="${OL}" stroke-width="${MDW}"`) + dot(x - 2, y - 2.2, 1.3, '#7A5A48');
-    b += limb(A[0], 7.5, FUR[0], 3.3) + hoof(A[1][0], A[1][1]) + limb(A[2], 7.5, FUR[0], 3.3) + hoof(A[3][0], A[3][1], M.arms === 'point');
+    let face = g(eyes, '', 'm-eyes');
+    const bl = M.blush || 0.5;
+    face += E(61, 99, 8.5, 4.8)(fl(PINK, bl)) + E(139, 99, 8.5, 4.8)(fl(PINK, bl));
+    if (M.mouth === 'open') face += P('M88 94Q100 96 112 94Q110 108 100 108Q90 108 88 94Z')(fl(LED)) + E(100, 104, 5, 2.2)(fl('#FF8FA3'));
+    else if (M.mouth === 'o') face += E(100, 100, 4.6, 5.8)(stk(3.8, LED));
+    else face += led(MOUTH[M.mouth], 4);
+    b += f3(R(48, 47, 104, 66, 31), [48, 47, 104, 66], SCREEN, {
+      sw: MDW + 0.6, k: 0.1, hl: false,
+      top: P('M66 54Q57 55 55 65')(stk(3.4, '#fff')).replace('/>', ' opacity=".3"/>') + face
+    });
+    // arms + round mitten hands (the right arm is its own group so it can wave)
+    const hand = (x, y) => white(C(x, y, 9.5), [x - 9.5, y - 9.5, 19, 19], { sw: MDW + 0.6, k: 0.12, hx: 0.3, hy: 0.3 });
+    b += limb(A[0], 15, BOT[0], 3.2) + hand(A[1][0], A[1][1]);
+    b += g(limb(A[2], 15, BOT[0], 3.2) + hand(A[3][0], A[3][1]), '', 'm-arm-r');
     // mood extras
-    if (M.extra === 'dots') b += [[158, 52, 3.2], [169, 40, 4.6], [182, 25, 6.6]].map(c => C(c[0], c[1], c[2])(`fill="#fff" stroke="${OL}" stroke-width="${MDW}"`)).join('');
-    if (M.extra === 'sweat') b += P('M150 57Q157 67 156 72Q155 78.5 149.5 78.5Q144 78 144 72.5Q144.5 66 150 57Z')(`fill="#3FA7C4" stroke="${OL}" stroke-width="${MDW}" stroke-linejoin="round"`) + E(148, 72, 1.6, 2.8)(fl('#fff', 0.9));
-    if (M.extra === 'sparkle') b += star4(28, 70, 8) + star4(172, 70, 8) + star4(38, 44, 5, '#F8B26A') + star4(164, 40, 5, '#F8B26A');
-    if (M.extra === 'pop') b += ln('M158 34L165 25M166 46L177 42M150 28L152 17', 3.2);
+    if (M.extra === 'dots') b += [[160, 50, 3.2], [171, 38, 4.6], [184, 23, 6.6]].map(c => C(c[0], c[1], c[2])(`fill="#fff" stroke="${OL}" stroke-width="${MDW}"`)).join('');
+    if (M.extra === 'sweat') b += P('M40 42Q47 52 46 57Q45 63.5 39.5 63.5Q34 63 34 57.5Q34.5 51 40 42Z')(`fill="#3FA7C4" stroke="${OL}" stroke-width="${MDW}" stroke-linejoin="round"`) + E(38, 57, 1.6, 2.8)(fl('#fff', 0.9));
+    if (M.extra === 'sparkle') b += star4(14, 50, 8) + star4(186, 50, 8) + star4(36, 26, 5, '#F8B26A') + star4(164, 26, 5, '#F8B26A');
+    if (M.extra === 'pop') b += ln('M160 36L167 27M168 48L179 44M150 30L152 19', 3.2);
     s += g(b, '', 'm-body');
-    return `<svg class="gs-mascot gs-mood-${mood}" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="Si Cil">${s}</svg>`;
+    return `<svg class="gs-mascot gs-mood-${mood}" viewBox="0 0 200 200" width="${size}" height="${size}" role="img" aria-label="Chuppy">${s}</svg>`;
   };
 
   /* ========================== backgrounds ========================== */
@@ -1111,21 +1102,25 @@
   /* ============================== CSS ============================== */
   art.css = [
     '.gs-mascot{overflow:visible}',
-    '.gs-mascot .m-body{animation:gsBreath 2.4s cubic-bezier(.37,0,.63,1) infinite}',
-    '.gs-mascot .m-eyes{transform-box:view-box;transform-origin:100px 81px;animation:gsBlink 4.2s linear infinite}',
+    // inflatable "puff": squash and stretch from the feet, slow like breathing
+    '.gs-mascot .m-body{transform-box:view-box;transform-origin:100px 190px;animation:gsPuff 3.2s cubic-bezier(.37,0,.63,1) infinite}',
+    '.gs-mascot .m-eyes{transform-box:view-box;transform-origin:100px 78px;animation:gsBlink 4.6s linear infinite}',
     '.gs-mascot.gs-mood-happy .m-eyes,.gs-mascot.gs-mood-cheer .m-eyes{animation:none}',
-    '.gs-mascot .m-ear-l{transform-box:view-box;transform-origin:76px 52px;animation:gsEarL 5.6s cubic-bezier(.37,0,.63,1) infinite}',
-    '.gs-mascot .m-ear-r{transform-box:view-box;transform-origin:124px 52px;animation:gsEarR 6.8s cubic-bezier(.37,0,.63,1) 1.3s infinite}',
-    '.gs-mascot .m-tail-a,.gs-mascot .m-tail-b{transform-box:view-box;transform-origin:56px 66px;animation:gsSway 1.9s cubic-bezier(.37,0,.63,1) infinite alternate}',
-    '.gs-mascot .m-tail-b{animation-duration:2.3s;animation-delay:-.9s}',
+    '.gs-mascot .m-ant{transform-box:view-box;transform-origin:100px 36px;animation:gsAnt 2.8s cubic-bezier(.37,0,.63,1) infinite alternate}',
+    '.gs-mascot .m-glow{animation:gsGlow 1.8s ease-in-out infinite alternate}',
+    '.gs-mascot.gs-mood-happy .m-arm-r{transform-box:view-box;transform-origin:159px 120px;animation:gsWave 1.6s cubic-bezier(.37,0,.63,1) infinite alternate}',
+    '.gs-mascot.gs-mood-cheer .m-body{animation:gsHop .9s cubic-bezier(.37,0,.63,1) infinite}',
+    '.gs-mascot.walk{transform-origin:50% 96%;animation:gsWaddle .32s ease-in-out infinite alternate}',
+    '@keyframes gsPuff{0%,100%{transform:scale(1,1)}50%{transform:scale(1.025,.975)}}',
+    '@keyframes gsHop{0%,100%{transform:translateY(0) scale(1.03,.97)}45%{transform:translateY(-9px) scale(.98,1.03)}}',
+    '@keyframes gsAnt{from{transform:rotate(-7deg)}to{transform:rotate(7deg)}}',
+    '@keyframes gsGlow{from{opacity:.35}to{opacity:1}}',
+    '@keyframes gsWave{from{transform:rotate(8deg)}to{transform:rotate(-26deg)}}',
+    '@keyframes gsWaddle{from{transform:rotate(-5deg) translateY(0)}to{transform:rotate(5deg) translateY(-3px)}}',
     '.gs-float-light{animation:gsFloat 3s cubic-bezier(.37,0,.63,1) infinite}',
-    '@keyframes gsBreath{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}',
     '@keyframes gsBlink{0%,93%,100%{transform:scaleY(1)}95.5%{transform:scaleY(.1)}}',
-    '@keyframes gsEarL{0%,80%,94%,100%{transform:rotate(0)}84%{transform:rotate(-9deg)}89%{transform:rotate(4deg)}}',
-    '@keyframes gsEarR{0%,80%,94%,100%{transform:rotate(0)}84%{transform:rotate(9deg)}89%{transform:rotate(-4deg)}}',
-    '@keyframes gsSway{from{transform:rotate(-5deg)}to{transform:rotate(7deg)}}',
     '@keyframes gsFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}',
-    '@media (prefers-reduced-motion:reduce){.gs-mascot *,.gs-float-light{animation:none!important}}'
+    '@media (prefers-reduced-motion:reduce){.gs-mascot,.gs-mascot *,.gs-float-light{animation:none!important}}'
   ].join('\n');
   if (typeof document !== 'undefined' && !document.getElementById('gs-art-css')) {
     const st = document.createElement('style');

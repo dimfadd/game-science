@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mat Sains</title>
-<meta name="description" content="10 game matematika dan fisika buatan Indonesia untuk anak TK sampai Kelas 4+, dipandu Si Cil.">
+<meta name="description" content="10 game matematika dan fisika buatan Indonesia untuk anak TK sampai Kelas 4+, dipandu Chuppy.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
@@ -26,39 +26,80 @@
   html, body { height: auto; }
   body { overflow-x: hidden; overflow-y: auto; background: var(--panel); }
   .map-wrap { position: relative; background: var(--sky); border-bottom: 4px solid var(--line); }
-  .map-head {
-    position: relative; z-index: 2;
-    padding: calc(14px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px));
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  /* Dashboard: a floating status bar on top (who is playing, kelas, stars) and a floating dock
+     at the bottom (map, me, sound, parents) in the thumb zone. On short landscape phones the dock
+     becomes a rail on the left so the map keeps its height. Logging out lives in the parent area. */
+  :root { --dash-top: calc(10px + env(safe-area-inset-top, 0px)); }
+  .map-wrap { padding-top: calc(var(--dash-top) + 86px); }
+  main { padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .dash {
+    position: fixed; z-index: 40; top: var(--dash-top); left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; pointer-events: none;
   }
-  .brand { display: flex; flex-direction: column; min-width: 0; }
-  .brand h1 {
-    margin: 0; font-family: var(--font-display); font-weight: 800; line-height: 0.9;
-    font-size: clamp(38px, 6.5vw, 72px); color: var(--ink); text-shadow: 0 4px 0 #fff;
+  .dash > * { pointer-events: auto; }
+  .dash { transition: opacity 220ms ease-out, translate 220ms ease-out; }
+  .dash.away { opacity: 0; translate: 0 -12px; pointer-events: none; }
+  .dash.away > * { pointer-events: none; }
+  #orang-tua { scroll-margin-top: 16px; }
+  .me, .score {
+    display: flex; align-items: center; min-height: 66px; background: var(--card); color: var(--ink);
+    border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line), 0 8px 18px rgba(43, 29, 20, 0.16);
+    font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
   }
-  .brand p { margin: 6px 0 0; font-weight: 700; font-size: clamp(16px, 1.8vw, 20px); max-width: 44ch; }
-  .head-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-  @media (max-height: 520px) and (min-width: 641px) {
-    .brand p { display: none; }
-    .brand h1 { font-size: 40px; }
-    .head-tools .gs-btn, .total, .tier-btn { height: 50px; }
-    .head-tools .gs-btn { width: 50px; min-width: 50px; }
+  .me:active, .score:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+  .me { flex: 0 1 auto; min-width: 0; gap: 10px; padding: 5px 16px 5px 5px; }
+  .me-av { flex: none; width: 52px; height: 52px; border-radius: 50%; background: var(--sky-low); border: 2px solid var(--line); overflow: hidden; display: grid; place-items: center; }
+  .me-av svg { width: 52px; height: 52px; display: block; }
+  .me-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+  .me-name { max-width: 100%; font-family: var(--font-display); font-weight: 800; font-size: 21px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .me-kelas { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px 0 10px; background: var(--sun); border: 2px solid var(--line); border-radius: 999px; font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1.45; white-space: nowrap; }
+  .me-kelas svg { width: 15px; height: 15px; }
+  .score { flex: none; gap: 8px; padding: 6px 16px 6px 8px; }
+  .score-ic svg { display: block; width: 42px; height: 42px; color: var(--sun); }
+  .score-ic svg path { stroke: var(--line); stroke-width: 1.3; }
+  .score-txt { display: flex; flex-direction: column; gap: 5px; }
+  .score b { font-family: var(--font-num); font-weight: 600; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .score-bar { display: block; width: 64px; height: 10px; border-radius: 99px; background: #EADFCB; border: 2px solid var(--line); overflow: hidden; }
+  .score-bar i { display: block; height: 100%; width: 0; background: var(--sun); }
+  .dock {
+    position: fixed; z-index: 40; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); translate: -50% 0;
+    width: min(520px, calc(100% - 24px)); display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 7px;
+    background: var(--card); border: 3px solid var(--line); border-radius: 30px; box-shadow: 0 5px 0 var(--line), 0 10px 26px rgba(43, 29, 20, 0.2);
   }
-  @media (max-width: 640px) {
-    /* Narrow phones: title on its own line, tools wrap underneath so nothing is clipped. */
-    .map-head { flex-direction: column; align-items: stretch; gap: 10px; }
-    .brand p { max-width: none; }
-    .head-tools { justify-content: flex-start; gap: 8px; }
-    .head-tools .gs-btn, .total, .tier-btn { height: 52px; }
-    .head-tools .gs-btn { width: 52px; min-width: 52px; }
+  .dock-b {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 66px; padding: 4px 2px;
+    border: 0; border-radius: 22px; background: transparent; color: var(--ink); cursor: pointer; -webkit-tap-highlight-color: transparent;
+    font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1.1;
   }
-  .total {
-    display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 16px 0 10px;
-    background: var(--card); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
-    font-family: var(--font-num); font-size: 26px; font-variant-numeric: tabular-nums;
+  .dock-b .ic { width: 40px; height: 36px; display: grid; place-items: center; transition: transform 160ms var(--ease-pop); }
+  .dock-b .ic svg { width: 32px; height: 32px; display: block; }
+  .dock-b .ic.av { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--line); background: var(--sky-low); overflow: hidden; }
+  .dock-b .ic.av svg { width: 36px; height: 36px; }
+  .dock-b:active .ic { transform: scale(0.88); }
+  .dock-b.on { background: var(--sun); box-shadow: inset 0 0 0 3px var(--line); }
+  .dock-b:focus-visible, .me:focus-visible, .score:focus-visible { outline: 4px solid var(--primary); outline-offset: 3px; }
+  @media (max-width: 380px) {
+    .me-name { font-size: 19px; }
+    .score { padding-right: 12px; }
+    .score-bar { width: 46px; }
+    .dock-b { font-size: 14px; }
   }
-  .total svg { width: 34px; height: 34px; color: var(--sun); }
-  .total svg path { stroke: var(--line); stroke-width: 1.3; }
+  @media (max-height: 520px) and (orientation: landscape) {
+    body { padding-left: calc(98px + env(safe-area-inset-left, 0px)); }
+    main { padding-bottom: 0; }
+    /* the sky runs on under the rail; the map itself starts right of it */
+    .map-wrap { padding-top: calc(var(--dash-top) + 70px); margin-left: calc(-98px - env(safe-area-inset-left, 0px)); padding-left: calc(98px + env(safe-area-inset-left, 0px)); }
+    .dash { left: auto; }
+    .me, .score { min-height: 58px; }
+    .me-av, .me-av svg { width: 44px; height: 44px; }
+    .dock {
+      left: calc(10px + env(safe-area-inset-left, 0px)); top: 50%; bottom: auto; translate: 0 -50%;
+      width: 80px; grid-template-columns: 1fr; padding: 6px; border-radius: 26px;
+    }
+    .dock-b { min-height: 62px; font-size: 13px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .dock-b .ic, .dash { transition: none; } }
 
   #map { display: block; width: 100%; }
   .node { cursor: pointer; outline: none; }
@@ -82,14 +123,15 @@
 
   /* "Scroll down" hint: shown while the route continues below the fold, gone after the first scroll. */
   .down-hint {
-    position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 5; translate: -50% 0;
+    position: fixed; left: 50%; bottom: calc(112px + env(safe-area-inset-bottom, 0px)); z-index: 5; translate: -50% 0;
     display: flex; gap: 6px; align-items: center; padding: 6px 16px 6px 10px; background: var(--card); border: 3px solid var(--line); border-radius: 999px;
-    font-weight: 700; font-size: 16px; line-height: 1.2; pointer-events: none; box-shadow: 0 3px 0 rgba(59, 42, 32, 0.25);
+    font-weight: 700; font-size: 16px; line-height: 1.2; white-space: nowrap; pointer-events: none; box-shadow: 0 3px 0 rgba(59, 42, 32, 0.25);
     transition: opacity 300ms ease-out, translate 300ms ease-out;
   }
   .down-hint svg { width: 22px; height: 22px; flex: none; animation: nudge 1.4s ease-in-out infinite; }
   @keyframes nudge { 50% { transform: translateY(4px); } }
   .down-hint.gone { opacity: 0; translate: -50% 10px; }
+  @media (max-height: 520px) and (orientation: landscape) { .down-hint { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); } }
   @media (prefers-reduced-motion: reduce) { .down-hint { transition: none; } .down-hint svg { animation: none; } }
 
   /* Game sheet: bottom sheet on phones in portrait, centred card elsewhere. */
@@ -159,13 +201,6 @@
   .principles div { border-top: 4px solid var(--line); padding-top: 12px; }
   .principles h4 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
   .principles p { margin: 0; font-size: 16px; line-height: 1.5; }
-  .tier-btn {
-    display: inline-flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px;
-    background: var(--sun); color: var(--ink); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line);
-    font-family: var(--font-display); font-weight: 800; font-size: 20px; white-space: nowrap; cursor: pointer;
-  }
-  .tier-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
-  .tier-btn svg { width: 20px; height: 20px; }
   .levelup {
     position: relative; z-index: 2; display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center;
     margin: 6px 16px 4px; padding: 16px 18px; background: #E3F4F1; border: 3px solid var(--line); border-radius: 24px;
@@ -178,8 +213,6 @@
   .levelup .ghost { background: var(--card); color: var(--ink); }
   @media (max-width: 480px) { .levelup { grid-template-columns: 1fr; } .levelup svg.cil { width: 64px; height: 64px; } }
   .guide .tier-note { display: inline-block; margin: 0 0 14px; padding: 4px 12px; border-radius: 999px; background: #FFF1C9; border: 2px solid var(--line); font-weight: 700; font-size: 15px; }
-  .profile { display: flex; align-items: center; }
-  .profile:empty { display: none; }
   .install-cta {
     margin-top: 32px; display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center;
     padding: 16px; background: var(--card); border: 3px solid var(--line); border-radius: 24px;
@@ -189,26 +222,34 @@
   .install-cta h4 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 800; font-size: 20px; }
   .install-cta p { margin: 0; font-size: 16px; line-height: 1.45; }
   @media (max-width: 560px) { .install-cta { grid-template-columns: 56px 1fr; } .install-cta .play { grid-column: 1 / -1; justify-content: center; } }
-  .foot { margin-top: 36px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 16px; }
+  .foot { margin-top: 36px; display: flex; gap: 16px 28px; flex-wrap: wrap; align-items: center; font-size: 16px; }
+  .acct { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .acct[hidden] { display: none; }
+  .reset.ask { background: #FFE3D6; }
   .reset { min-height: 44px; padding: 0 16px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); font-weight: 700; cursor: pointer; }
   .confirm { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 </style>
 </head>
 <body>
+<header class="dash" id="dash">
+  <button type="button" class="me" id="profile" aria-label="Profil: ganti nama, kelas, atau teman">
+    <span class="me-av" id="meAv" aria-hidden="true"></span>
+    <span class="me-txt"><span class="me-name" id="meName">Teman</span><span class="me-kelas"><span id="tierLabel">Kelas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+  </button>
+  <button type="button" class="score" id="starBtn">
+    <span class="score-ic" id="totalStar" aria-hidden="true"></span>
+    <span class="score-txt"><b id="totalN">0</b><span class="score-bar" aria-hidden="true"><i id="totalBar"></i></span></span>
+  </button>
+</header>
+<nav class="dock" id="dock" aria-label="Menu">
+  <button type="button" class="dock-b on" id="navMap" aria-current="true"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 8.5 4l7 2.5L21 4v13.5L15.5 20l-7-2.5L3 20z" fill="#9ED8EC" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.5 4v13.5M15.5 6.5V20" stroke="currentColor" stroke-width="2.2"/><path d="M5.5 15c2-1 3.5-3 6.5-2.5S17 9 18.5 8.5" fill="none" stroke="#C8643B" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 2.2"/></svg></span><span>Peta</span></button>
+  <button type="button" class="dock-b" id="navMe"><span class="ic av" id="navMeAv"></span><span>Aku</span></button>
+  <button type="button" class="dock-b" id="navSound"><span class="ic" id="navSoundIc"></span><span id="navSoundTx">Suara</span></button>
+  <button type="button" class="dock-b" id="navParent"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="6.5" r="3.2" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M2.8 21v-3.3a5.7 5.7 0 0 1 11.4 0V21z" fill="#2F80C9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="17.4" cy="10.4" r="2.5" fill="#F6D2B0" stroke="currentColor" stroke-width="2"/><path d="M13.4 21v-2.1a4 4 0 0 1 8 0V21z" fill="#F28C28" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span><span>Orang Tua</span></button>
+</nav>
 <main>
   <section class="map-wrap" aria-label="Peta Kampung">
-    <div class="map-head">
-      <div class="brand">
-        <h1>Mat Sains</h1>
-        <p>Pilih tempat di peta, lalu main bersama Si Cil.</p>
-      </div>
-      <div class="head-tools">
-        <div class="total" aria-label="Total bintang"><span id="totalStar"></span><span id="totalN">0</span></div>
-        <button type="button" class="gs-btn" id="sound" data-gs-sound aria-label="Matikan suara"></button>
-        <button type="button" class="tier-btn" id="tierBtn" aria-label="Ganti kelas"><span id="tierLabel">Kelas</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <div id="profile" class="profile"></div>
-      </div>
-    </div>
+    <h1 class="sr">Mat Sains: peta kampung</h1>
     <div class="levelup" id="levelUp" hidden>
       <div id="levelUpCil"></div>
       <div><h3 id="levelUpTitle"></h3><p id="levelUpText"></p>
@@ -234,6 +275,7 @@
       <button type="button" class="play">Pasang</button>
     </div>
     <div class="foot">
+      <span class="acct" id="acct" hidden><span id="acctTx"></span><button type="button" class="reset" id="logout">Keluar dari akun</button></span>
       <span class="confirm" id="resetBox"><button type="button" class="reset" id="reset">Hapus progres</button></span>
     </div>
   </section>
@@ -313,7 +355,8 @@
      wider screens get snake rows of 3 to 5 places. Every place is a node at its base point. */
   const LM_H = 178, SIGN_H = 88;
   function layout() {
-    const W = document.documentElement.clientWidth || innerWidth, H = innerHeight || 800;
+    // the map's own width: on short landscape phones the dock rail takes the left edge
+    const W = map.getBoundingClientRect().width || document.documentElement.clientWidth || innerWidth, H = innerHeight || 800;
     const s = Math.min(W / 620, H / 470, 1.15);
     const U = W / s;
     const cols = Math.max(2, Math.min(5, Math.floor((U - 40) / 310)));
@@ -444,7 +487,7 @@
       boxes.push([p.x - 104, p.y - LM_H - 10, p.x + 104, p.y + 8], [p.x - w / 2 - 8, p.y + 4, p.x + w / 2 + 8, p.y + 14 + SIGN_H + 8]);
     });
     boxes.push([-40, yR - 44, U + 40, yR + 40]);
-    // Si Cil's spot next to every place is kept free too
+    // Chuppy's spot next to every place is kept free too
     pts.forEach(p => { const cx = cilX(p); boxes.push([cx - 64, p.y - 130, cx + 64, p.y + 10]); });
 
     // --- scenery: trees, houses, palms placed where nothing else is ---
@@ -499,19 +542,25 @@
     });
     fitSigns();
 
-    // --- Si Cil stands next to the last place played ---
+    // --- Chuppy stands next to the last place played ---
     const at = GAMES.find(g => g.id === GS.store.get('lastGame', 'timbangan')) || GAMES[0];
     cilG = GS.el('g', { id: 'cil', transform: cilAt(at) }, map);
     if (has('mascot')) {
       const holder = GS.el('foreignObject', { x: -60, y: -125, width: 120, height: 130 }, cilG);
       holder.innerHTML = '<div xmlns="http://www.w3.org/1999/xhtml" style="width:120px;height:130px">' + art.mascot({ mood: 'point', size: 120 }) + '</div>';
+      cilFace(at);
     }
   }
   function cloud(x, y, sc, cls) {
     return '<g class="cloud ' + cls + '"><g transform="translate(' + r1(x) + ' ' + y + ') scale(' + sc + ')"><path d="M0 40 C0 18 30 10 46 22 C56 0 100 0 110 24 C130 14 160 24 158 44 Z" fill="#fff"/></g></g>';
   }
-  // Si Cil stands on the side of a place that faces the middle of the map.
+  // Chuppy stands on the side of a place that faces the middle of the map.
   function cilX(p) { return p.x + (p.x < L.U / 2 ? 150 : -150); }
+  // Chuppy points with the right arm, so he is mirrored when he stands to the right of a place.
+  function cilFace(g) {
+    const d = cilG && cilG.querySelector('div'), p = L.pts[GAMES.indexOf(g)];
+    if (d) d.style.transform = cilX(p) > p.x ? 'scaleX(-1)' : '';
+  }
   function cilAt(g) { const p = L.pts[GAMES.indexOf(g)]; return 'translate(' + r1(cilX(p)) + ' ' + r1(p.y - 4) + ')'; }
   function fitSigns() {
     map.querySelectorAll('.sign').forEach(sg => {
@@ -541,12 +590,17 @@
   /* ---------------- game sheet ---------------- */
   const sheet = document.getElementById('sheet');
   const $ = id => document.getElementById(id);
-  let current = null, lastFocus = null, closeT = 0;
+  let current = null, lastFocus = null, closeT = 0, walkT = 0;
   function markOn(id) { Object.keys(nodeEls).forEach(k => nodeEls[k].classList.toggle('on', k === id)); }
   function openSheet(g) {
     GS.sfx.pop();
     GS.store.set('lastGame', g.id);
-    if (cilG) cilG.setAttribute('transform', cilAt(g));
+    if (cilG && cilG.getAttribute('transform') !== cilAt(g)) {
+      cilG.setAttribute('transform', cilAt(g));
+      cilFace(g);
+      const m = cilG.querySelector('.gs-mascot'); // waddle while walking over
+      if (m && !GS.reducedMotion) { m.classList.add('walk'); clearTimeout(walkT); walkT = setTimeout(() => m.classList.remove('walk'), 900); }
+    }
     GS.say(g.say);
     current = g; lastFocus = document.activeElement; markOn(g.id);
     const st = stars(g.id), dn = done(g.id);
@@ -594,12 +648,65 @@
   });
   $('sheetPlay').addEventListener('click', () => { GS.sfx.coin(); });
 
-  /* ---------------- header widgets ---------------- */
+  /* ---------------- dashboard: top bar and dock ---------------- */
   const openProfile = () => { GS.sfx.click(); if (MS.profileEditor) MS.profileEditor.open({ onSave: () => location.reload() }); };
-  if (window.MS && MS.auth && MS.auth.mountProfileChip) MS.auth.mountProfileChip(document.getElementById('profile'), { onEdit: openProfile });
+  const who = (window.MS && MS.auth && MS.auth.current()) || null;
+  const avatar = sz => { try { return who && MS.auth.avatarSvg ? MS.auth.avatarSvg(who.avatar, sz) : (has('mascot') ? art.mascot({ mood: 'happy', size: sz }) : ''); } catch (e) { return ''; } };
+  $('meAv').innerHTML = avatar(52);
+  $('navMeAv').innerHTML = avatar(36);
+  $('meName').textContent = who && who.name ? who.name : 'Teman';
   $('tierLabel').textContent = TINFO.label;
-  $('tierBtn').addEventListener('click', openProfile);
+  $('profile').addEventListener('click', openProfile);
+  $('navMe').addEventListener('click', openProfile);
   $('tierNote').textContent = 'Sedang ditampilkan: ' + TINFO.label + (TINFO.fase ? ' (' + TINFO.fase + ')' : '');
+  // stars: number + a bar toward every star of this kelas; tapping says it out loud (pre-readers)
+  const maxStars = GAMES.length * TINFO.levels * 3;
+  $('totalStar').innerHTML = GS.ICON.star;
+  $('totalN').textContent = total;
+  $('totalBar').style.width = Math.round(100 * total / Math.max(1, maxStars)) + '%';
+  $('starBtn').setAttribute('aria-label', total + ' bintang dari ' + maxStars + ' di ' + TINFO.label);
+  $('starBtn').addEventListener('click', () => {
+    GS.sfx.pop();
+    GS.say(total ? 'Kamu sudah punya ' + total + ' bintang. Hebat!' : 'Ayo main dan kumpulkan bintang!');
+  });
+  // sound: its own icon + word ("Suara" / "Senyap"), so the label survives GS.setMuted
+  function syncSound() {
+    $('navSoundIc').innerHTML = GS.muted ? GS.ICON.soundOff : GS.ICON.soundOn;
+    $('navSoundTx').textContent = GS.muted ? 'Senyap' : 'Suara';
+    $('navSound').setAttribute('aria-pressed', String(!GS.muted));
+    $('navSound').setAttribute('aria-label', GS.muted ? 'Nyalakan suara' : 'Matikan suara');
+  }
+  $('navSound').addEventListener('click', () => { GS.setMuted(!GS.muted); syncSound(); if (!GS.muted) GS.sfx.pop(); });
+  GS.setMuted(GS.muted);
+  syncSound();
+  // map: back to Chuppy's place; parents: the guide. The active tab follows the scroll.
+  const smooth = GS.reducedMotion ? 'auto' : 'smooth';
+  $('navMap').addEventListener('click', () => {
+    GS.sfx.click();
+    const g = GAMES.find(x => x.id === GS.store.get('lastGame', '')) || GAMES[0];
+    const p = L.pts[GAMES.indexOf(g)], top = map.getBoundingClientRect().top + scrollY + (p.y - LM_H / 2) * L.s;
+    window.scrollTo({ top: Math.max(0, top - innerHeight / 2), behavior: smooth });
+  });
+  $('navParent').addEventListener('click', () => { GS.sfx.click(); $('orang-tua').scrollIntoView({ behavior: smooth, block: 'start' }); });
+  function setTab(id) {
+    ['navMap', 'navParent'].forEach(k => { $(k).classList.toggle('on', k === id); if (k === id) $(k).setAttribute('aria-current', 'true'); else $(k).removeAttribute('aria-current'); });
+  }
+  if ('IntersectionObserver' in window) {
+    // in the parent area the floating status bar steps aside so it does not sit on the text
+    new IntersectionObserver(es => es.forEach(e => { setTab(e.isIntersecting ? 'navParent' : 'navMap'); $('dash').classList.toggle('away', e.isIntersecting); }), { rootMargin: '0px 0px -45% 0px' }).observe($('orang-tua'));
+  }
+  // logging out is for grown-ups: it sits in the parent area and asks twice (no dialogs)
+  if (who && MS.auth.logout) {
+    $('acct').hidden = false;
+    $('acctTx').textContent = 'Masuk sebagai ' + (who.name || 'Teman') + (who.email ? ' (' + who.email + ')' : '') + '.';
+    const out = $('logout');
+    let outT = 0;
+    out.addEventListener('click', () => {
+      if (out.classList.contains('ask')) { clearTimeout(outT); MS.auth.logout(); return; }
+      out.classList.add('ask'); out.textContent = 'Yakin keluar? Ketuk lagi';
+      outT = setTimeout(() => { out.classList.remove('ask'); out.textContent = 'Keluar dari akun'; }, 4000);
+    });
+  }
 
   /* ---------------- every level of this kelas has a star: offer the next kelas ---------------- */
   (function levelUp() {
@@ -622,12 +729,8 @@
     }
     stay.addEventListener('click', () => { box.hidden = true; });
   })();
-  $('totalStar').innerHTML = GS.ICON.star;
-  $('totalN').textContent = total;
-  $('sound').addEventListener('click', () => { GS.sfx.click(); GS.setMuted(!GS.muted); });
-  GS.setMuted(GS.muted);
 
-  /* ---------------- start where Si Cil is, and hint that the route goes on below ---------------- */
+  /* ---------------- start where Chuppy is, and hint that the route goes on below ---------------- */
   requestAnimationFrame(() => {
     const g = GAMES.find(x => x.id === GS.store.get('lastGame', '')) || null;
     if (g && L) {

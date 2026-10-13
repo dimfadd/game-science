@@ -1595,7 +1595,7 @@
   /* ============================== worked example ("Contoh", docs/CONTOH.md) ==============================
    * The ghost hand plays ONE round with other prices than the child's task, through the real
    * input: it taps the goods cards, drags money from the drawer onto the tray (repeats of the same
-   * piece may be tapped, which the game also accepts) and presses Bayar!/Berikan. Si Cil thinks
+   * piece may be tapped, which the game also accepts) and presses Bayar!/Berikan. Chuppy thinks
    * aloud: the sum of the goods, then the running total piece by piece, largest piece first.
    * Challenge and mixed levels replay on request only (auto: false). */
   const DEMO_KEYS = {
@@ -1663,7 +1663,7 @@
 
   async function demoPick(d, R) {
     const P = R.pick, cardEl = i => () => L.cards.children[i];
-    // point just under a card so the hand does not cover what Si Cil is talking about
+    // point just under a card so the hand does not cover what Chuppy is talking about
     const under = (x, w, y) => ({ x: x + w / 2 - 40, y });
     if (P.kind === 'pricier') {
       const o = P.options, best = o[0].price > o[1].price ? 0 : 1;

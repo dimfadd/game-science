@@ -60,7 +60,7 @@ const SHOTS = process.env.SHOTS || path.join(__dirname, 'shots');
 
   // Tap the Timbangan landmark: it stays in place and opens its sheet; "Main!" opens the game.
   const lm = await page.$('.node .lm');
-  await lm.scrollIntoViewIfNeeded();
+  await lm.evaluate(el => el.scrollIntoView({ block: 'center' }));
   const b0 = await lm.boundingBox();
   await page.touchscreen.tap(b0.x + b0.width / 2, b0.y + b0.height / 2);
   await page.waitForTimeout(120);

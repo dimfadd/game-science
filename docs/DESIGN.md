@@ -56,9 +56,11 @@ Dokumen ini adalah sintesis dari empat brainstorming spesialis (didaktik matemat
 - Instruksi maksimal ±30 karakter per baris, kalimat biasa (bukan huruf kapital semua). **Setiap instruksi juga diucapkan** (`GS.say`).
 - **Tidak boleh ada em dash (—) di teks yang tampil di layar.**
 
-### Maskot: Si Cil, si kancil
+### Maskot: Chuppy, si robot teman (sejak 2026-10-13, menggantikan Si Cil si kancil)
 
-Kancil dari dongeng Si Kancil yang cerdik. Kepala bentuk telur (lebih lebar di pipi), moncong krem `#F6E3C4` dengan hidung segitiga membulat, mata oval tinggi dengan 2 titik cahaya, telinga daun (luar cokelat, dalam `#F59AB0`). Badan bentuk pir `#C98B4E` (shade `#A06A36`, hl `#E0A86E`), perut krem, kaki ramping dengan kuku gelap seperti sarung tangan. Tanda khas: tiga chevron krem di leher. Aksesori: ikat kepala jingga dengan titik kawung dan dua ujung simpul yang berkibar.
+Robot gendut dan empuk berbentuk **bakpao**: kepala dan badan SATU bentuk bulat (bukan kepala kecil di atas badan besar), putih krem `#FBF6EC` (hl `#FFFFFF`, shade `#DCCFBB`). Wajahnya **layar gelap** `#22304A` dengan mata dan mulut LED cyan `#7CF5EA` (mata pil tegak, bisa jadi ^ ^, > <, lingkaran), pipi merah muda di layar. Tanda khas: dua bantalan "headphone" teal `#2BB3A6` di samping, antena dengan bola lampu kuning yang berpendar, lampu dada teal dengan inti kuning, sepatu bot teal, tangan bulat seperti sarung tangan.
+Terinspirasi sifat robot gendut yang lembut (gerak pelan, empuk, seperti balon), **tapi sengaja dibuat beda** dari karakter film mana pun: tidak memakai wajah dua titik bergaris, tidak berkepala kecil, tidak polos putih tanpa aksen, nama sendiri. Jangan pernah menambahkan ciri karakter berhak cipta.
+Gerak (`shared/art.js` CSS): napas "mengembang" (squash 1.025 × 0.975 dari kaki, 3.2 detik), kedip, antena bergoyang ±7°, lampu berpendar, melambai pelan saat `happy`, melompat empuk saat `cheer`, berjalan megal-megol (kelas `walk` pada svg, dipakai di peta).
 Ekspresi: idle, happy, cheer, think, surprise, oops, point.
 
 ## 3. Gerak (motion)
@@ -69,7 +71,7 @@ Ekspresi: idle, happy, cheer, think, surprise, oops, point.
 - **Lepas benda**: snap 150ms, squash 1.2×0.85 lalu 0.92×1.08 lalu diam (±300ms). Benda berat squash sedikit (0.95) + guncangan layar 4px/150ms + debu. Benda ringan squash 0.9, memantul 2 kali, melayang turun pelan.
 - Idle: kedip setiap 2.5–5 detik, napas naik-turun 3px/2.4 detik, benda ringan melayang ±4px/3 detik, benda berat diam.
 - Salah: goyang ±6° tiga kali dalam 400ms, bunyi lembut (`GS.sfx.oops`), tanpa kilatan merah.
-- Menang: hening 300ms (momen tegang), lalu akor naik, konfeti, Si Cil bersorak (`GS.celebrate`).
+- Menang: hening 300ms (momen tegang), lalu akor naik, konfeti, Chuppy bersorak (`GS.celebrate`).
 - `prefers-reduced-motion`: hilangkan guncangan dan parallax, pertahankan fade (`GS.reducedMotion`, `GS.tween` sudah memperpendek durasi).
 
 ## 4. Tata letak dan sentuhan
@@ -77,7 +79,7 @@ Ekspresi: idle, happy, cheer, think, surprise, oops, point.
 - Kanvas game: satu `<svg>` dengan `viewBox` tetap (disarankan `0 0 1280 800`, landscape) dan `preserveAspectRatio="xMidYMid meet"`, memenuhi area di bawah HUD. Jadi skalanya otomatis ikut tablet maupun HP.
 - Target sentuh minimal 64 CSS px (tombol utama 88px), jarak antar-target 16px. Benda yang bisa diseret minimal 72px dengan area sentuh +16px.
 - Tidak ada hover, ketuk dua kali, tekan lama, atau multi-touch yang wajib. Hanya satu sentuhan aktif sekaligus (`GS.drag` sudah menangani ini).
-- HUD (dari `GS.hud`): rumah di kiri atas, judul + level di tengah, pilih level / ulangi suara / suara di kanan atas. Teks Si Cil (caption) di kiri bawah. Tombol aksi utama ("Cek!", "Lepas!", "Gas!") di kanan bawah, area jempol.
+- HUD (dari `GS.hud`): rumah di kiri atas, judul + level di tengah, pilih level / ulangi suara / suara di kanan atas. Teks Chuppy (caption) di kiri bawah. Tombol aksi utama ("Cek!", "Lepas!", "Gas!") di kanan bawah, area jempol.
 - Semua bisa dimainkan dengan keyboard minimal: tombol HTML asli, focus ring terlihat (`:focus-visible`).
 
 ## 5. Daftar game

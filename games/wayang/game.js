@@ -1768,7 +1768,7 @@
   }
 
   /* ================= worked examples (GS.demo, SOP docs/CONTOH.md) =================
-   * Si Cil plays the first round of the level with other numbers, through the real handles:
+   * Chuppy plays the first round of the level with other numbers, through the real handles:
    * it drags the wayang / lamp / boards / tape cases, turns the knob and mirrors along an arc,
    * moves the guess marker BEFORE the light comes on, then presses the dock button. The true
    * projection decides; the script only aims at the answer computed from the same geometry. */

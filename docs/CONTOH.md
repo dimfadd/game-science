@@ -1,12 +1,12 @@
 # SOP contoh main ("Contoh")
 
-Tujuan: sebelum anak mencoba jenis level yang baru, Si Cil **mencontohkan satu kali** dengan tangan bayangan, lalu anak mencoba sendiri. Contoh bisa dilewati. SOP ini wajib untuk setiap game baru, jenis level baru, atau perubahan mekanik, dan diperiksa dengan `node tests/demos.js <game>`.
+Tujuan: sebelum anak mencoba jenis level yang baru, Chuppy **mencontohkan satu kali** dengan tangan bayangan, lalu anak mencoba sendiri. Contoh bisa dilewati. SOP ini wajib untuk setiap game baru, jenis level baru, atau perubahan mekanik, dan diperiksa dengan `node tests/demos.js <game>`.
 
 ## 1. Aturan pedagogi
 
 1. **Angka atau soal contoh berbeda dari soal anak.** Contoh mengajarkan *cara* main, bukan jawaban. Soal anak dibuat ulang setelah contoh, dan harus berbeda dari soal contoh (periksa dengan tanda pengenal soal, ulangi acak kalau sama).
 2. **Contoh memakai mekanik asli.** Tangan bayangan menekan, menyeret, dan menggesek lewat penangan input game yang sama dengan jari anak (`GS.demo` mengirim event pointer sintetis). Jangan memindahkan benda lewat kode langsung, dan jangan membuat versi tiruan.
-3. **Berpikir keras.** Si Cil menjelaskan alasannya dengan kalimat pendek sambil bekerja: "Dari 3, lompat 2 sebanyak 4 kali." Untuk TK tanpa teks wajib dibaca: semua penting diucapkan, kalimat ≤ 10 kata.
+3. **Berpikir keras.** Chuppy menjelaskan alasannya dengan kalimat pendek sambil bekerja: "Dari 3, lompat 2 sebanyak 4 kali." Untuk TK tanpa teks wajib dibaca: semua penting diucapkan, kalimat ≤ 10 kata.
 4. **Contoh berhasil.** Contoh selalu berakhir dengan dunia game merespons benar (timbangan seimbang, angkot berangkat), lalu "Sekarang giliranmu!". Contoh tidak menunjukkan kesalahan, kecuali jenis level itu memang tentang memperbaiki (misalnya prediksi lalu amati); kalau begitu tetap akhiri dengan hasil benar.
 5. **Singkat.** Satu ronde saja, 10–25 detik. Level dengan banyak ronde dicontohkan satu ronde.
 6. **Tidak memengaruhi bintang.** Selama contoh, `run.win()` tidak menyimpan bintang dan tidak merayakan; soal anak dibangun ulang dari awal.
@@ -55,5 +55,5 @@ Di `buildLevel(i, demo)`:
 
 1. `node tests/demos.js <game>`: setiap level di setiap kelas harus `ok` (contoh ada, berhasil lewat mekanik asli, contoh otomatis muncul sekali, "Lewati" berfungsi).
 2. `node tests/levels.js <game>` tetap lolos.
-3. Lihat screenshot contoh di HP 844 × 390 untuk setiap jenis level: tangan terlihat, tidak menutupi yang sedang dicontohkan, kalimat Si Cil sesuai gerakan, dan bingkai "Contoh" tidak menutupi angka penting.
+3. Lihat screenshot contoh di HP 844 × 390 untuk setiap jenis level: tangan terlihat, tidak menutupi yang sedang dicontohkan, kalimat Chuppy sesuai gerakan, dan bingkai "Contoh" tidak menutupi angka penting.
 4. Catat di `docs/LOG.md`.

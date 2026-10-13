@@ -25,12 +25,18 @@ const SIZES = { phoneWide: [1000, 452], phoneLandscape: [844, 390], phonePortrai
     await page.goto(base + 'index.html?autotest'); await page.waitForTimeout(900);
     await page.screenshot({ path: path.join(SHOTS, 'hub-' + name + '.png') });
     // the map must reach both edges of its box (no empty strips)
-    const fill = await page.evaluate(() => { const m = document.getElementById('map'); const r = m.getBoundingClientRect(); const vb = m.viewBox.baseVal; return { w: r.width, vbx: vb.x }; });
-    check(name + ': map fills width (viewBox x ' + fill.vbx.toFixed(0) + ')', fill.w >= Math.min(w, 980) - 1);
-    const overflowHead = await page.evaluate(() => { const t = document.querySelector('.head-tools').getBoundingClientRect(); return t.right <= innerWidth + 1; });
-    check(name + ': header tools inside the screen', overflowHead);
+    const fill = await page.evaluate(() => { const m = document.getElementById('map'); const r = m.getBoundingClientRect(); const vb = m.viewBox.baseVal; return { w: r.width, vbx: vb.x, rail: parseFloat(getComputedStyle(document.body).paddingLeft) || 0 }; });
+    // (short landscape phones: the dock is a rail on the left, the map fills the rest)
+    check(name + ': map fills width (viewBox x ' + fill.vbx.toFixed(0) + ')', fill.w >= Math.min(w - fill.rail, 980) - 1);
+    // floating dashboard: top bar and dock fully on screen, profile and stars do not overlap
+    const dash = await page.evaluate(() => {
+      const r = id => document.getElementById(id).getBoundingClientRect(), me = r('profile'), st = r('starBtn'), dk = r('dock');
+      return me.left >= 0 && st.right <= innerWidth + 1 && me.right <= st.left + 1 && dk.left >= 0 && dk.right <= innerWidth + 1 && dk.top >= 0 && dk.bottom <= innerHeight + 1 &&
+        [...document.querySelectorAll('.dock-b')].every(b => b.getBoundingClientRect().height >= 60);
+    });
+    check(name + ': dashboard bar and dock inside the screen', dash);
     if (name === 'phoneWide' || name === 'phonePortrait') {
-      await page.click('#tierBtn'); await page.waitForTimeout(500);
+      await page.click('#profile'); await page.waitForTimeout(500);
       await page.screenshot({ path: path.join(SHOTS, 'editor-' + name + '.png') });
       const inside = await page.evaluate(() => { const c = document.querySelector('.ms-pe .gs-card').getBoundingClientRect(); const x = document.querySelector('.ms-pe-close').getBoundingClientRect(); return x.top >= c.top && x.right <= c.right + 1; });
       check(name + ': editor close button inside the card', inside);
@@ -49,7 +55,7 @@ const SIZES = { phoneWide: [1000, 452], phoneLandscape: [844, 390], phonePortrai
     // tapping a place opens its sheet (what it teaches, Main!, X); X closes it again
     await page.reload(); await page.waitForTimeout(900);
     const lm = await page.$('.node[data-id="katak"] .lm');
-    await lm.scrollIntoViewIfNeeded(); await page.waitForTimeout(200);
+    await lm.evaluate(el => el.scrollIntoView({ block: 'center' })); await page.waitForTimeout(200); // clear of the floating bar and dock
     const lb = await lm.boundingBox();
     await page.touchscreen.tap(lb.x + lb.width / 2, lb.y + lb.height / 2); await page.waitForTimeout(600);
     const sh = await page.evaluate(() => {

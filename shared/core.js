@@ -128,7 +128,7 @@
   /** Math symbols read aloud as Indonesian words; the caption keeps the symbols. */
   GS.speakable = function (text) {
     return String(text)
-      .replace(/½/g, ' setengah ').replace(/⅓/g, ' sepertiga ').replace(/¼/g, ' seperempat ').replace(/¾/g, ' tiga perempat ')
+      .replace(/Chuppy/g, 'Cupi').replace(/½/g, ' setengah ').replace(/⅓/g, ' sepertiga ').replace(/¼/g, ' seperempat ').replace(/¾/g, ' tiga perempat ')
       .replace(/(\d)\s*\/\s*(\d)/g, '$1 per $2')
       .replace(/\s*×\s*/g, ' kali ').replace(/\s*÷\s*/g, ' bagi ')
       .replace(/\s*\+\s*/g, ' tambah ').replace(/(\d|\?)\s*[−–-]\s*(?=\d|\?)/g, '$1 kurang ')

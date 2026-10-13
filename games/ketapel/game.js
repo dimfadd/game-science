@@ -212,7 +212,7 @@
   };
   const LEVELS = TIERS[TIER] || TIERS.k1;
   /* Worked examples (docs/CONTOH.md), one per level: key = level type, auto: false for
-   * levels without a new mechanic, say = Si Cil's opening thought, deg = preferred angle,
+   * levels without a new mechanic, say = Chuppy's opening thought, deg = preferred angle,
    * after = line once the in-level kelereng shot has landed (k3 "lihat dulu"). */
   const EXAMPLES = {
     tk: [

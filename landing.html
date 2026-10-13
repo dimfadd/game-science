@@ -207,13 +207,13 @@
       <h1>AI dan robot dibangun dari matematika dan fisika. <span class="h1-2">Anakmu bisa mulai hari ini, sambil main.</span></h1>
       <p class="lead">Mat Sains berisi 10 game buatan Indonesia. Anak menimbang di pasar, mengisi angkot, memotong martabak, dan melempar mangga dengan ketapel. Matematika dan fisikanya ada di dalam permainan, jadi anak merasa sedang main, padahal sedang belajar.</p>
       <div class="cta-box">
-        <a class="cta" href="welcome.html" data-cta><span class="cta-t">Mulai main bersama Si&nbsp;Cil</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12.5 6.5L18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a class="cta" href="welcome.html" data-cta><span class="cta-t">Mulai main bersama Chuppy</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12.5 6.5L18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         <p class="cta-note">Gratis selama masa uji coba. Tanpa iklan.</p>
         <p class="alt" data-alt>Sudah punya akun? <a href="welcome.html?masuk=1" data-masuk>Masuk</a></p>
       </div>
     </div>
     <figure class="hero-art frame">
-      <svg id="heroScene" viewBox="0 0 640 420" role="img" aria-label="Timbangan pasar. Di kiri anak timbangan 3 dan 4, di kanan 7. Timbangan jadi seimbang dan Si Cil bersorak."></svg>
+      <svg id="heroScene" viewBox="0 0 640 420" role="img" aria-label="Timbangan pasar. Di kiri anak timbangan 3 dan 4, di kanan 7. Timbangan jadi seimbang dan Chuppy bersorak."></svg>
     </figure>
   </div>
 </header>
@@ -287,7 +287,7 @@
         </div>
       </div>
       <ul class="how-list">
-        <li class="rv"><span class="how-ic" data-ic="demo"></span><div><h3>Dicontohkan dulu</h3><p>Sebelum mencoba, Si Cil mencontohkan dengan tangan bayangan. Kalau sudah paham, contohnya bisa dilewati.</p></div></li>
+        <li class="rv"><span class="how-ic" data-ic="demo"></span><div><h3>Dicontohkan dulu</h3><p>Sebelum mencoba, Chuppy mencontohkan dengan tangan bayangan. Kalau sudah paham, contohnya bisa dilewati.</p></div></li>
         <li class="rv"><span class="how-ic" data-ic="tilt"></span><div><h3>Tanpa nyawa, tanpa waktu</h3><p>Tidak ada tanda salah berwarna merah. Kalau meleset, dunia game yang menunjukkan sebabnya: timbangan miring, rakit tenggelam.</p></div></li>
         <li class="rv"><span class="how-ic" data-ic="fade"></span><div><h3>Benda dulu, simbol kemudian</h3><p>Level awal memakai benda. Angka muncul pelan-pelan di sampingnya, sampai anak siap dengan simbol saja.</p></div></li>
         <li class="rv"><span class="how-ic" data-ic="device"></span><div><h3>Main di HP dan tablet</h3><p>Bisa dipasang di layar utama dan tetap jalan tanpa internet.</p></div></li>
@@ -301,7 +301,7 @@
       <h2 class="rv">Siap main?</h2>
       <p class="rv">Tiga pertanyaan singkat, lalu anak langsung bermain.</p>
       <div class="cta-box rv">
-        <a class="cta" href="welcome.html" data-cta><span class="cta-t">Mulai main bersama Si&nbsp;Cil</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12.5 6.5L18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a class="cta" href="welcome.html" data-cta><span class="cta-t">Mulai main bersama Chuppy</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12.5 6.5L18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         <p class="cta-note">Gratis selama masa uji coba. Tanpa iklan.</p>
       </div>
     </div>
@@ -371,7 +371,7 @@
 
   /* ---------------- art that does not move ---------------- */
   var cil = $('#brandCil');
-  if (cil) { cil.innerHTML = mascot('happy', 46); var cs = cil.querySelector('svg'); if (cs) cs.setAttribute('viewBox', '36 8 128 128'); }
+  if (cil) { cil.innerHTML = mascot('happy', 46); var cs = cil.querySelector('svg'); if (cs) cs.setAttribute('viewBox', '20 0 160 160'); }
   var fc = $('#finalCil');
   if (fc) fc.innerHTML = mascot('cheer', 170);
   document.querySelectorAll('[data-lm]').forEach(function (el) {
@@ -446,7 +446,7 @@
   /* ---------------- demos ---------------- */
   var DEMOS = {};
 
-  // HERO: 3 and 4 on the left; 7 drops on the right; the beam settles level and Si Cil cheers.
+  // HERO: 3 and 4 on the left; 7 drops on the right; the beam settles level and Chuppy cheers.
   DEMOS.hero = function (svg) {
     var sc = '';
     try { sc = art && art.scene ? art.scene('pasar', 640, 420) : ''; } catch (e) { sc = ''; }
@@ -467,7 +467,7 @@
         t = (t + dt) % T;
         if (t < 1.0) { w7.at(160, 0); b.set(7, 0); setMood('a'); }
         else if (t < 1.45) { var p = (t - 1.0) / 0.45; w7.at(160 * (1 - fall(p)), Math.min(1, p * 4)); b.set(7, 0); }
-        else if (t < 6.3) { w7.at(0, 1); b.set(7, 7); if (b.settled()) setMood('b'); } // Si Cil cheers only once the beam is at rest
+        else if (t < 6.3) { w7.at(0, 1); b.set(7, 7); if (b.settled()) setMood('b'); } // Chuppy cheers only once the beam is at rest
         else { var u = Math.min(1, (t - 6.3) / 0.5); w7.at(120 * u * u, 1 - u); b.set(7, u > 0.15 ? 0 : 7); setMood('a'); }
         b.step(dt);
       },

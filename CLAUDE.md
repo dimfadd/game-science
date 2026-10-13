@@ -25,14 +25,14 @@ Core pedagogy (non-negotiable, details in `docs/DESIGN.md`):
 
 ```
 landing.html            Landing page for first-time visitors (search/ads): why math + physics, the games, CTA to welcome.html
-index.html              Hub "Peta Kampung": vertical route with 10 game landmarks, a sheet per game, parent/teacher guide
+index.html              Hub "Peta Kampung": floating dashboard (top bar + dock), vertical route with 10 game landmarks, a sheet per game, parent/teacher guide
 welcome.html            Onboarding (3 quick questions) then register/login
 assets.html             Internal asset gallery (NOT deployed, not linked)
 manifest.webmanifest    PWA manifest
 sw.js                   Service worker (precache + offline; VERSION replaced at build)
 vercel.json             Vercel build/output/headers
 scripts/build.sh        Builds dist/ for Vercel
-icons/                  PWA icons rendered from the Si Cil mascot
+icons/                  PWA icons rendered from the Chuppy mascot (cheer mood on the sky)
 audio/voice/            Recorded narrator clips + manifest.json (empty until recorded)
 shared/core.js          window.GS runtime (see API below)
 shared/core.css         Design tokens, HUD, buttons, overlays, start gate
@@ -65,6 +65,10 @@ Every game has five tiers: `tk`, `k1`, `k2`, `k3`, `k4` (Kelas 4+), following Ku
 - Hub: the "Kelas" button and the profile chip open `MS.profileEditor` (name, kelas, avatar). When every level of the current tier has a star, a banner offers the next tier (top of the map).
 - TK tier: no reading required (numbers always with dots/objects), bigger targets, looser tolerances.
 
+## Mascot: Chuppy
+
+Chuppy (since 2026-10-13, replaced Si Cil the kancil) is a chubby soft robot shaped like a bakpao: head and body one round shape, a dark face screen with cyan LED eyes and mouth, teal headphone pods, an antenna with a glowing bulb, a chest light, teal boots. Inspired by the gentle, slow, inflatable feel of big friendly film robots but deliberately different (no two-dots-and-line face, no small head on a big body, colour accents, own name); never add traits of a copyrighted character. `GS.art.mascot({mood, size})` keeps the same API and moods; motion: puff, blink, antenna sway, glow, wave (happy), hop (cheer), waddle (class `walk`). Speech says "Cupi" (`GS.speakable`). Details in `docs/DESIGN.md`.
+
 ## The games
 
 | id | Name | Levels (per tier) | Teaches (across tiers) |
@@ -82,7 +86,9 @@ Every game has five tiers: `tk`, `k1`, `k2`, `k3`, `k4` (Kelas 4+), following Ku
 
 Wave 2 (bibit, kembalian, jam, wayang, 2026-10-10) covers the Kurikulum Merdeka elements the first six never touched: measurement (money, time), arrays/area/perimeter and IPAS light. Hub map landmarks: `bibit`, `kelontong`, `posronda`, `panggung` in `GS.art` LM.
 
-**Hub map** (`index.html`, 2026-10-12): one tall route that scrolls DOWN, laid out in script for the screen: s = px per map unit = min(W/620, H/470, 1.15); two lanes zigzag on narrow screens, snake rows of 3 to 5 places on wide ones; the route follows the curriculum order (`MS.kur.GAMES`), a river with a bridge runs above Rakit Terapung, scenery (`GS.art.decor`) is placed only where no place, sign or path is. Tapping a place does NOT open the game: Si Cil walks there, says its line and a sheet opens (landmark art, Matematika/Fisika badge, what this kelas learns, progress, big "Main!", X top-right; also closes on the backdrop and Escape). Bottom sheet on portrait phones, centred card elsewhere, art beside the text on short landscape screens.
+**Hub map** (`index.html`, 2026-10-12): one tall route that scrolls DOWN, laid out in script for the screen: s = px per map unit = min(W/620, H/470, 1.15); two lanes zigzag on narrow screens, snake rows of 3 to 5 places on wide ones; the route follows the curriculum order (`MS.kur.GAMES`), a river with a bridge runs above Rakit Terapung, scenery (`GS.art.decor`) is placed only where no place, sign or path is. Tapping a place does NOT open the game: Chuppy waddles there (mirrored so he points at the place), says its line and a sheet opens (landmark art, Matematika/Fisika badge, what this kelas learns, progress, big "Main!", X top-right; also closes on the backdrop and Escape). Bottom sheet on portrait phones, centred card elsewhere, art beside the text on short landscape screens.
+
+**Hub dashboard** (2026-10-13): no big title row any more. A floating top bar holds the child (`#profile`: avatar, name, kelas pill; opens `MS.profileEditor`) and the stars (`#starBtn`: total + bar toward every star of this kelas; tapping speaks the count for pre-readers). A floating dock in the thumb zone holds Peta (scroll back to Chuppy's place), Aku (profile editor), Suara/Senyap and Orang Tua (scroll to the guide); the active tab follows the scroll and the top bar fades out over the guide. On short landscape phones (height <= 520) the dock is a rail on the left and the map is laid out in the width right of it. "Keluar dari akun" (two taps) lives in the parent guide, not in the child's bar.
 
 Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solve()` completes the **current round**; multi-round levels need repeated calls. Angkot also has `speed(n)` to speed up animations in tests.
 
@@ -98,7 +104,7 @@ Every game exposes a debug hook `window.__game = { go(i), solve(), ... }`. `solv
 
 ## Auth (development only)
 
-- Flow: first visit on a device (no session, no profile) lands on `landing.html` (copy for parents, verified quotes from Elon Musk and Jensen Huang with sources and a no-affiliation note, CTA "Mulai main bersama Si Cil"); then `welcome.html` asks 3 questions (nickname, kelas, avatar), then login/register (`welcome.html?masuk=1` opens the Masuk tab; Daftar there starts the questions). Landing copy rules: no statistics, testimonials or FAQ until real ones exist, quotes only verbatim with source, and "Gratis selama masa uji coba. Tanpa iklan." must change if pricing or ads arrive.
+- Flow: first visit on a device (no session, no profile) lands on `landing.html` (copy for parents, verified quotes from Elon Musk and Jensen Huang with sources and a no-affiliation note, CTA "Mulai main bersama Chuppy"); then `welcome.html` asks 3 questions (nickname, kelas, avatar), then login/register (`welcome.html?masuk=1` opens the Masuk tab; Daftar there starts the questions). Landing copy rules: no statistics, testimonials or FAQ until real ones exist, quotes only verbatim with source, and "Gratis selama masa uji coba. Tanpa iklan." must change if pricing or ads arrive.
 - Hard-coded dev account for everyone: **test@matsains.id / test**.
 - Registered accounts live in this device's localStorage only (password stored as SHA-256 hash). Not secure, not synced: fine for the trial phase only.
 - Google login uses Google Identity Services and activates when `GOOGLE_CLIENT_ID` is set in `shared/config.js` (create an OAuth Web client ID in Google Cloud Console, add the Vercel domain as an authorized JavaScript origin). The ID token is decoded client-side without verification: development only.

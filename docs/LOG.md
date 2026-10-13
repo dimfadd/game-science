@@ -2,6 +2,16 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-13: New mascot Chuppy, hub dashboard with a floating bar and dock
+
+Requested by the owner: replace Si Cil with a cute, chubby tech/AI character in the spirit of Baymax but not a copy, named "Chuppy"; and turn the hub header (title to "Keluar") into a tidy, child-friendly dashboard, possibly a floating bar on top or bottom (reference shots: kids' learning apps with an avatar header and a bottom nav).
+- `shared/art.js`: `art.mascot` redrawn as Chuppy, same API, viewBox and moods, so every page and game switches at once (hub, welcome, landing, start gate, caption face, win card, timbangan). Design: one round "bakpao" body (white cream, 3-tone), dark face screen with cyan LED eyes/mouth and pink cheeks, teal headphone pods, antenna with a yellow bulb, teal chest light, teal boots, round mitten hands. Kept deliberately away from Baymax's protected look: no two-dots-and-a-line face, no small head on a pear body, accents in colour, own name. Motion borrowed from the "soft inflatable robot" idea: slow puff (squash/stretch from the feet), blink, antenna sway, glowing bulb and chest light, slow wave when happy, soft hop on cheer, waddle while walking (class `walk`). `oops` now scratches the head. Reduced motion stops all of it.
+- Name "Si Cil" replaced by "Chuppy" in all visible copy (landing CTA "Mulai main bersama Chuppy", welcome "Halo, aku Chuppy!", hub meta) and docs; TTS says "Cupi" (`GS.speakable`). `docs/DESIGN.md` mascot section rewritten. PWA icons re-rendered from Chuppy.
+- `index.html` dashboard: big title row, Kelas button, sound button and the profile chip with "Keluar" replaced by a floating top bar (child card: avatar, name, kelas pill, opens the profile editor; star pill with a bar toward all stars of this kelas, tap speaks the count) and a floating dock (Peta, Aku, Suara/Senyap, Orang Tua). Short landscape phones get the dock as a left rail and the map is laid out in the remaining width. The top bar fades out over the parent guide. "Keluar dari akun" moved to the parent guide (two taps), so a child cannot log out from the map by accident. On the map Chuppy is mirrored to point at the place he stands by and waddles when he walks over.
+- Tests: `hub-tiers.js` checks the bar and dock are on screen with 60 px+ targets and opens the editor from `#profile`; landmark taps scroll the place to the centre (clear of the floating bars) in `hub-tiers.js` and `journey.js`.
+- Verified: smoke (repo and dist), hub-hover, hub-tiers 28 ok, journey on phone portrait, phone landscape and tablet; screenshots of hub 360/412/844/1180, landing, welcome, a game HUD caption, start gate and win card.
+- Open: "Chuppy" has not been checked against registered trademarks (check PDKI before a commercial launch); recorded narration, if any is made, must use the new name.
+
 ## 2026-10-12: Landing page, vertical map with game sheets, landscape only in games
 
 Requested by the owner: (1) only the games turn sideways, (2) the map scrolls up and down and tapping a place first shows its explanation with "Main!" and an X to choose another game, (3) a landing page before the 3 questions, with a strong pitch for parents (math and physics as the base for AI and robotics, Mat Sains as learning through play), working on phones and tablets.

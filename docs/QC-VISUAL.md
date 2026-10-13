@@ -35,7 +35,7 @@ Aturan tambahan:
 3. Area sentuh boleh lebih besar dari gambarnya: pakai `<rect fill="transparent">` sebagai hit area.
 4. Setiap target ketuk di SVG yang **tidak** memakai `GS.drag` wajib diberi atribut `data-hit="nama"` supaya ikut diukur.
 5. Isi penting berada di area desain `x 0–1280`. Area di luarnya hanya terlihat di layar lebar, jadi khusus untuk latar. Latar dan lantai buatan game sendiri digambar dari `x −600` sampai `1880` (pemandangan `GS.art.scene` sudah otomatis selebar itu).
-6. Hindari meletakkan angka penting di zona yang tertutup UI di HP: kiri atas sekitar 380 × 130 u (gelembung Si Cil, hanya sementara) dan kanan bawah sekitar 420 × 170 u (tombol aksi).
+6. Hindari meletakkan angka penting di zona yang tertutup UI di HP: kiri atas sekitar 380 × 130 u (gelembung Chuppy, hanya sementara) dan kanan bawah sekitar 420 × 170 u (tombol aksi).
 7. Kalau benda tidak muat setelah diperbesar, kurangi jumlahnya per layar atau atur ulang tata letaknya. Jangan kembali mengecilkannya.
 
 ## 3. Prosedur QC
