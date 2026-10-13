@@ -155,13 +155,14 @@
 
   /* ---------------- backsound: a gentle synthesized loop ----------------
    * C major pentatonic, 88 BPM, 8 eighth-note steps per bar, 16 bars (A A' B A, about 44 s).
-   * Kalimba-like plucks (sine + a quiet, fast-fading 3rd partial) over a soft triangle bass
+   * Kalimba-like plucks (sine + a soft octave and a quiet, fast-fading 3rd partial) over a soft triangle bass
    * (root on beat 1, fifth on beat 3) and a sine pad dyad that completes each chord.
    * Every second pass plays another B phrase. No drums; the highest note is A5 (880 Hz).
    * Bus: notes -> low-pass 2 kHz -> duck gain (narrator) -> master (MUSIC_GAIN) -> out.
- * Measured output peak about 0.037 (offline render of two passes); sfx peak at 0.15-0.4.
+   * Measured output peak about 0.22, RMS about 0.026 (-32 dBFS; offline render of two passes): 0.045 was
+   * inaudible on phone speakers (RMS -46 dBFS). sfx peak at 0.06-0.4.
    * A lookahead scheduler (every 100 ms, 0.3 s ahead) creates short-lived oscillators. */
-  const MUSIC_GAIN = 0.045, MUSIC_CAP = 0.05, NOTE_CAP = 0.6, DUCK = 0.25;
+  const MUSIC_GAIN = 0.24, MUSIC_CAP = 0.28, NOTE_CAP = 0.6, DUCK = 0.25;
   const BPM = 88, STEP = 60 / BPM / 2, STEPS = 8, BARS = 16;
   const MUSIC_FORCED = /[?&]music=1\b/.test(location.search);
   const midiF = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -207,6 +208,7 @@
   function mPluck(a, t, f, v) {
     mNote(a, t, f, 'sine', 0.5 * v, 0.008, 0.55 + 0.25 * v);
     mNote(a, t, f * 3, 'sine', 0.06 * v, 0.004, 0.1, 0, true);
+    mNote(a, t, f * 2, 'sine', 0.12 * v, 0.006, 0.3, 0, true); // octave: audible on small phone speakers
   }
   function mStepAt(a, t) {
     const bar = Math.floor(mStep / STEPS), pos = mStep % STEPS, c = CH[PROG[bar]];

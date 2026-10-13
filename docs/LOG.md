@@ -2,6 +2,10 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-15: Backsound was too quiet to hear
+
+The owner heard no backsound on a phone. It did run (checked without autotest, with a real touch tap, on the hub and after "Main!" in a game: playing, 12 notes scheduled, master gain up), but an offline render measured RMS 0.0048 (-46 dBFS) and peak 0.036: far below the sound effects and lost on small phone speakers, whose low end also drops the bass and pad. Fix in `shared/core.js`: music gain 0.045 to 0.24 (cap 0.28) and an octave partial on the plucks so the melody sits where phone speakers are loud. New render: peak 0.22, RMS 0.026 (-32 dBFS), still under the sound effects (0.06 to 0.4 peak) and ducked to 25% under the narrator.
+
 ## 2026-10-14: Characters as mascots, Papan Juara, Orang Tua and Pengaturan screens, sound channels and backsound
 
 Requested by the owner: "Keluar dari akun" and "Hapus progres" do not belong under the map; sound belongs in its own settings menu with SFX, backsound and narrator switches; a leaderboard menu (shown but not connected until there is a database); the parent area as its own menu with the guide text and a progress dashboard; Chuppy becomes one character choice and every character (boy, girl, cat, frog) becomes a full mascot like Chuppy, with sprite sheets; the nickname names the chosen character, with the character's own name as default; a tidier top bar (stars plus leaderboard) and dock.
