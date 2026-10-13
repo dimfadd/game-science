@@ -50,6 +50,8 @@ Prinsip tetap berlaku di semua jenjang (lihat `DESIGN.md`): mekanik adalah pelaj
 
 ## Ketapel Mangga (`ketapel`)
 
+> Sejak 2026-10-15 setiap level mengambil tugasnya dari rentang saat level dibuat (untuk Balapan dan supaya tidak dihafal); angka di bawah adalah contoh. Perubahan rentang: k1 L1 patok dekat 2 sampai 5, L2 patok jauh 6 sampai 9; k2 pohon tinggi 3 sampai 5 m dengan kaleng 1,5 sampai 2 m di belakangnya (L4 juga bisa 8,5 m); k3 L6 meter dan setengah meter, 2 sampai 5 m; k4 L2/L3 "tarikan 1" = 0,65 sampai 0,8 m; k4 L4 tembakan rendah dan tinggi, urutan acak; k4 L6/L7 bola kertas kecil atau besar dengan massa sama (yang besar kena udara lebih banyak). Di level berurutan, setiap peluru milik target berikutnya yang masih berdiri.
+
 | Jenjang | Level |
 |---|---|
 | tk | Patok 1–5 bertitik, sudut dikunci 45°, pemandu lintasan. 1 tarik sedikit, kaleng dekat. 2 tarik jauh, kaleng jauh. 3 dekat atau jauh: dua kaleng. 4 tanpa pemandu. 5 mangga rendah di pohon. 6 tantangan. |
@@ -100,6 +102,8 @@ Dipilih untuk menutup elemen Kurikulum Merdeka yang belum tersentuh: **Pengukura
 
 ## Warung Kembalian (`kembalian`)
 
+> Sejak 2026-10-15 setiap level mengambil angkanya dari rentang saat level dibuat; angka di bawah adalah contoh. Perubahan: TK memakai lebih banyak barang (balon, kelereng, es, salak, dan lain-lain) dan TK L3 meminta 3 sampai 5 koin; k1 L4 harga 3 sampai 9 ribu; k3 L4 sembilan jumlah patungan (Rp1.500 sampai Rp6.000 per anak); k3 L7 delapan tukar uang kertas ke koin (5 sampai 20 koin); k4 L6 sepuluh pasangan uang dan harga, selalu satu jenis uang (contoh Rp25.000 sekarang dibayar 5 × Rp5.000).
+
 **Mekanik inti.** Anak menjaga warung kelontong. Pembeli datang membawa barang dan uang. Anak **menyeret uang rupiah sungguhan** (gambar koin dan uang kertas dengan nilai jelas, bukan foto uang asli) dari laci kas ke nampan: untuk membayar harga tepat, atau untuk memberi kembalian. Pembeli menghitung uang di nampan secara terlihat (uang ditumpuk dan dijumlah satu per satu dengan suara koin); kalau kurang, pembeli menunggu sambil menatap nampan; kalau lebih, pembeli mengembalikan kelebihannya dengan senyum ("Kebanyakan, Nak"). Barang hanya pindah tangan kalau pas. Bintang dari ketepatan pada percobaan pertama, ditambah bintang bonus "lembar paling sedikit" di level yang menyebutkannya. Pecahan yang dipakai: koin Rp100, Rp200, Rp500, Rp1.000; uang kertas Rp1.000, Rp2.000, Rp5.000, Rp10.000, Rp20.000, Rp50.000, Rp100.000. Harga ditulis gaya Indonesia (Rp3.500, titik ribuan).
 
 | Jenjang | Level |
@@ -112,6 +116,8 @@ Dipilih untuk menutup elemen Kurikulum Merdeka yang belum tersentuh: **Pengukura
 
 ## Jam Kampung (`jam`)
 
+> Sejak 2026-10-15 setiap level mengambil waktunya dari rentang saat level dibuat; angka di bawah adalah contoh. Perubahan: TK L1 "pagi atau malam" (bangunkan ayam atau buat malam); TK L3 kegiatan berganti-ganti (16 set kartu); k1 L6 membandingkan jam pagi atau sore mana pun dengan jam 12, dua arah; k3 L4 jadwal tiap 10, 15, atau 20 menit; k4 L6 jam matahari 07.00 sampai 16.30.
+
 **Mekanik inti.** Jam dinding besar di pos ronda. Anak **memutar jarum panjang** (seret di sekeliling jam). Jarum pendek ikut bergerak seperti roda gigi sungguhan (jam + menit/60), jadi tidak bisa diatur sendiri-sendiri. Saat jam diputar, **dunia ikut berjalan**: matahari terbit dari timur jam 6, tertinggi jam 12, terbenam jam 18 (Indonesia dekat khatulistiwa), langit berganti warna, bayangan tiang memendek dan memanjang mengikuti sudut matahari (panjang bayangan = tinggi tiang / tan(sudut matahari)), lampu rumah menyala di malam hari. Kegiatan kampung terjadi tepat pada waktunya (ayam berkokok, bus sekolah datang, warung buka, azan magrib, anak tidur). Tugas: atur jam supaya sesuatu terjadi tepat waktu, atau cocokkan jam dengan kejadian. Untuk durasi, busur berwarna menyapu jam selama jarum berputar. Jarum tidak dibulatkan sendiri ke jawaban: di jenjang rendah jarum menempel ke menit kelipatan 30/15/5 sesuai jenjang (dinyatakan), bukan ke jawaban yang benar.
 
 | Jenjang | Level |
@@ -123,6 +129,8 @@ Dipilih untuk menutup elemen Kurikulum Merdeka yang belum tersentuh: **Pengukura
 | k4 | 1 lama waktu jam dan menit (06.45 → 10.10). 2 konversi: 2 jam 15 menit = 135 menit. 3 jadwal kereta: tiba, berangkat, lama perjalanan. 4 zona waktu Indonesia: WIB, WITA, WIT (jam di Jakarta, Makassar, Jayapura berputar bersama, selisih 1 jam). 5 kecepatan: angkot 1 km tiap 3 menit, berapa lama ke pasar 6 km. 6 bayangan sebagai jam matahari: baca jam dari panjang dan arah bayangan. 7 campuran. 8 tantangan. |
 
 ## Wayang Bayangan (`wayang`)
+
+> Sejak 2026-10-15 setiap level mengambil tugasnya dari rentang saat level dibuat (wayang, letak lampu, ukuran target, bahan, susunan cermin yang dicek dulu, pasangan angka); angka di bawah adalah contoh. Perubahan: contoh k3 L2 "20 cm" sekarang 30 sampai 60 cm; k3 L6 "50 cm" sekarang satu set tinggi bayangan target.
 
 **Mekanik inti.** Panggung wayang: lampu blencong di kiri, kelir (layar putih) di kanan, penonton menonton bayangannya. Anak **menyeret wayang** di antara lampu dan kelir (maju-mundur dan naik-turun), memutarnya, atau memindahkan lampu. Bayangan dihitung jujur dengan **sinar lurus dari sumber titik**: tinggi bayangan = tinggi wayang × (jarak lampu ke kelir ÷ jarak lampu ke wayang); posisinya mengikuti garis lurus dari lampu melalui tepi wayang (sinar tipis boleh ditampilkan sebagai pemandu di jenjang rendah). Tugas: buat bayangan **pas dengan garis bentuk pesanan** di kelir (ukuran dan posisi, dengan toleransi sesuai jenjang). Bahan berbeda memberi bayangan berbeda: kulit/karton gelap pekat, kain tipis/kertas minyak samar, plastik bening hampir tidak berbayang. Lampu lebih besar memberi tepi bayangan kabur (penumbra) secara jujur.
 

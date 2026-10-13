@@ -2,6 +2,15 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-15: Jam, Kembalian, Ketapel and Wayang levels vary every time
+
+Same reason as Kebun Bibit (races repeat levels; fixed numbers get memorised). Done by four sub-agents, each in its own game.js, verified again by the lead.
+- **Jam Kampung**: start times, events, durations, schedules (every 10, 15 or 20 min), time zones, speeds, sundial times drawn at build time; the passing angkot's colour uses `GS.fxRandom`. Variety over 6 builds (whole task): tk 3/5.0, k1 5/5.8, k2 3/5.4, k3 6/6, k4 6/6. Debug `__game.sig()`.
+- **Warung Kembalian**: most prices were already random but showed only after the customer walks in, so the first measurement missed them; the real gaps (TK, k3 L7, k4 L6) now vary; the last-customer state resets each build; faces and the win line use `GS.fxRandom`. Fixed: k4 stacks like 20.000 + 20.000 + 5.000 showed as "5.000 ×3", and a pencil fade threw when a level was rebuilt mid-animation. Variety over 12 builds: tk 5/7.8 ... k2 10/11.6. Debug `__game.task()`.
+- **Ketapel Mangga**: target, tree, bush and mango positions, distances in meters and half meters, the length of "tarikan 1", shot order and paper-ball size, each variant checked solvable with the real physics. Fixed: in shuffled k3 levels one shot knocking two targets could leave a projectile unable to reach the last can (the level got stuck); "ringan sekali" overflowed its card.
+- **Wayang Bayangan**: wayang shape, lamp spot, target size, materials, coloured lamps, ratios, mirror layouts (each traced first and kept only if solvable), tree combinations; in a race the child's task is never re-drawn to avoid the example's numbers. Variety over 8 builds: 6 to 8 distinct per level.
+- Every game: two builds with the same seeded Math.random are identical (race fairness); levels, demos and visual-qc (0 FAIL) pass per game; `tests/race.js` passes. Jam's demos crashed once while another suite ran in parallel and passed in all tiers alone. KURIKULUM notes the new ranges.
+
 ## 2026-10-15: Kebun Bibit levels vary every time
 
 Races (and replays) need real variety: every Kebun Bibit level built the same numbers each time. Now every level draws its numbers when it is built (field sizes, seed counts, factors, remainders, area and fence sizes, primes, LCM pairs, the L-shape cut...), all rounds made at build time so a race seed reproduces them; example numbers never overlap the child's. Variety over 6 builds: 4 to 6 distinct rounds per level in every kelas (k3 L3 has 4 variants). Done by a sub-agent; levels, demos (all tiers) and visual-qc (0 of 76 fail) pass, also re-run by the lead. KURIKULUM notes the ranges.

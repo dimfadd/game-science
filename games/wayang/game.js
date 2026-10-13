@@ -59,7 +59,8 @@
   const dec = v => String(Math.round(v * 100) / 100).replace('.', ',');   // Indonesian decimal comma
   const sgn = () => (Math.random() < .5 ? -1 : 1);
   let uidN = 0;
-  const salt = Math.random().toString(36).slice(2, 5);
+  const fxRand = () => (GS.fxRandom || Math.random)();   // effects only: never shifts a race's seeded stream
+  const salt = fxRand().toString(36).slice(2, 5);
   const uid = p => 'wy' + salt + p + (++uidN).toString(36);
   const RAD = Math.PI / 180;
 
@@ -650,7 +651,7 @@
   /* ---------- feedback ---------- */
   const PRAISE = ['Pas sekali! Penonton senang.', 'Hebat! Bayangannya pas.', 'Tepat! Prok prok prok!', 'Bagus! Pertunjukan dimulai.'];
   function gong() { GS.tone({ f: 98, t: 1.6, vol: .28 }); GS.tone({ f: 147, t: 1.2, vol: .08, delay: .02 }); GS.tone({ f: 196, t: .9, vol: .05, delay: .03 }); }
-  function clap() { for (let i = 0; i < 9; i++) GS.noise({ t: .05, vol: .1, freq: 1500 + Math.random() * 900, q: .8, delay: .25 + i * .1 + Math.random() * .05 }); }
+  function clap() { for (let i = 0; i < 9; i++) GS.noise({ t: .05, vol: .1, freq: 1500 + fxRand() * 900, q: .8, delay: .25 + i * .1 + fxRand() * .05 }); }
   function cheer() {
     audG.classList.remove('cheer'); void audG.getBoundingClientRect(); audG.classList.add('cheer');
     setTimeout(() => audG.classList.remove('cheer'), 1600);
@@ -1073,16 +1074,18 @@
 
   /* ================= kind: mirror (angle of incidence = angle of reflection) ================= */
   function mirrorNormal(M) { return { x: Math.sin(M.a * RAD), y: -Math.cos(M.a * RAD) }; }
-  function rayHits(o, d) {
+  /** S = the mirror scene { L, mirrors, blocks, target }: the live stage, or a candidate checked while a level is built. */
+  const liveScene = () => ({ L: LAMPS[0], mirrors: MIRRORS, blocks: BLOCKS, target: RD.target });
+  function rayHits(o, d, S) {
     let best = null;
     const take = (t, what) => { if (t > 1e-3 && (!best || t < best.t)) best = Object.assign({ t }, what); };
-    MIRRORS.forEach(M => {
+    S.mirrors.forEach(M => {
       const tx = Math.cos(M.a * RAD), ty = Math.sin(M.a * RAD), den = d.x * ty - d.y * tx;
       if (Math.abs(den) < 1e-9) return;
       const wx = M.x - o.x, wy = M.y - o.y, t = (wx * ty - wy * tx) / den, u = (wx * d.y - wy * d.x) / den;
       if (Math.abs(u) <= 70) take(t, { M });
     });
-    BLOCKS.forEach(B => {
+    S.blocks.forEach(B => {
       let t0 = -1e9, t1 = 1e9;
       [[o.x, d.x, B.x, B.x + B.w], [o.y, d.y, B.y, B.y + B.h]].forEach(([p, v, a, b]) => {
         if (Math.abs(v) < 1e-9) { if (p < a || p > b) t0 = 1e9; return; }
@@ -1090,7 +1093,7 @@
       });
       if (t0 <= t1) take(t0, { B });
     });
-    const T = RD.target, cx = T.x - o.x, cy = T.y - o.y, b = cx * d.x + cy * d.y, c2 = cx * cx + cy * cy - 46 * 46, disc = b * b - c2;
+    const T = S.target, cx = T.x - o.x, cy = T.y - o.y, b = cx * d.x + cy * d.y, c2 = cx * cx + cy * cy - 46 * 46, disc = b * b - c2;
     if (disc >= 0) take(b - Math.sqrt(disc), { T: true });
     if (d.x > 0) take((SX - o.x) / d.x, { K: true });
     if (d.y < 0) take((48 - o.y) / d.y, { W: true });
@@ -1098,13 +1101,14 @@
     if (d.x < 0) take((-200 - o.x) / d.x, { W: true });
     return best;
   }
-  function traceBeam() {
-    const L = LAMPS[0], a = L.beamAng * RAD;
+  function traceBeam(S) {
+    S = S || liveScene();
+    const L = S.L, a = L.beamAng * RAD;
     let o = { x: L.x + Math.cos(a) * 66, y: L.y + Math.sin(a) * 66 }, d = { x: Math.cos(a), y: Math.sin(a) };
     const pts = [o], bounces = [];
     let end = null;
     for (let i = 0; i < 6; i++) {
-      const h = rayHits(o, d);
+      const h = rayHits(o, d, S);
       if (!h) break;
       const p = { x: o.x + d.x * h.t, y: o.y + d.y * h.t };
       pts.push(p);
@@ -1261,8 +1265,9 @@
     busy = false; updateDock();
   }
   function startPredictRow() {
-    const used = TB.rows.map(r => r.d).concat(TB.d ? [TB.d] : []);
-    TB.d = DEMO ? 2.4 : pick([1.2, .8, 2.4, 1.25].filter(d => !used.some(u => Math.abs(u - d) < .01)));
+    // the distances to predict were drawn when the level was built (RD.predOrder): take the next new one
+    const used = TB.rows.map(r => r.d).concat(TB.d ? [TB.d] : []), fresh = RD.predOrder.filter(d => !used.some(u => Math.abs(u - d) < .01));
+    TB.d = fresh.length ? fresh[0] : RD.predOrder.filter(d => Math.abs(d - TB.d) > .01)[0];
     TB.phase = 'predict'; TB.guess = RD.H;
     const P = PUPS[0], L = LAMPS[0];
     P.locked = true; P.x = L.x + TB.d * UM; light = false;
@@ -1437,11 +1442,19 @@
     dock.querySelectorAll('button').forEach(b => { b.disabled = busy || (RD && RD.kind === 'sort' && b.classList.contains('gs-action') && PUPS.some(P => !P.tray)); });
   }
 
-  /* ================= round factories ================= */
+  /* ================= round factories =================
+   * Every factory draws its whole task (which wayang, lamp spot, target size and place, materials,
+   * mirror geometry, numbers) from Math.random when the level is built, so the task is new on every
+   * play and a race that seeds Math.random gives every racer the same one. The ranges keep each
+   * level's concept and difficulty (docs/KURIKULUM.md) and keep every target on the kelir. */
   const lamp0 = o => Object.assign({ x: 320, y: LY0, r: 2.5, art: 'blencong' }, o || {});
+  const LXS = [270, 300, 330, 360, 390], LYS = [310, 340, 370];
+  /** The blencong hangs at one of several spots: the same wayang place gives another shadow. */
+  const lampV = o => lamp0(Object.assign({ x: pick(LXS), y: pick(LYS) }, o || {}));
   const lampN = () => ({ x: 220, y: FOOT, r: 2, art: 'pelita' });          // measuring levels: 3 m to the kelir
   const xFor = (L, m) => L.x + (SX - L.x) / m;                           // inverse of m = (SX - lx) / (px - lx)
   const cyOf = (L, py, m) => L.y + (py - L.y) * m;
+  const R0 = (a, b) => Math.round(rr(a, b));
   function mFit(shape, k, L, py, rot, lo, hi) {
     for (let i = 0; i < 80; i++) { const m = rr(lo, hi); if (fits(shape, m * k, cyOf(L, py, m), rot || 0)) return m; }
     return lo;
@@ -1452,41 +1465,64 @@
     for (let i = 0; i < 80; i++) { const c = rr(lo, hi); if (Math.abs(c / m - 1) > .38 && fits(shape, c * k, cyOf(L, py, c), rot || 0, -60)) return c; }
     return m > 1.8 ? lo + .03 : Math.min(hi, m * 1.7);
   }
-  const SHAPES_TALL = ['ksatria', 'raksasa', 'gunungan'], SHAPES_ALL = ['ksatria', 'raksasa', 'gunungan', 'kucing', 'burung', 'pohon'];
-  /** Size only: the wayang slides along the lamp axis. */
+  const SHAPES_TALL = ['ksatria', 'raksasa', 'gunungan', 'pohon'], SHAPES_ALL = ['ksatria', 'raksasa', 'gunungan', 'kucing', 'burung', 'pohon'];
+  const NUM_SHAPES = ['ksatria', 'raksasa', 'gunungan'];   // these span exactly 200 units: height in cm = drawn height
+  const lab = s => SH[s].label;
+  /** Lines may name the wayang that was drawn: o.say is a string or label => string. */
+  const sayOf = (v, shape) => (typeof v === 'function' ? v(lab(shape)) : v);
+  /** TK level 1: drag the wayang (from the rack, or from behind the lamp) in front of the lamp. */
+  function fAppear(behind) {
+    return () => {
+      const L = lampV(behind ? { x: pick([300, 330, 360, 390]) } : null), k = .7;
+      let shape, m, n = 0;
+      do { shape = pick(SHAPES_ALL); m = rr(1.5, 2.1); } while (!fits(shape, m * k, L.y, 0, 4) && ++n < 40);
+      let x0, y0;
+      if (behind) { x0 = R0(110, L.x - 90); y0 = R0(250, 380); }
+      else { const rp = rackPos(Math.floor(Math.random() * 4), shape, k); x0 = rp.x; y0 = rp.y; }
+      const w = lab(shape);
+      return {
+        kind: 'match', auto: 'place', rack: !behind, say: behind ? cap(w) + ' di belakang lampu. Bawa ke depan!' : 'Seret ' + w + ' ke depan lampu, ya!',
+        winSay: 'Muncul bayangan ' + w + '!', lamps: [L], pups: [{ shape, k, drag: 'free', x: x0, y: y0, sol: { x: xFor(L, m), y: L.y } }], targets: []
+      };
+    };
+  }
+  /** Size only: the wayang slides along the lamp axis. A fixed ratio (2x, 3x) is keyed by the lamp spot. */
   function fSize(o) {
     return () => {
-      // fixed ratio (2x, 3x): the example uses another lamp spot, so its answer is not the child's
-      const L = lamp0(DEMO && o.m[0] === o.m[1] ? { x: ((o.lamp && o.lamp.x) || 320) + 50 } : o.lamp), shape = o.shape || pick(o.shapes || SHAPES_TALL), k = o.k || .7;
-      const m = mFit(shape, k, L, L.y, 0, o.m[0], o.m[1]), m0 = o.m0 ? mFit(shape, k, L, L.y, 0, o.m0[0], o.m0[1]) : mFar(m, shape, k, L, L.y, 0);
+      const fixed = o.m[0] === o.m[1], k = o.k || .7;
+      let L, shape, m, n = 0;
+      do { L = lampV(o.lamp); shape = pick(o.shapes || SHAPES_TALL); m = rr(o.m[0], o.m[1]); } while (!fits(shape, m * k, L.y, 0) && ++n < 60);
+      const m0 = o.m0 ? mFit(shape, k, L, L.y, 0, o.m0[0], o.m0[1]) : mFar(m, shape, k, L, L.y, 0);
       return {
-        kind: 'match', say: o.say, dark: o.dark, label: o.label, steps: o.steps, rays: o.rays, tolS: o.tolS, winSay: o.winSay, lamps: [L],
-        pups: [{ shape, k, drag: 'x', x: xFor(L, m0), y: L.y, sol: { x: xFor(L, m), y: L.y } }], targets: [{ p: 0, lamp: 0 }]
+        kind: 'match', key: fixed ? 'kali' + m + '@' + L.x : null, say: sayOf(o.say, shape), dark: o.dark, label: o.label, steps: o.steps, rays: o.rays, tolS: o.tolS,
+        winSay: sayOf(o.winSay, shape), lamps: [L], pups: [{ shape, k, drag: 'x', x: xFor(L, m0), y: L.y, sol: { x: xFor(L, m), y: L.y } }], targets: [{ p: 0, lamp: 0 }]
       };
     };
   }
   /** Height only: the wayang moves up and down at a fixed distance. */
   function fPos(o) {
     return () => {
-      const L = lamp0(), shape = pick(o.shapes || ['kucing', 'burung', 'gunungan']), k = o.k || .62;
-      let m, py, n = 0;
-      do { m = rr(o.m[0], o.m[1]); py = L.y + sgn() * rr(o.off[0], o.off[1]) / m; } while (!fits(shape, m * k, cyOf(L, py, m), 0) && ++n < 80);
+      const k = o.k || .62;
+      let L, shape, m, py, n = 0;
+      do { L = lampV(); shape = pick(o.shapes || SHAPES_ALL); m = rr(o.m[0], o.m[1]); py = L.y + sgn() * rr(o.off[0], o.off[1]) / m; } while (!fits(shape, m * k, cyOf(L, py, m), 0) && ++n < 80);
       const py0 = clamp(2 * L.y - py + sgn() * 10, 150, 560);
-      return { kind: 'match', say: o.say, lamps: [L], pups: [{ shape, k, drag: 'y', x: xFor(L, m), y: py0, sol: { x: xFor(L, m), y: py } }], targets: [{ p: 0, lamp: 0 }] };
+      return { kind: 'match', say: sayOf(o.say, shape), lamps: [L], pups: [{ shape, k, drag: 'y', x: xFor(L, m), y: py0, sol: { x: xFor(L, m), y: py } }], targets: [{ p: 0, lamp: 0 }] };
     };
   }
   /** Size and height at once (optionally turned too, optionally in the dark first). */
   function fXY(o) {
     return () => {
-      const L = lamp0(), shape = o.shape || pick(o.shapes || SHAPES_ALL), k = o.k || .62;
-      const rot = o.rots ? pick(o.rots) : 0;
-      let m, py, n = 0;
-      do { m = o.mSet ? pick(o.mSet) : rr(o.m[0], o.m[1]); py = L.y + sgn() * rr(o.off[0], o.off[1]) / m; } while (!fits(shape, m * k, cyOf(L, py, m), rot) && ++n < 120);
+      const k = o.k || .62;
+      let L, shape, rot, m, py, n = 0;
+      do {
+        L = lampV(); shape = pick(o.shapes || SHAPES_ALL); rot = o.rots ? pick(o.rots) : 0;
+        m = o.mSet ? pick(o.mSet) : rr(o.m[0], o.m[1]); py = L.y + sgn() * rr(o.off[0], o.off[1]) / m;
+      } while (!fits(shape, m * k, cyOf(L, py, m), rot) && ++n < 120);
       let x0, y0;
-      if (o.rack) { const rp = rackPos(1, shape, k); x0 = rp.x; y0 = rp.y; }
+      if (o.rack) { const rp = rackPos(Math.floor(Math.random() * 3), shape, k); x0 = rp.x; y0 = rp.y; }
       else { const m0 = mFar(m, shape, k, L, L.y, 0); x0 = xFor(L, m0); y0 = clamp(2 * L.y - py, 160, 540); }
       return {
-        kind: 'match', say: o.say, dark: o.dark, label: o.mSet ? m + ' ×' : o.label, rack: o.rack, rays: o.rays, lamps: [L],
+        kind: 'match', say: sayOf(o.say, shape), dark: o.dark, label: o.mSet ? m + ' ×' : o.label, rack: o.rack, rays: o.rays, lamps: [L],
         pups: [{ shape, k, drag: o.rack ? 'free' : 'xy', rotate: !!o.rots, x: x0, y: y0, sol: { x: xFor(L, m), y: py, rot } }], targets: [{ p: 0, lamp: 0 }]
       };
     };
@@ -1494,45 +1530,54 @@
   /** Turn the wayang (and in mixed levels also slide it). */
   function fRot(o) {
     return () => {
-      const L = lamp0(), shape = pick(o.shapes || ['ksatria', 'gunungan', 'raksasa']), k = o.k || .62;
-      let rot, m, n = 0;
-      do { rot = pick(o.rots); m = rr(o.m[0], o.m[1]); } while (!fits(shape, m * k, L.y, rot) && ++n < 80);
+      const k = o.k || .62;
+      let L, shape, rot, m, n = 0;
+      do { L = lampV(); shape = pick(o.shapes || ['ksatria', 'gunungan', 'raksasa', 'pohon', 'kucing']); rot = pick(o.rots); m = rr(o.m[0], o.m[1]); } while (!fits(shape, m * k, L.y, rot) && ++n < 80);
       const x = xFor(L, m), x0 = o.drag ? xFor(L, mFar(m, shape, k, L, L.y, 0)) : x;
-      return { kind: 'match', say: o.say, lamps: [L], pups: [{ shape, k, drag: o.drag || null, rotate: true, rot: 0, x: x0, y: L.y, sol: { x, y: L.y, rot } }], targets: [{ p: 0, lamp: 0 }] };
+      return { kind: 'match', say: sayOf(o.say, shape), lamps: [L], pups: [{ shape, k, drag: o.drag || null, rotate: true, rot: 0, x: x0, y: L.y, sol: { x, y: L.y, rot } }], targets: [{ p: 0, lamp: 0 }] };
     };
   }
   /** The wayang stands still; the child moves the lamp up or down. */
   function fLampY(o) {
     return () => {
-      const shape = pick(o.shapes || ['gunungan', 'kucing', 'raksasa']), k = o.k || .6, m = rr(1.6, 1.85);
-      const L = lamp0({ drag: 'y' }), px = xFor(L, m), dir = o.dir || sgn();
-      let ly, n = 0;
-      do { ly = L.y + dir * rr(90, 150); } while (!fits(shape, m * k, cyOf({ y: ly }, L.y, m), 0) && ++n < 60);
+      const k = o.k || .6, dir = o.dir || sgn();
+      let shape, m, L, ly, n = 0;
+      do {
+        shape = pick(o.shapes || SHAPES_ALL); m = rr(1.6, 1.85);
+        L = lampV({ drag: 'y', y: pick([320, 340, 360]) }); ly = R0(L.y + dir * 90, L.y + dir * 150);
+      } while (!fits(shape, m * k, cyOf({ y: ly }, L.y, m), 0) && ++n < 80);
       L.sol = { y: ly };
-      return { kind: 'match', say: o.say, rays: o.rays, lamps: [L], pups: [{ shape, k, drag: null, x: px, y: L.y, sol: { x: px, y: L.y } }], targets: [{ p: 0, lamp: 0 }] };
+      const px = xFor(L, m);
+      return { kind: 'match', say: sayOf(o.say, shape), rays: o.rays, lamps: [L], pups: [{ shape, k, drag: null, x: px, y: L.y, sol: { x: px, y: L.y } }], targets: [{ p: 0, lamp: 0 }] };
     };
   }
-  /** Pick the right wayang from the rack: by shape (TK) or by material (k1). */
+  /** Pick the right wayang from the rack: by shape (TK) or by material (k1: one opaque, one translucent, one clear). */
   function fChoose(o) {
     return () => {
-      const L = lamp0(), k = o.k || .66, mats = DEMO && o.mats ? ['kayu', 'minyak', 'kaca'] : o.mats;
-      const set = shuffle(mats ? mats.map(mt => ({ shape: o.shape || pick(['kucing', 'gunungan', 'burung']), mat: mt })) : (o.shapes || ['kucing', 'burung', 'pohon']).map(s => ({ shape: s, mat: 'kulit' })));
-      if (o.mats) set.forEach(it => { it.shape = set[0].shape; });
-      const want = o.mats ? set.findIndex(it => MAT[it.mat].a > .6) : Math.floor(Math.random() * set.length);
-      const m = mFit(set[want].shape, k, L, L.y, 0, o.m[0], o.m[1]);
+      const k = o.k || .66;
+      let L, set, want, m, n = 0;
+      do {
+        L = lampV();
+        if (o.mats) { const shape = pick(SHAPES_ALL); set = shuffle([pick(['kulit', 'karton', 'kayu']), pick(['minyak', 'kain']), pick(['plastik', 'kaca'])]).map(mat => ({ shape, mat })); }
+        else set = shuffle(SHAPES_ALL).slice(0, 3).map(s => ({ shape: s, mat: 'kulit' }));
+        want = o.mats ? set.findIndex(it => MAT[it.mat].a > .6) : Math.floor(Math.random() * set.length);
+        m = rr(o.m[0], o.m[1]);
+      } while (!fits(set[want].shape, m * k, L.y, 0) && ++n < 60);
       const pups = set.map((it, i) => { const rp = rackPos(i, it.shape, k); return { shape: it.shape, mat: it.mat, k, drag: 'free', x: rp.x, y: rp.y, say: o.mats ? cap(MAT[it.mat].name) + '.' : null, sol: i === want ? { x: xFor(L, m), y: L.y } : null }; });
       return { kind: 'match', choose: true, rack: true, say: o.say, label: o.mats ? 'pekat' : null, lamps: [L], pups, targets: [{ p: -1, solP: want, shape: set[want].shape, lamp: 0, opaque: !!o.mats }] };
     };
   }
-  /** Two wayang on two rails, two outlines (k1, k4). */
+  /** Two wayang on two rails, two outlines (k1, k4). near: one close to the lamp, one far, shadows overlapping. */
   function fTwo(o) {
     return () => {
-      const L = lamp0(), k = o.k || .5, shapes = o.shapes || shuffle(['burung', 'kucing', 'pohon']).slice(0, 2);
-      const ys = o.ys || [L.y - 95, L.y + 95];
-      let ms, n = 0;
+      const k = o.k || .5;
+      let L, shapes, ys, ms, n = 0;
       do {
+        L = lampV({ y: pick([320, 340, 360]) });
+        shapes = shuffle(o.shapes || ['burung', 'kucing', 'pohon', 'gunungan']).slice(0, 2);
+        ys = o.near ? [L.y - R0(20, 36), L.y + R0(20, 34)] : [L.y - R0(85, 105), L.y + R0(85, 105)];
         ms = o.near ? shuffle([rr(2.1, 2.5), rr(1.3, 1.6)]) : [rr(o.m[0], o.m[1]), rr(o.m[0], o.m[1])];
-      } while (!(shapes.every((s, i) => fits(s, ms[i] * k, cyOf(L, ys[i], ms[i]), 0)) && Math.abs(xFor(L, ms[0]) - xFor(L, ms[1])) > (o.near ? 120 : 0)) && ++n < 120);
+      } while (!(shapes.every((s, i) => fits(s, ms[i] * k, cyOf(L, ys[i], ms[i]), 0)) && Math.abs(xFor(L, ms[0]) - xFor(L, ms[1])) > (o.near ? 120 : 0)) && ++n < 200);
       const pups = shapes.map((s, i) => {
         const m0 = mFar(ms[i], s, k, L, ys[i], 0);
         return { shape: s, k, drag: o.fixed ? null : 'x', x: o.fixed ? xFor(L, ms[i]) : xFor(L, i ? Math.max(m0, 2.6) : Math.min(m0, 1.3)), y: ys[i], sol: { x: xFor(L, ms[i]), y: ys[i] } };
@@ -1540,161 +1585,219 @@
       return { kind: o.kind || 'match', say: o.say, rays: o.rays, lamps: [L], pups, targets: shapes.map((s, i) => ({ p: i, lamp: 0 })) };
     };
   }
-  /** Two lamps, one wayang: two shadows. Coloured lamps: the outline asks for one coloured shadow. */
+  /** Two lamps, one wayang: two shadows. Coloured lamps: the outline asks for one coloured shadow
+   *  (the orange lamp's shadow is lit only by the blue lamp, so it is blue, and the other way round). */
   function fTwoLamps(o) {
     return () => {
-      const lamps = o.colour ? [{ x: 290, y: 230, r: 2.5, art: 'blencong', col: 'orange' }, { x: 330, y: 450, r: 2, art: 'pelita', col: 'blue' }]
-        : [{ x: 290, y: 230, r: 2.5, art: 'blencong' }, { x: 330, y: 450, r: 2, art: 'pelita' }];
-      const shape = pick(o.shapes || ['kucing', 'burung', 'gunungan']), k = o.k || .5, want = o.colour === 'jingga' ? 1 : 0;
-      let px, py, n = 0, ok = false;
+      const k = o.k || .5;
+      let lamps, shape, want, px, py, n = 0, ok = false;
       do {
-        px = rr(520, 700); py = rr(300, 390);
+        lamps = [{ x: R0(270, 320), y: R0(210, 250), r: 2.5, art: 'blencong' }, { x: R0(310, 360), y: R0(430, 470), r: 2, art: 'pelita' }];
+        want = 0;
+        if (o.colour) {
+          const cols = shuffle(['orange', 'blue']);
+          lamps.forEach((L, i) => { L.col = cols[i]; });
+          want = lamps.findIndex(L => (L.col === 'orange') === (o.colour === 'biru'));
+        }
+        shape = pick(o.shapes || ['kucing', 'burung', 'gunungan', 'ksatria', 'pohon']);
+        px = R0(520, 700); py = R0(300, 390);
         ok = lamps.every(L => { const m = (SX - L.x) / (px - L.x); return fits(shape, m * k, cyOf(L, py, m), 0); });
-      } while (!ok && ++n < 150);
-      const targets = o.colour ? [{ p: 0, lamp: want, colFill: want ? '#F2A23A' : '#4A8DE0' }] : [{ p: 0, lamp: 0 }, { p: 0, lamp: 1 }];
+      } while (!ok && ++n < 200);
+      const targets = o.colour ? [{ p: 0, lamp: want, colFill: o.colour === 'biru' ? '#4A8DE0' : '#F2A23A' }] : [{ p: 0, lamp: 0 }, { p: 0, lamp: 1 }];
       return {
         kind: 'match', say: o.say, label: o.colour || null, lamps, rays: o.rays,
         pups: [{ shape, k, drag: 'xy', bounds: [430, SX - 70, 150, 560], x: px > 640 ? 470 : 790, y: clamp(2 * 345 - py, 200, 500), sol: { x: px, y: py } }], targets
       };
     };
   }
-  /** k3: big lamp vs small lamp (penumbra). */
+  /** k3: big lamp vs small lamp (penumbra = 2r (m - 1): sharp close to the kelir). */
   function fPenumbra(choice) {
     return () => {
-      const L = lamp0({ art: 'besar', r: 26 }), shape = pick(['ksatria', 'gunungan', 'kucing']), k = choice ? .62 : .78;
-      const m = choice ? mFit(shape, k, L, L.y, 0, 1.8, 2.3) : mFit(shape, k, L, L.y, 0, 1.18, 1.26);
-      const m0 = choice ? mFar(m, shape, k, L, L.y, 0) : 2.6;
+      const k = choice ? .62 : .78;
+      let L, shape, m, n = 0;
+      do { L = lampV({ art: 'besar', r: 26 }); shape = pick(['ksatria', 'gunungan', 'kucing', 'raksasa', 'pohon']); m = choice ? rr(1.8, 2.3) : rr(1.18, 1.26); } while (!fits(shape, m * k, L.y, 0) && ++n < 60);
+      const m0 = choice ? mFar(m, shape, k, L, L.y, 0) : rr(2.3, 2.7);
       return {
         kind: 'match', lampChoice: choice, label: 'tajam',
-        say: choice ? 'Bayangan harus tajam. Pilih lampu, lalu atur jaraknya.' : 'Lampunya besar. Di mana bayangannya tajam?',
+        say: choice ? 'Bayangan harus tajam. Pilih lampu, lalu atur jaraknya.' : 'Lampunya besar. Di mana bayangan ' + lab(shape) + ' tajam?',
         lamps: [L], pups: [{ shape, k, drag: 'x', x: xFor(L, m0), y: L.y, sol: { x: xFor(L, m), y: L.y } }], targets: [{ p: 0, lamp: 0, sharp: true }]
       };
     };
   }
+  /** k2: predict where the shadow goes when the wayang is lifted or lowered (it moves m times as far). */
   function fLift(dir) {
     return () => {
-      const L = lamp0(), shape = pick(['kucing', 'burung', 'gunungan']), k = .55, m = 2;
-      const y0 = L.y - dir * 30;
-      return { kind: 'marker', variant: 'lift', dy: dir * (DEMO ? 60 : 80), say: dir < 0 ? 'Wayang akan diangkat. Bayangannya ke mana? Geser tebakanmu!' : 'Wayang akan diturunkan. Tebak, bayangannya ke mana?', lamps: [L], pups: [{ shape, k, x: xFor(L, m), y: y0 }] };
-    };
-  }
-  const numPup = (H, d, o) => { const k = H * 2.2 / 200; return Object.assign({ shape: 'ksatria', k, x: 220 + d * UM, y: FOOT - 100 * k }, o || {}); };
-  function fMarkHeight() {
-    return () => {
-      const H = pick([40, 50, 60]), d = pick([1, 1.5]);
-      return { kind: 'marker', variant: 'height', numeric: true, H, say: 'Wayang ' + H + ' cm, jaraknya ' + dec(d) + ' m. Tebak tinggi bayangannya!', lamps: [lampN()], pups: [numPup(H, d)] };
-    };
-  }
-  /** Measuring levels: put the wayang where its shadow will be exactly T cm (light off first). */
-  function fNumDark(o) {
-    return () => {
-      const [H, d] = pick(o.sets), T = Math.round(H * 3 / d);
-      let d0; do { d0 = Math.round(rr(.5, 2.6) * 10) / 10; } while (Math.abs(d0 - d) < .45);
+      const m = pick([2, 3]), k = m === 3 ? .4 : .55, shape = pick(SHAPES_ALL);
+      const L = lampV({ y: pick([320, 340, 360]) }), dy = dir * pick(m === 3 ? [50, 60, 70] : [60, 80, 100]);
       return {
-        kind: 'match', dark: true, numeric: true, snapM: .1, H, tolS: .04, rays: o.rays, label: T + ' cm', say: 'Buat bayangan ' + T + ' cm. Di mana wayangnya berdiri?',
-        lamps: [lampN()], pups: [numPup(H, d0, { drag: 'x', sol: { x: 220 + d * UM, y: FOOT - 100 * H * 2.2 / 200 } })], targets: [{ p: 0, lamp: 0 }]
+        kind: 'marker', variant: 'lift', dy, lamps: [L], pups: [{ shape, k, x: xFor(L, m), y: L.y - dir * 30 }],
+        say: dir < 0 ? cap(lab(shape)) + ' akan diangkat. Bayangannya ke mana? Geser tebakanmu!' : cap(lab(shape)) + ' akan diturunkan. Tebak, bayangannya ke mana?'
       };
     };
   }
+  const numPup = (H, d, o) => { const k = H * 2.2 / 200; return Object.assign({ shape: 'ksatria', k, x: 220 + d * UM, y: FOOT - 100 * k }, o || {}); };
+  /** k3: shadow height from the numbers (every answer lands on the ruler's 10 cm grid). */
+  const MH_SETS = [[30, 1], [40, 1], [50, 1], [60, 1], [30, 1.5], [40, 1.5], [50, 1.5], [60, 1.5], [40, 2], [60, 2]];
+  function fMarkHeight() {
+    return () => {
+      const [H, d] = pick(MH_SETS), shape = pick(NUM_SHAPES);
+      return { kind: 'marker', variant: 'height', key: 'tinggi' + H + '@' + d, numeric: true, retry: true, H, say: 'Wayang ' + H + ' cm, jaraknya ' + dec(d) + ' m. Tebak tinggi bayangannya!', lamps: [lampN()], pups: [numPup(H, d, { shape })] };
+    };
+  }
+  /** Measuring levels: put the wayang where its shadow will be exactly T cm (light off first). */
+  const NUM_K3 = [[40, 1], [50, 1.5], [60, 1.5], [40, 1.5], [60, 2], [40, 2], [30, 1], [50, 1], [30, 1.5], [50, 2]];
+  const NUM_K3_HARD = [[40, 1.2], [60, 1.2], [50, 2.5], [30, 1.2], [60, 2.5], [40, .8], [50, 1.2], [30, .6]];
+  const NUM_K4 = [[40, 1.2], [60, 1.2], [50, 2.5], [40, .8], [40, 2.4], [30, .9], [50, 1.2], [60, 2.4], [30, 1.2], [30, .8]];
+  function fNumDark(o) {
+    return () => {
+      const [H, d] = pick(o.sets), T = Math.round(H * 3 / d), shape = pick(NUM_SHAPES);
+      let d0; do { d0 = Math.round(rr(.5, 2.6) * 10) / 10; } while (Math.abs(d0 - d) < .45);
+      return {
+        kind: 'match', key: 'gelap' + H + '@' + d, dark: true, numeric: true, snapM: .1, H, tolS: .04, rays: o.rays, label: T + ' cm', say: 'Buat bayangan ' + T + ' cm. Di mana wayangnya berdiri?',
+        lamps: [lampN()], pups: [numPup(H, d0, { shape, drag: 'x', sol: { x: 220 + d * UM, y: FOOT - 100 * H * 2.2 / 200 } })], targets: [{ p: 0, lamp: 0 }]
+      };
+    };
+  }
+  /** Sorting: k2 three wayang (one of each kind), k3 five real materials (every kind at least once). */
+  const REAL = { bening: [['kaca', 'kaca'], ['kertas', 'plastik']], samar: [['kertas', 'minyak'], ['kain', 'kain']], pekat: [['papan', 'kayu'], ['daun', 'daun'], ['kertas', 'karton']] };
   function fSort(real) {
     return () => {
-      if (DEMO) return { kind: 'sort', say: '', lamps: [lamp0({ x: 400, y: 330 })],   // the example sorts other materials
-        items: (real ? [['kaca', 'plastik'], ['kain', 'kain'], ['papan', 'karton']] : [['gunungan', 'kaca'], ['kucing', 'kain'], ['burung', 'karton']]).map(([shape, mat]) => ({ shape, mat, k: real ? .58 : .55 })) };
-      const items = real ? shuffle([['kaca', 'kaca'], ['kertas', 'minyak'], ['kain', 'kain'], ['papan', 'kayu'], ['daun', 'daun']]).map(([shape, mat]) => ({ shape, mat, k: .58 }))
-        : (() => { const sh = shuffle(['kucing', 'burung', 'gunungan']); return shuffle(['plastik', 'minyak', 'kulit']).map((mat, i) => ({ shape: sh[i], mat, k: .55 })); })();
+      let items;
+      if (real) {
+        const groups = Object.keys(REAL).map(kd => REAL[kd]), first = groups.map(g => pick(g));
+        const rest = shuffle([].concat(...groups).filter(x => first.indexOf(x) < 0)).slice(0, 2);
+        items = shuffle(first.concat(rest)).map(([shape, mat]) => ({ shape, mat, k: .58 }));
+      } else {
+        const sh = shuffle(SHAPES_ALL).slice(0, 3);
+        items = shuffle([pick(['plastik', 'kaca']), pick(['minyak', 'kain']), pick(['kulit', 'karton', 'kayu'])]).map((mat, i) => ({ shape: sh[i], mat, k: .55 }));
+      }
       return { kind: 'sort', say: real ? 'Uji tiap bahan di depan lampu, lalu taruh di keranjangnya.' : 'Uji di depan lampu. Bening, samar, atau pekat?', lamps: [lamp0({ x: 400, y: 330 })], items };
     };
   }
+  /** k3: three cards with holes; the light reaches the star only when the holes line up with the lamp. */
   function fHoles() {
     return () => {
-      const L = { x: 300, y: LY0, r: 2, art: 'kecil' }, xs = [470, 610, 750];
-      const ty = Math.round(rr(150, 540));
+      const L = { x: pick([280, 300, 320]), y: pick([300, 340, 380]), r: 2, art: 'kecil' }, xs = pick([[470, 610, 750], [450, 600, 750], [490, 620, 760], [460, 590, 730]]);
+      const ty = R0(150, 540);
       const need = xs.map(x => L.y + (ty - L.y) * (x - L.x) / (SX - L.x));   // collinear with the lamp and the star
       const boards = xs.map((x, i) => { let h; do { h = rr(150, 560); } while (Math.abs(h - need[i]) < 60); return { x, h, need: need[i] }; });
       return { kind: 'holes', kelirDark: true, noCone: true, say: 'Geser karton supaya cahaya sampai ke bintang.', lamps: [L], boards, ty };
     };
   }
+  /** k4 mirrors: a torch, one or two mirrors, a curtain or screen between the lamp and the wayang.
+   *  Each drawn layout is traced with the real optics and kept only when the solved angles (1 degree
+   *  grid) reach the wayang, the start angles and the direct path do not, and the angle labels fit. */
+  const MIRROR_FIX = {
+    1: { lx: 230, ly: 200, tx: 770, ty: 320, m1: 470, bx: 590, bh: 330 },
+    top: { lx: 230, ly: 430, tx: 770, ty: 435, m1: 500, bx: 590, bt: 330 },
+    2: { lx: 200, ly: 170, tx: 790, ty: 480, m1: 420, m2: 640, bx: 560, bt: 340 }
+  };
+  function mirrorGeom(variant, F) {
+    const v = (key, a, b) => (F ? F[key] : R0(a, b));
+    let lamp, mirrors, blocks, target;
+    if (variant === 2) {
+      lamp = { x: v('lx', 180, 240), y: v('ly', 150, 210) }; target = { x: v('tx', 760, 800), y: v('ty', 440, 520) };
+      const M1 = { x: v('m1', 390, 460), y: 610 }, M2 = { x: v('m2', 610, 680), y: 150 }, top = v('bt', 320, 360);
+      mirrors = [Object.assign(M1, { sol: mirrorFor(M1, lamp, M2) }), Object.assign(M2, { sol: mirrorFor(M2, M1, target) })];
+      blocks = [{ kind: 'sketsel', x: v('bx', 530, 570), y: top, w: 40, h: 648 - top }];
+    } else if (variant === 'top') {
+      lamp = { x: v('lx', 200, 260), y: v('ly', 400, 470) }; target = { x: v('tx', 740, 800), y: v('ty', 390, 480) };
+      const M = { x: v('m1', 460, 540), y: 160 }, top = v('bt', 315, 350);
+      mirrors = [Object.assign(M, { sol: mirrorFor(M, lamp, target) })];
+      blocks = [{ kind: 'sketsel', x: v('bx', 580, 620), y: top, w: 46, h: 648 - top }];
+    } else {
+      lamp = { x: v('lx', 190, 270), y: v('ly', 170, 240) }; target = { x: v('tx', 740, 800), y: v('ty', 270, 380) };
+      const M = { x: v('m1', 420, 520), y: 600 };
+      mirrors = [Object.assign(M, { sol: mirrorFor(M, lamp, target) })];
+      blocks = [{ kind: 'tirai', x: v('bx', 570, 620), y: 50, w: 50, h: v('bh', 300, 360) }];
+    }
+    mirrors.forEach(M => { M.a = M.sol + sgn() * rr(16, 28); M.min = M.sol - 60; M.max = M.sol + 60; });
+    const L = Object.assign({ art: 'senter', r: 2, on: false, beamAng: Math.atan2(mirrors[0].y - lamp.y, mirrors[0].x - lamp.x) / RAD }, lamp);
+    return { L, mirrors, blocks, target: Object.assign({ shape: pick(['ksatria', 'raksasa', 'gunungan', 'kucing']) }, target) };
+  }
+  function mirrorOk(g) {
+    const scene = sol => ({ L: g.L, blocks: g.blocks, target: g.target, mirrors: g.mirrors.map(M => Object.assign({}, M, { a: sol ? Math.round(M.sol) : M.a })) });
+    const r = traceBeam(scene(true));
+    if (r.end !== 'target' || r.bounces.length !== g.mirrors.length) return false;
+    const onStage = (p, b) => { const x = p.x + b.x * 100, y = p.y + b.y * 100; return x > 70 && x < 1210 && y > 80 && y < 620; };
+    if (!r.bounces.every(bn => bn.ang >= 12 && bn.ang <= 72 && onStage(bn.p, norm({ x: bn.n.x - bn.din.x, y: bn.n.y - bn.din.y })) && onStage(bn.p, norm({ x: bn.n.x + bn.dout.x, y: bn.n.y + bn.dout.y })))) return false;
+    if (traceBeam(scene(false)).end === 'target') return false;          // the child must turn the mirror
+    const direct = { L: Object.assign({}, g.L, { beamAng: Math.atan2(g.target.y - g.L.y, g.target.x - g.L.x) / RAD }), mirrors: [], blocks: g.blocks, target: g.target };
+    return traceBeam(direct).end !== 'target';                            // the curtain hides the wayang from the lamp
+  }
   function fMirror(variant) {
     return () => {
-      let lamp, mirrors, blocks, target;
-      const dz = DEMO ? 1 : 0;   // the example uses shifted mirrors, so its angles are not the child's
-      if (variant === 2) {
-        lamp = { x: 200, y: 170 + 40 * dz }; target = { x: 790, y: Math.round(rr(440, 520)) };
-        const M1 = { x: 420 - 20 * dz, y: 610 }, M2 = { x: 640 + 20 * dz, y: 150 };
-        mirrors = [Object.assign(M1, { sol: mirrorFor(M1, lamp, M2) }), Object.assign(M2, { sol: mirrorFor(M2, M1, target) })];
-        blocks = [{ kind: 'sketsel', x: 560, y: 340, w: 40, h: 308 }];
-      } else if (variant === 'top') {
-        lamp = { x: 230, y: 430 }; target = { x: 770, y: Math.round(rr(400, 470)) };
-        const M = { x: 500 + 30 * dz, y: 160 };
-        mirrors = [Object.assign(M, { sol: mirrorFor(M, lamp, target) })];
-        blocks = [{ kind: 'sketsel', x: 590, y: 330, w: 46, h: 318 }];
-      } else {
-        lamp = { x: 230 + 20 * dz, y: 200 - 10 * dz }; target = { x: 770, y: Math.round(rr(285, 360)) };
-        const M = { x: 470 - 30 * dz, y: 600 };
-        mirrors = [Object.assign(M, { sol: mirrorFor(M, lamp, target) })];
-        blocks = [{ kind: 'tirai', x: 590, y: 50, w: 50, h: 330 }];
-      }
-      mirrors.forEach(M => { M.a = M.sol + sgn() * rr(16, 28); M.min = M.sol - 60; M.max = M.sol + 60; });
-      const first = mirrors[0];
-      const L = Object.assign({ art: 'senter', r: 2, on: false, beamAng: Math.atan2(first.y - lamp.y, first.x - lamp.x) / RAD }, lamp);
+      let g = null;
+      for (let n = 0; n < 300 && !g; n++) { const c = mirrorGeom(variant); if (mirrorOk(c)) g = c; }
+      if (!g) g = mirrorGeom(variant, MIRROR_FIX[variant]);
       return {
-        kind: 'mirror', kelirDark: true, noCone: true, lamps: [L], mirrors, blocks, target: Object.assign({ shape: 'ksatria' }, target),
-        say: variant === 2 ? 'Putar dua cermin supaya cahaya mengenai wayang.' : 'Putar cermin supaya cahaya mengenai wayang di balik tirai.'
+        kind: 'mirror', kelirDark: true, noCone: true, lamps: [g.L], mirrors: g.mirrors, blocks: g.blocks, target: g.target,
+        say: variant === 2 ? 'Putar dua cermin supaya cahaya mengenai ' + lab(g.target.shape) + '.' : 'Putar cermin supaya cahaya mengenai ' + lab(g.target.shape) + ' di balik tirai.'
       };
     };
   }
+  /** k4 table: wayang height, the marks to measure at, and the distances to predict (all drawn here).
+   *  Every shadow stays on the 180 cm kelir ruler; every prediction lands on the 5 cm stepper (within 1 cm). */
+  const TABLE_MARKS = [[.75, 1, 1.5, 2, 2.5], [.6, 1, 1.2, 2, 2.4], [.8, 1, 1.25, 2, 2.5], [1, 1.2, 1.5, 2, 2.5]];
+  const PRED_D = [.6, .75, .8, 1.2, 1.25, 1.5, 2, 2.4, 2.5];
   function fTable() {
     return () => {
-      const H = DEMO ? 60 : 40, marks = [.75, 1, 1.5, 2, 2.5];
+      let H, marks, pred, n = 0;
+      const hsOf = (h, d) => Math.round(h * 3 / d);
+      do {
+        H = pick([30, 40, 50, 60]); marks = pick(TABLE_MARKS);
+        pred = shuffle(PRED_D.filter(d => marks.indexOf(d) < 0 && hsOf(H, d) <= 180 && Math.abs(hsOf(H, d) - 5 * Math.round(hsOf(H, d) / 5)) <= 1));
+      } while ((H * 3 / marks[0] > 180 || pred.length < 2) && ++n < 80);
+      if (DEMO) pred.sort((a, b) => Math.abs(hsOf(H, a) - H) - Math.abs(hsOf(H, b) - H));   // a short example: few taps
       return {
-        kind: 'table', numeric: true, H, marks, snapM: .25, rays: .35, say: 'Taruh wayang di tanda, lalu catat bayangannya. Tiga kali!',
-        lamps: [lampN()], pups: [numPup(H, 2, { drag: 'x' })], targets: []
+        kind: 'table', key: 'tabel' + H + '|' + marks + '|' + pred[0], numeric: true, H, marks, predOrder: pred, snapM: .25, rays: .35, say: 'Taruh wayang di tanda, lalu catat bayangannya. Tiga kali!',
+        lamps: [lampN()], pups: [numPup(H, pick(marks), { shape: pick(NUM_SHAPES), drag: 'x' })], targets: []
       };
     };
   }
+  /** k4 tree: [stick m, shadow ÷ height, tree heights]; every shadow lands on the tape's 0.5 m grid. */
+  const TREES = [[1, 2, [3, 3.5, 4, 4.5, 5]], [2, 1.5, [3, 4, 5, 6, 7]], [1, 1.5, [4, 5, 6]], [1.5, 2, [3, 4, 5]], [1, 2.5, [2, 3, 4]]];
   function fTree() {
     return () => {
       let stick, ratio, tree;
-      do { stick = pick([1, 2]); ratio = stick === 2 ? 1.5 : 2; tree = ratio === 1.5 ? pick([4, 5, 6]) : pick([4, 5]); } while (DEMO && tree > 5);
-      return { kind: 'tree', stick, ratio, tree, say: 'Ukur bayangan dengan meteran. Berapa tinggi pohonnya?' };
+      do { const t = pick(TREES); stick = t[0]; ratio = t[1]; tree = pick(t[2]); } while (DEMO && tree > 5);
+      return { kind: 'tree', key: 'pohon' + stick + '/' + ratio + '/' + tree, retry: true, stick, ratio, tree, say: 'Ukur bayangan dengan meteran. Berapa tinggi pohonnya?' };
     };
   }
   function fAsk() {
-    const f = fTwo({ near: true, fixed: true, k: .52, ys: [LY0 - 28, LY0 + 26], shapes: shuffle(['kucing', 'burung']), kind: 'ask', say: 'Mana yang lebih dekat ke lampu? Ketuk!' });
+    const f = fTwo({ near: true, fixed: true, k: .52, shapes: ['kucing', 'burung', 'pohon', 'gunungan', 'ksatria'], kind: 'ask', say: 'Mana yang lebih dekat ke lampu? Ketuk!' });
     return () => { const r = f(); r.rays = 0; return r; };
   }
+  const NEAR = ['kucing', 'burung', 'pohon', 'gunungan', 'ksatria'];
 
   /* ================= levels per tier (docs/KURIKULUM.md, Wayang Bayangan) ================= */
   const BY_TIER = {
     tk: [
-      () => ({ win: 'Bayangannya muncul!', rounds: [
-        () => ({ kind: 'match', auto: 'place', rack: true, say: 'Seret wayang ke depan lampu, ya!', winSay: 'Muncul bayangan kucing!', lamps: [lamp0()], pups: [{ shape: 'kucing', k: .7, drag: 'free', x: rackPos(0, 'kucing', .7).x, y: rackPos(0, 'kucing', .7).y, sol: { x: 600, y: LY0 } }], targets: [] }),
-        () => ({ kind: 'match', auto: 'place', say: 'Burung di belakang lampu. Bawa ke depan!', winSay: 'Muncul bayangan burung!', lamps: [lamp0()], pups: [{ shape: 'burung', k: .74, drag: 'free', x: 140, y: 300, sol: { x: 640, y: LY0 } }], targets: [] })
-      ] }),
-      () => ({ win: 'Raksasanya besar sekali!', rounds: [fSize({ shape: 'raksasa', k: .6, m: [2.1, 2.5], m0: [1.15, 1.3], say: 'Buat bayangan raksasa yang besar!', winSay: 'Raksasanya besar!' })] }),
-      () => ({ win: 'Bayangannya kecil, pas!', rounds: [fSize({ shape: 'ksatria', k: .8, m: [1.2, 1.35], m0: [2.4, 2.7], say: 'Sekarang buat bayangan yang kecil.' })] }),
+      () => ({ win: 'Bayangannya muncul!', rounds: [fAppear(false), fAppear(true)] }),
+      () => ({ win: 'Bayangannya besar sekali!', rounds: [fSize({ shapes: ['raksasa', 'ksatria', 'gunungan', 'pohon', 'kucing'], k: .6, m: [2.1, 2.5], m0: [1.15, 1.3], say: l => 'Buat bayangan ' + l + ' yang besar!', winSay: l => cap(l) + 'nya besar!' })] }),
+      () => ({ win: 'Bayangannya kecil, pas!', rounds: [fSize({ shapes: ['ksatria', 'raksasa', 'gunungan', 'pohon', 'kucing'], k: .8, m: [1.2, 1.35], m0: [2.4, 2.7], say: l => 'Sekarang buat bayangan ' + l + ' yang kecil.' })] }),
       () => ({ win: 'Bentuknya cocok!', rounds: [fChoose({ m: [1.6, 2], say: 'Wayang mana yang bayangannya cocok?' }), fChoose({ m: [1.6, 2], say: 'Cari lagi wayang yang cocok!' })] }),
-      () => ({ win: 'Lampu pindah, bayangan pindah!', rounds: [fLampY({ dir: -1, say: 'Geser lampunya. Bayangan ikut pindah!' }), fLampY({ dir: 1, say: 'Geser lampu lagi sampai pas.' })] }),
+      () => { const dir = shuffle([-1, 1]); return { win: 'Lampu pindah, bayangan pindah!', rounds: [fLampY({ dir: dir[0], say: 'Geser lampunya. Bayangan ikut pindah!' }), fLampY({ dir: dir[1], say: 'Geser lampu lagi sampai pas.' })] }; },
       () => ({ win: 'Hebat, dalang cilik!', rounds: [fXY({ rack: true, m: [1.5, 2.1], off: [30, 70], k: .62, say: 'Buat bayangan pas di garis!' }), fXY({ rack: true, m: [1.5, 2.1], off: [30, 70], k: .62, say: 'Satu lagi. Pas di garis!' })] })
     ],
     k1: [
-      () => ({ rounds: [fSize({ m: [1.4, 2.4], say: 'Buat bayangan setinggi garis biru.' }), fSize({ m: [1.4, 2.4], say: 'Sekali lagi, pas setinggi garis.' })] }),
-      () => ({ rounds: [fPos({ m: [1.5, 1.9], off: [60, 110], say: 'Geser naik atau turun sampai pas.' }), fPos({ m: [1.5, 1.9], off: [60, 110], say: 'Naik atau turun? Buat pas lagi.' })] }),
-      () => ({ rounds: [fXY({ m: [1.4, 2.2], off: [40, 100], say: 'Atur jauh dekat dan naik turun.' }), fXY({ m: [1.4, 2.2], off: [40, 100], say: 'Pas kan ukuran dan letaknya.' })] }),
-      () => ({ win: 'Bahan tidak tembus cahaya membuat bayangan pekat!', rounds: [fChoose({ mats: ['kulit', 'minyak', 'plastik'], m: [1.5, 1.9], say: 'Bayangan harus pekat. Pilih bahan yang tepat.' }), fChoose({ mats: ['karton', 'kain', 'kaca'], shape: 'gunungan', m: [1.5, 1.9], say: 'Pilih lagi bahan yang bayangannya pekat.' })] }),
+      () => ({ rounds: [fSize({ shapes: SHAPES_ALL, m: [1.4, 2.4], say: l => 'Buat bayangan ' + l + ' setinggi garis biru.' }), fSize({ shapes: SHAPES_ALL, m: [1.4, 2.4], say: l => 'Sekali lagi, bayangan ' + l + ' pas setinggi garis.' })] }),
+      () => ({ rounds: [fPos({ m: [1.5, 1.9], off: [60, 110], say: l => 'Geser ' + l + ' naik atau turun sampai pas.' }), fPos({ m: [1.5, 1.9], off: [60, 110], say: 'Naik atau turun? Buat pas lagi.' })] }),
+      () => ({ rounds: [fXY({ m: [1.4, 2.2], off: [40, 100], say: 'Atur jauh dekat dan naik turun.' }), fXY({ m: [1.4, 2.2], off: [40, 100], say: l => 'Pas kan ukuran dan letak bayangan ' + l + '.' })] }),
+      () => ({ win: 'Bahan tidak tembus cahaya membuat bayangan pekat!', rounds: [fChoose({ mats: true, m: [1.5, 1.9], say: 'Bayangan harus pekat. Pilih bahan yang tepat.' }), fChoose({ mats: true, m: [1.5, 1.9], say: 'Pilih lagi bahan yang bayangannya pekat.' })] }),
       () => ({ rounds: [fTwo({ m: [1.4, 1.9], say: 'Dua wayang, dua bayangan. Pas kan keduanya!' })] }),
-      () => ({ rounds: [fRot({ rots: [-60, -45, -30, 30, 45, 60], m: [1.5, 1.8], say: 'Putar wayangnya sampai miringnya pas.' }), fRot({ rots: [-60, -45, -30, 30, 45, 60], m: [1.5, 1.8], say: 'Putar lagi, cocokkan miringnya.' })] }),
+      () => ({ rounds: [fRot({ rots: [-60, -45, -30, 30, 45, 60], m: [1.5, 1.8], say: l => 'Putar ' + l + ' sampai miringnya pas.' }), fRot({ rots: [-60, -45, -30, 30, 45, 60], m: [1.5, 1.8], say: 'Putar lagi, cocokkan miringnya.' })] }),
       () => ({ rounds: [fXY({ m: [1.4, 2.2], off: [40, 100], say: 'Atur bayangannya pas di garis.' }), fRot({ drag: 'x', rots: [-45, -30, 30, 45], m: [1.4, 2], say: 'Geser dan putar sampai pas.' })] }),
       () => ({ win: 'Tantangan selesai!', rounds: [fXY({ m: [1.4, 2.1], off: [40, 90], rots: [-45, -30, 30, 45], say: 'Tantangan: ukuran, letak, dan miringnya!' }), fTwo({ m: [1.4, 1.9], say: 'Dua wayang sekaligus. Pas kan!' })] })
     ],
     k2: [
-      () => ({ rounds: [fSize({ dark: true, steps: true, k: .6, m: [2, 2], label: '2 ×', tolS: .1, say: 'Bayangan dua kali tinggi wayang. Tebak di mana!' }), fSize({ dark: true, steps: true, k: .6, m: [2, 2], label: '2 ×', tolS: .1, lamp: { x: 380 }, say: 'Lampunya pindah. Di mana dua kalinya?' })] }),
-      () => ({ rounds: [fSize({ dark: true, steps: true, k: .48, m: [3, 3], label: '3 ×', tolS: .1, say: 'Sekarang tiga kali tinggi wayang. Tebak dulu!' }), fSize({ dark: true, steps: true, k: .48, m: [3, 3], label: '3 ×', tolS: .1, lamp: { x: 260 }, say: 'Tiga kali lagi. Di mana wayangnya?' })] }),
-      () => ({ win: 'Lampu naik, bayangan turun!', rounds: [fLampY({ dir: -1, say: 'Atur tinggi lampu supaya bayangan pas.' }), fLampY({ dir: 1, say: 'Sekarang ke arah lain. Atur lampunya.' })] }),
+      () => { const xs = shuffle([260, 290, 320, 350, 380, 410]); return { rounds: [fSize({ shapes: SHAPES_ALL, dark: true, steps: true, k: .6, m: [2, 2], label: '2 ×', tolS: .1, lamp: { x: xs[0] }, say: l => 'Bayangan ' + l + ' dua kali tinggi wayangnya. Tebak di mana!' }), fSize({ shapes: SHAPES_ALL, dark: true, steps: true, k: .6, m: [2, 2], label: '2 ×', tolS: .1, lamp: { x: xs[1] }, say: 'Lampunya pindah. Di mana dua kalinya?' })] }; },
+      () => { const xs = shuffle([260, 290, 320, 350, 380]); return { rounds: [fSize({ shapes: SHAPES_ALL, dark: true, steps: true, k: .48, m: [3, 3], label: '3 ×', tolS: .1, lamp: { x: xs[0] }, say: 'Sekarang tiga kali tinggi wayang. Tebak dulu!' }), fSize({ shapes: SHAPES_ALL, dark: true, steps: true, k: .48, m: [3, 3], label: '3 ×', tolS: .1, lamp: { x: xs[1] }, say: 'Tiga kali lagi. Di mana wayangnya?' })] }; },
+      () => { const dir = shuffle([-1, 1]); return { win: 'Lampu naik, bayangan turun!', rounds: [fLampY({ dir: dir[0], say: 'Atur tinggi lampu supaya bayangan pas.' }), fLampY({ dir: dir[1], say: 'Sekarang ke arah lain. Atur lampunya.' })] }; },
       () => ({ win: 'Bening, samar, pekat!', rounds: [fSort(false)] }),
-      () => ({ rounds: [fLift(-1), fLift(1)] }),
+      () => ({ rounds: shuffle([-1, 1]).map(fLift) }),
       () => ({ win: 'Dua lampu, dua bayangan!', rounds: [fTwoLamps({ say: 'Dua lampu, dua bayangan. Pas kan keduanya!' }), fTwoLamps({ say: 'Sekali lagi dengan dua lampu.' })] }),
-      () => ({ rounds: [fSize({ dark: true, steps: true, k: .5, m: [2, 2], label: '2 ×', tolS: .1, say: 'Tebak dulu: bayangan dua kali tinggi wayang.' }), fLampY({ say: 'Atur lampunya sampai bayangan pas.' })] }),
+      () => ({ rounds: [fSize({ shapes: SHAPES_ALL, dark: true, steps: true, k: .5, m: [2, 2], label: '2 ×', tolS: .1, lamp: { x: pick([260, 290, 320, 350, 380, 410]) }, say: 'Tebak dulu: bayangan dua kali tinggi wayang.' }), fLampY({ say: 'Atur lampunya sampai bayangan pas.' })] }),
       () => ({ win: 'Tantangan selesai!', rounds: [fXY({ dark: true, mSet: [2, 3], off: [30, 70], k: .48, say: 'Tantangan: tebak letak wayang dalam gelap!' }), fTwoLamps({ say: 'Dua lampu lagi. Pas kan dua bayangannya!' })] })
     ],
     k3: [
@@ -1702,20 +1805,20 @@
       () => ({ rounds: [fMarkHeight(), fMarkHeight()] }),
       () => ({ win: 'Lampu kecil membuat tepi bayangan tajam!', rounds: [fPenumbra(true), fPenumbra(false)] }),
       () => ({ win: 'Kamu bisa membedakan bahan!', rounds: [fSort(true)] }),
-      () => ({ win: 'Bayangan berwarna!', rounds: [fTwoLamps({ colour: 'biru', say: 'Dua lampu berwarna. Buat bayangan biru pas di garis.' }), fTwoLamps({ colour: 'jingga', say: 'Sekarang buat bayangan jingga pas di garis.' })] }),
-      () => ({ rounds: [fNumDark({ sets: [[40, 1], [50, 1.5], [60, 1.5], [40, 1.5], [60, 2], [40, 2]] }), fNumDark({ sets: [[40, 1], [50, 1.5], [60, 1.5], [40, 1.5], [60, 2], [40, 2]] })] }),
+      () => ({ win: 'Bayangan berwarna!', rounds: shuffle(['biru', 'jingga']).map((c, i) => fTwoLamps({ colour: c, say: i ? 'Sekarang buat bayangan ' + c + ' pas di garis.' : 'Dua lampu berwarna. Buat bayangan ' + c + ' pas di garis.' })) }),
+      () => ({ rounds: [fNumDark({ sets: NUM_K3 }), fNumDark({ sets: NUM_K3 })] }),
       () => ({ rounds: [fMarkHeight(), fTwoLamps({ colour: pick(['biru', 'jingga']), say: 'Buat bayangan berwarna pas di garis.' })] }),
-      () => ({ win: 'Tantangan selesai!', rounds: [fNumDark({ sets: [[40, 1.2], [60, 1.2], [50, 2.5]] }), fHoles()] })
+      () => ({ win: 'Tantangan selesai!', rounds: [fNumDark({ sets: NUM_K3_HARD }), fHoles()] })
     ],
     k4: [
       () => ({ win: 'Bayangan ÷ wayang = kelir ÷ jarak!', rounds: [fTable()] }),
-      () => ({ rounds: [fNumDark({ rays: 0, sets: [[40, 1.2], [60, 1.2], [50, 2.5], [40, .8], [40, 2.4]] }), fNumDark({ rays: 0, sets: [[40, 1.2], [60, 1.2], [50, 2.5], [40, .8], [40, 2.4]] })] }),
-      () => ({ win: 'Sudut datang = sudut pantul!', rounds: [fMirror(1), fMirror('top')] }),
+      () => ({ rounds: [fNumDark({ rays: 0, sets: NUM_K4 }), fNumDark({ rays: 0, sets: NUM_K4 })] }),
+      () => ({ win: 'Sudut datang = sudut pantul!', rounds: shuffle([1, 'top']).map(fMirror) }),
       () => ({ win: 'Dua cermin, satu jalan cahaya!', rounds: [fMirror(2)] }),
-      () => ({ win: 'Yang dekat lampu, bayangannya besar!', rounds: [fAsk(), fTwo({ near: true, k: .52, ys: [LY0 - 28, LY0 + 26], shapes: ['kucing', 'burung'], rays: 0, say: 'Sekarang kamu yang atur. Pas kan dua bayangan!' })] }),
+      () => ({ win: 'Yang dekat lampu, bayangannya besar!', rounds: [fAsk(), fTwo({ near: true, k: .52, shapes: NEAR, rays: 0, say: 'Sekarang kamu yang atur. Pas kan dua bayangan!' })] }),
       () => ({ win: 'Kamu mengukur pohon dengan bayangan!', rounds: [fTree()] }),
-      () => ({ rounds: [fNumDark({ rays: 0, sets: [[40, 1.2], [60, 1.2], [50, 2.5], [40, 2.4]] }), fMirror(pick([1, 'top']))] }),
-      () => ({ win: 'Tantangan selesai!', rounds: [fMirror(2), fTwo({ near: true, k: .52, ys: [LY0 - 28, LY0 + 26], shapes: shuffle(['kucing', 'burung']), rays: 0, say: 'Dua bayangan bertumpuk. Pas kan keduanya!' })] })
+      () => ({ rounds: [fNumDark({ rays: 0, sets: NUM_K4 }), fMirror(pick([1, 'top']))] }),
+      () => ({ win: 'Tantangan selesai!', rounds: [fMirror(2), fTwo({ near: true, k: .52, shapes: NEAR, rays: 0, say: 'Dua bayangan bertumpuk. Pas kan keduanya!' })] })
     ]
   };
   const LEVELS = BY_TIER[TIER] || BY_TIER.k1;
@@ -1730,37 +1833,51 @@
     GS.speakable.__wy = true;
   }
   /** What makes a round's task (answers, not starting spots): the example and the child's task must differ. */
-  const sigOf = rd => rd.choose ? 'choose:' + rd.targets[0].shape + rd.pups.map(p => p.mat).join() : JSON.stringify(rd, function (k, v) {
+  const sigOf = rd => rd.key ? 'key:' + rd.key : rd.choose ? 'choose:' + rd.targets[0].shape + rd.pups.map(p => p.mat).join() : JSON.stringify(rd, function (k, v) {
+    if (k === 'alts') return undefined;
     if (this && (this.sol !== undefined || this.need != null) && (k === 'x' || k === 'y' || k === 'a' || k === 'h')) return undefined;
     if (k === 'say' || k === 'winSay') return undefined;
     return typeof v === 'number' ? Math.round(v / 6) : v;
   });
   let demoSig = '', kidSig = '';
-  function demoTweak(rd) {
-    // TK level 1: the example brings the tree wayang (the child gets the cat)
-    if (DEMO && rd.auto === 'place' && rd.rack) {
-      const rp = rackPos(0, 'pohon', .7);
-      Object.assign(rd.pups[0], { shape: 'pohon', x: rp.x, y: rp.y, sol: { x: 620, y: LY0 } });
-      rd.winSay = 'Muncul bayangan pohon!';
-    }
-    return rd;
+  // A race (shared/race.js) seeds Math.random while a level is built, so every racer gets the same
+  // task: then the child's task is never re-drawn to dodge the example (that depends on this device).
+  const NATIVE_RANDOM = Math.random;
+  const seededNow = () => Math.random !== NATIVE_RANDOM || !!(GS.race && GS.race.active);
+  /** All rounds of a level are drawn here, at build time (rounds that rebuild on a miss get spare tasks too). */
+  function makeRounds(lv) {
+    const rds = [];
+    lv.rounds.forEach(f => {
+      let rd;
+      for (let n = 0; n < 10; n++) { rd = f(); if (!rds.some(q => sigOf(q) === sigOf(rd))) break; }
+      if (rd.retry) {
+        rd.alts = [];
+        for (let n = 0; n < 12 && rd.alts.length < 3; n++) { const q = f(); if (sigOf(q) !== sigOf(rd) && !rd.alts.some(z => sigOf(z) === sigOf(q))) rd.alts.push(q); }
+      }
+      rds.push(rd);
+    });
+    lv.rds = rds; lv.alt = 0;
+    return rds;
   }
   function buildLevel(i, demo) {
     tok++;
     DEMO = !!demo;
     document.querySelectorAll('.gs-overlay.gs-win').forEach(o => o.remove());
-    const avoid = DEMO ? kidSig : demoSig;
+    const avoid = DEMO ? kidSig : demoSig, seeded = seededNow();
     let rd;
-    for (let n = 0; n < 16; n++) { LV = LEVELS[i](); rd = demoTweak(LV.rounds[0]()); if (sigOf(rd) !== avoid) break; }
+    for (let n = 0; n < 16; n++) { LV = LEVELS[i](); rd = makeRounds(LV)[0]; if (sigOf(rd) !== avoid || (seeded && !DEMO)) break; }
     if (DEMO) demoSig = sigOf(rd); else kidSig = sigOf(rd);
     tries = 0;
-    startRound(0, false, rd);
+    startRound(0, false);
   }
-  function startRound(ri, retry, rd) {
+  function startRound(ri, retry) {
     tok++;
     RI = ri; rTries = 0; busy = false;
     clearStage();
-    RD = rd || LV.rounds[ri]();
+    const base = LV.rds[ri];
+    // a miss in a "new wayang" round brings the next spare task drawn at build time
+    RD = retry && base.alts ? (base.alts[LV.alt++ % base.alts.length]) : base;
+    delete RD.onRender;
     ({ match: setupMatch, marker: setupMarker, sort: setupSort, holes: setupHoles, mirror: setupMirror, table: setupTable, tree: setupTree, ask: setupAsk })[RD.kind]();
     render(); setDock();
     hud.mood('think');
@@ -1882,7 +1999,8 @@
     if (RD.variant === 'lift') {
       const ty = cyOf(L, P.y + RD.dy, m), up = RD.dy < 0;
       await d.say(up ? 'Wayang akan naik. Bayangannya ikut naik.' : 'Wayang akan turun. Bayangannya ikut turun.');
-      await d.say('Kelir dua kali lebih jauh, jadi geraknya dua kali.');
+      const w = Math.round(m) === 3 ? 'tiga' : 'dua';
+      await d.say('Kelir ' + w + ' kali lebih jauh, jadi geraknya ' + w + ' kali.');
       await d.drag({ x: 830, y: MK.y }, { x: 830, y: ty }, 1300);
       await d.say('Itu tebakanku. Sekarang lihat!', 1600);
       await d.tap(ACT);
@@ -1930,7 +2048,10 @@
   async function demoTable(d) {
     const P = PUPS[0], L = LAMPS[0];
     await d.say('Wayang ' + RD.H + ' cm. Ukur di tiga jarak, lalu catat.');
-    for (const dd of [2, 1, 1.5]) {
+    // measure at the mark the wayang stands on, then at two other marks of this table
+    const start = RD.marks.reduce((b, v) => (Math.abs(v - distM(P)) < Math.abs(b - distM(P)) ? v : b), RD.marks[0]);
+    const others = RD.marks.filter(v => Math.abs(v - start) > .01);
+    for (const dd of [start, others[0], others[2]]) {
       if (Math.abs(distM(P) - dd) > .01) await dragPupTo(d, P, L.x + dd * UM, P.y, 1000);
       await d.tap(ACT);
       await d.wait(1300);
@@ -1939,7 +2060,7 @@
     const want = Math.round(RD.H * 3 / TB.d);
     await d.say('Di ' + dec(TB.d) + ' m: 3 ÷ ' + dec(TB.d) + ' = ' + dec(3 / TB.d) + '.');
     await d.say(RD.H + ' cm × ' + dec(3 / TB.d) + ' = ' + want + ' cm.');
-    for (let n = 0; n < 40 && TB.guess < want; n++) await d.tap(() => dock.querySelectorAll('.wy-step')[1]);
+    for (let n = 0; n < 40 && Math.abs(want - TB.guess) > 2; n++) await d.tap(() => dock.querySelectorAll('.wy-step')[want > TB.guess ? 1 : 0]);
     await d.tap(ACT);
   }
   async function demoTree(d) {
@@ -2003,6 +2124,17 @@
     tier: TIER,
     get state() { return { level: run.current, round: RI, rounds: LV ? LV.rounds.length : 0, kind: RD && RD.kind, tries, busy, light }; },
     toScreen(x, y) { const pt = svg.createSVGPoint(); pt.x = x; pt.y = y; const r = pt.matrixTransform(svg.getScreenCTM()); return { x: r.x, y: r.y }; },
+    task: () => (LV && LV.rds ? LV.rds.map(sigOf).join('\n') : ''),
+    /** Every drawn outline of this level (all rounds and spare tasks) lies on the kelir: [] when fine. */
+    audit: () => {
+      const bad = [];
+      (LV && LV.rds || []).forEach((rd, ri) => [rd].concat(rd.alts || []).forEach(q => (q.kind === 'match' ? q.targets : []).forEach(t => {
+        const Ls0 = q.lamps[t.lamp || 0], Ls = Object.assign({}, Ls0, Ls0.sol || {}), Pspec = q.pups[t.p >= 0 ? t.p : t.solP], Ps = Pspec.sol;
+        const m = (SX - Ls.x) / (Ps.x - Ls.x), cy = Ls.y + (Ps.y - Ls.y) * m;
+        if (!fits(t.shape || Pspec.shape, m * Pspec.k, cy, Ps.rot || 0, q.numeric ? -30 : 0)) bad.push('R' + (ri + 1) + ' ' + Pspec.shape + ' m' + n1(m) + ' cy' + Math.round(cy));
+      })));
+      return bad;
+    },
     pups: () => PUPS.map(P => ({ x: P.x, y: P.y, rot: P.rot, shape: P.shape, sol: RD.pups && RD.pups[PUPS.indexOf(P)] ? RD.pups[PUPS.indexOf(P)].sol : null })),
     lamps: () => LAMPS.map(L => ({ x: L.x, y: L.y }))
   };
