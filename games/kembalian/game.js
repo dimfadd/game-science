@@ -31,6 +31,9 @@
   let uidc = 0;
   const uid = p => 'km' + (p || '') + (++uidc);
   const pick1 = a => a[Math.floor(Math.random() * a.length)];
+  // visual-only randomness uses the effects stream, so it never shifts a seeded race round (shared/race.js)
+  const fxRand = GS.fxRandom || Math.random;
+  const fxPick = a => a[Math.floor(fxRand() * a.length)];
   const pickN = (a, n) => GS.shuffle(a).slice(0, n);
   const K = v => Math.round(v * 1000);
 
@@ -327,7 +330,7 @@
   let LV = null;
   let demoSig = '';           // the example's task; the child's own task must differ
   // signature of a round's numbers (names and people do not count)
-  const sigR = R => JSON.stringify(R, (k, v) => (k === 'name' || k === 'person' || k === 'item' ? undefined : v));
+  const sigR = R => JSON.stringify(R, (k, v) => (k === 'name' || k === 'person' || k === 'item' || k === 'open' || k === 'openSp' ? undefined : v));
   function buildLevel(i, demo) {
     cleanup();
     LV = LEVELS[i];
@@ -376,7 +379,7 @@
     let stars = S.tries === 0 ? 3 : S.tries <= 2 ? 2 : 1;
     if (S.notMinimal) stars = Math.min(stars, 2);
     mood('cheer');
-    const text = stars === 3 ? pick1(['Warungnya laris! Semua uangnya pas.', 'Hebat! Hitunganmu pas semua.']) : stars === 2 ? 'Bagus! Uangnya pas.' : 'Berhasil! Ayo main lagi.';
+    const text = stars === 3 ? fxPick(['Warungnya laris! Semua uangnya pas.', 'Hebat! Hitunganmu pas semua.']) : stars === 2 ? 'Bagus! Uangnya pas.' : 'Berhasil! Ayo main lagi.';
     const g = S.gen;
     setTimeout(() => { if (g === S.gen) run.win(stars, text); }, T(700));
   }
@@ -398,7 +401,7 @@
     showBubble(R);
     showItems(R.items, R.qtyItem);
     if (R.paid) showPaid(R.paid);
-    if (!(S.demo && r === 0)) say(r === 0 ? LV.say : (R.say || defaultSay(R)), r === 0 ? LV.spoken : R.spoken);
+    if (!(S.demo && r === 0)) say(r === 0 ? (R.open || LV.say) : (R.say || defaultSay(R)), r === 0 ? (R.open ? R.openSp : LV.spoken) : R.spoken);
     if (R.pick) { await pickPhase(R, gen); alive(gen); }
     await moneyPhase(R, gen);
     alive(gen);
@@ -482,7 +485,7 @@
   }
   function drawKids(n) {
     const xs = matRects(n).map(m => m.x + m.w / 2);
-    const idxs = GS.shuffle([0, 3, 6, 7, 2, 5]).slice(0, n);
+    const idxs = [0, 3, 6, 7, 2, 5].map(v => [fxRand(), v]).sort((a, b) => a[0] - b[0]).map(a => a[1]).slice(0, n);
     xs.forEach((x, i) => {
       const g = el('g', { class: 'km-kid', transform: `translate(${n1(x)} ${G.tray.y + 72}) scale(1.6)` }, personLayer);
       const b = el('g', { class: 'km-breathe' }, g);
@@ -1233,7 +1236,8 @@
         tween(560, e => { it.g.setAttribute('transform', `translate(${n1(lerp(x0, tx, e))} ${n1(lerp(y0, ty, e) - Math.sin(e * Math.PI) * 60)})`); it.g.setAttribute('opacity', n1(1 - e * e)); }, 'inOutCubic');
       });
     });
-    if (S.money && S.money.pile) tween(420, e => S.money.pile.setAttribute('opacity', n1(1 - e)));
+    const pile = S.money && S.money.pile;
+    if (pile) tween(420, e => pile.setAttribute('opacity', n1(1 - e)));
     await pause(900, gen);
     S.money = null;
     dockRender();
@@ -1650,8 +1654,8 @@
   async function demoScript(d) {
     await until(d, () => S.person && !S.busy && (S.money || (S.pickKind && (L.cards.childElementCount || S.dockMode === 'estimate'))), 'round');
     await d.wait(300);
-    if (!/^(Tantangan|Campuran)/.test(LV.say)) { if (LV.spoken) CAP[LV.spoken] = LV.say; await d.say(LV.spoken || LV.say); }
-    const R = S.rounds[0];
+    const R = S.rounds[0], open = R.open || LV.say, openSp = R.open ? R.openSp : LV.spoken;
+    if (!/^(Tantangan|Campuran)/.test(open)) { if (openSp) CAP[openSp] = open; await d.say(openSp || open); }
     if (R.pick) {
       await demoPick(d, R);
       await until(d, () => S.money && !S.busy && dock.querySelector('.gs-action'), 'money');
@@ -1804,29 +1808,36 @@
     const COINS3 = ['c100', 'c200', 'c500', 'c1000'];
     const hundreds = (a, b) => { let v; do { v = rand(a, b) * 100; } while (v % 1000 === 0); return v; };
     const T1 = 't1000';
-    const lv = (say, rounds, spoken) => ({ say, spoken, rounds });
+    // every build starts from the same state, so a seeded Math.random (Balapan) gives every player the same task
+    const lv = (say, rounds, spoken) => ({ say, spoken, rounds: () => { lastCust = -1; return rounds(); } });
+    // TK: the opening line names the thing (spoken; no reading needed)
+    const NOUN = { permen: 'permen', kerupuk: 'kerupuk', klepon: 'klepon', es: 'es batu', balon: 'balon', kelereng: 'kelereng', jeruk: 'jeruk', apel: 'apel', pisang: 'pisang', salak: 'salak', rambutan: 'rambutan', mangga: 'mangga', botol: 'minuman', kelapa: 'kelapa', semangka: 'semangka' };
+    const noun = n => NOUN[n] || n;
+    const opened = (R, text) => Object.assign(R, { open: text });
+    const TK_SMALL = ['permen', 'kerupuk', 'klepon', 'es', 'balon', 'kelereng'];
+    const TK_MID = ['jeruk', 'apel', 'pisang', 'salak', 'rambutan', 'mangga', 'botol', 'balon'];
 
     const tk = [
       // 1-2: pay 1-3 coins, a dashed slot for every coin
-      lv('Bayar permennya. Taruh koin di setiap titik.', () => [pay({ items: [it('permen', K(rand(1, 2)))], denoms: [T1], slots: true })]),
-      lv('Taruh satu koin di setiap titik, lalu tekan Bayar.', () => [pay({ items: [it(pick1(['klepon', 'kerupuk', 'jeruk']), K(rand(2, 3)))], denoms: [T1], slots: true })]),
-      // 3: up to 5 coins, count the dots on the tag (no slots)
-      lv('Lihat titiknya. Bayar koin sebanyak itu.', () => [pay({ items: [it(pick1(MID), K(rand(4, 5)))], denoms: [T1] })]),
+      lv('Bayar permennya. Taruh koin di setiap titik.', () => { const n = pick1(TK_SMALL); return [opened(pay({ items: [it(n, K(rand(1, 2)))], denoms: [T1], slots: true }), `Bayar ${noun(n)}nya. Taruh koin di setiap titik.`)]; }),
+      lv('Taruh satu koin di setiap titik, lalu tekan Bayar.', () => { const n = pick1(TK_SMALL.concat(['jeruk', 'apel', 'salak'])); return [opened(pay({ items: [it(n, K(rand(2, 3)))], denoms: [T1], slots: true }), `Beli ${noun(n)}. Satu koin di setiap titik, lalu tekan Bayar.`)]; }),
+      // 3: 3 to 5 coins, count the dots on the tag (no slots)
+      lv('Lihat titiknya. Bayar koin sebanyak itu.', () => { const n = pick1(TK_MID); return [opened(pay({ items: [it(n, K(rand(3, 5)))], denoms: [T1] }), `Lihat titik ${noun(n)}. Bayar koin sebanyak itu.`)]; }),
       // 4: which is dearer (more coins), then pay for it
       lv('Mana yang lebih mahal? Ketuk barangnya.', () => {
         let a = rand(1, 5), b; do { b = rand(1, 5); } while (Math.abs(a - b) < 2);
-        const nm = pickN(MID.concat(['kelapa', 'semangka']), 2);
-        return [pay({ pick: { kind: 'pricier', options: [{ name: nm[0], price: K(a) }, { name: nm[1], price: K(b) }] }, denoms: [T1], slots: true })];
+        const nm = pickN(TK_MID.concat(['kelapa', 'semangka', 'kerupuk', 'klepon']), 2);
+        return [opened(pay({ pick: { kind: 'pricier', options: [{ name: nm[0], price: K(a) }, { name: nm[1], price: K(b) }] }, denoms: [T1], slots: true }), `${noun(nm[0])[0].toUpperCase() + noun(nm[0]).slice(1)} atau ${noun(nm[1])}? Mana yang lebih mahal?`)];
       }),
       // 5: two things (2 + 1), slots grouped per thing
       lv('Beli dua barang. Bayar semua titiknya.', () => {
-        const pr = pick1([[2, 1], [1, 2], [3, 1], [2, 2]]), nm = pickN(['permen', 'klepon', 'kerupuk', 'jeruk', 'apel'], 2);
-        return [pay({ items: [it(nm[0], K(pr[0])), it(nm[1], K(pr[1]))], denoms: [T1], slots: true, slotGroups: pr })];
+        const pr = pick1([[2, 1], [1, 2], [3, 1], [1, 3], [2, 2], [1, 1]]), nm = pickN(['permen', 'klepon', 'kerupuk', 'jeruk', 'apel', 'es', 'balon', 'salak'], 2);
+        return [opened(pay({ items: [it(nm[0], K(pr[0])), it(nm[1], K(pr[1]))], denoms: [T1], slots: true, slotGroups: pr }), `Beli ${noun(nm[0])} dan ${noun(nm[1])}. Bayar semua titiknya.`)];
       }),
       // 6: challenge <= 5, no slots: one thing, then two things
       lv('Tantangan! Bayar dengan koin yang pas.', () => {
-        const a = rand(1, 3), b = rand(1, 5 - a), nm = pickN(['permen', 'klepon', 'kerupuk', 'jeruk', 'apel', 'pisang'], 3);
-        return [pay({ items: [it(nm[0], K(rand(3, 5)))], denoms: [T1] }), pay({ items: [it(nm[1], K(a)), it(nm[2], K(b))], denoms: [T1] })];
+        const a = rand(1, 3), b = rand(1, 5 - a), nm = pickN(['permen', 'klepon', 'kerupuk', 'jeruk', 'apel', 'pisang', 'es', 'balon', 'salak', 'mangga'], 3);
+        return [opened(pay({ items: [it(nm[0], K(rand(3, 5)))], denoms: [T1] }), `Tantangan! Bayar ${noun(nm[0])} dengan koin yang pas.`), pay({ items: [it(nm[1], K(a)), it(nm[2], K(b))], denoms: [T1] })];
       })
     ];
 
@@ -1836,7 +1847,7 @@
       lv('Bayar pas. Pakai dua ribuan dan seribuan.', () => [pay({ items: [it(pick1(MID), K(rand(5, 12)))], denoms: ['n1000', 'n2000'] })]),
       lv('Ada lima ribuan sekarang. Bayar pas, ya.', () => [pay({ items: [it(pick1(MID.concat(BIG)), K(rand(7, 15)))], denoms: ['n1000', 'n2000', 'n5000'] })]),
       // 4: change from 10.000 (pairs of 10: price 5-9 ribu)
-      lv('Pembeli bayar sepuluh ribu. Berikan kembaliannya.', () => [chg({ items: [it(pick1(ANY), K(rand(5, 9)))], paid: ['n10000'], denoms: ['n1000', 'n2000', 'n5000'] })]),
+      lv('Pembeli bayar sepuluh ribu. Berikan kembaliannya.', () => [chg({ items: [it(pick1(ANY), K(rand(3, 9)))], paid: ['n10000'], denoms: ['n1000', 'n2000', 'n5000'] })]),
       // 5: two things added, 2-9 ribu each, total <= 18 ribu
       lv('Beli dua barang. Jumlahkan harganya, lalu bayar.', () => { const a = rand(2, 9), b = rand(2, Math.min(9, 18 - a)), nm = pickN(ANY, 2); return [pay({ items: [it(nm[0], K(a)), it(nm[1], K(b))], denoms: NOTES1 })]; }),
       // 6: change from 20.000, price 11-18 ribu
@@ -1899,13 +1910,13 @@
       // 3: multiplication, n packets at the same price
       lv('Beberapa bungkus, harganya sama. Bayar semuanya.', () => [pay({ items: [it(pick1(['kerupuk', 'klepon', 'permen']), pick1([1200, 1500, 2500, 1800, 2200]), rand(3, 5))], denoms: ['c100', 'c200', 'c500', 'c1000', 'n2000', 'n5000', 'n10000'] })]),
       // 4: division, three children share a price equally
-      lv('Tiga anak patungan. Bagi uangnya sama rata.', () => { const sh = pick1([2000, 2500, 3000, 3500, 4000, 5000]); const nm = pick1(['semangka', 'kelapa', 'keranjang']); return [{ type: 'share', person: SELLER, kids: 3, items: [it(nm, sh * 3)], bubble: [{ item: nm, text: rp(sh * 3) }, { text: 'Dibagi tiga, sama rata.', small: true }], denoms: ['c500', 'c1000', 'n2000', 'n5000'] }]; }),
+      lv('Tiga anak patungan. Bagi uangnya sama rata.', () => { const sh = pick1([1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 6000]); const nm = pick1(sh < 3000 ? ['kelapa', 'semangka', 'mangga'] : ['semangka', 'keranjang', 'ikan', 'tampah']); return [{ type: 'share', person: SELLER, kids: 3, items: [it(nm, sh * 3)], bubble: [{ item: nm, text: rp(sh * 3) }, { text: 'Dibagi tiga, sama rata.', small: true }], denoms: ['c500', 'c1000', 'n2000', 'n5000'] }]; }),
       // 5: several things, change from 50.000 (multiples of 500, total <= 40 ribu)
       lv('Beli beberapa barang. Berikan kembalian dari lima puluh ribu.', () => { const n = rand(2, 3), nm = pickN(ANY, n); return [chg({ items: nm.map(x => it(x, rand(5, 26) * 500)), paid: ['n50000'], denoms: ['c500', 'c1000', 'n2000', 'n5000', 'n10000', 'n20000'] })]; }),
       // 6: fewest notes and coins (Rp3.800 = 2.000 + 1.000 + 500 + 200 + 100)
       lv('Bayar pas dengan lembar dan koin paling sedikit.', () => { const keys = COINS3.concat(['n2000', 'n5000']); return [pay({ items: [it(pick1(MID), minAtLeast(() => hundreds(11, 99), keys, 4))], denoms: keys, minimal: true })]; }),
       // 7: exchange a note for coins: how many pieces
-      lv('Tukar uangnya jadi koin, ya.', () => { const ex = Math.random() < 0.6 ? ['n10000', 'c500'] : ['n5000', 'c500']; return [chg({ exchange: true, paid: [ex[0]], denoms: [ex[1]], bubble: [{ money: ex[0], text: rp(DEN[ex[0]].v) }, { money: ex[1], coin: true, text: 'Jadi koin ' + rp(DEN[ex[1]].v), size: 38 }] })]; }),
+      lv('Tukar uangnya jadi koin, ya.', () => { const ex = pick1([['n10000', 'c500'], ['n5000', 'c500'], ['n10000', 'c1000'], ['n2000', 'c200'], ['n1000', 'c100'], ['n5000', 'c1000'], ['n2000', 'c100'], ['n1000', 'c200']]); return [chg({ exchange: true, paid: [ex[0]], denoms: [ex[1]], bubble: [{ money: ex[0], text: rp(DEN[ex[0]].v) }, { money: ex[1], coin: true, text: 'Jadi koin ' + rp(DEN[ex[1]].v), size: 38 }] })]; }),
       // 8: challenge
       lv('Tantangan! Tiga pembeli datang.', () => {
         const nm = pickN(ANY, 3);
@@ -1946,8 +1957,11 @@
       }),
       // 6: division with remainder: pencils at a fixed price, as many as possible, then the change
       lv('Beli pensil sebanyak mungkin, lalu beri kembalian.', () => {
-        const c = pick1([[25000, 3000], [20000, 3000], [25000, 4000], [30000, 4000], [50000, 7000]]);
-        return [chg({ items: [it('pensil', c[1])], qtyItem: { name: 'pensil', price: c[1], max: 12 }, bubble: [{ item: 'pensil', text: rp(c[1]) }, { text: 'Sebanyak mungkin, ya.', small: true }], paid: decompose(c[0], ['n5000', 'n10000', 'n20000', 'n50000']), denoms: ['n1000', 'n2000', 'n5000'] })];
+        // [note, how many, pencil price]: always notes of one kind, so the customer's stack reads truthfully ("5.000 x5");
+        // every pair leaves a remainder smaller than one pencil, at most 12 pencils
+        const c = pick1([['n5000', 5, 3000], ['n20000', 1, 3000], ['n5000', 5, 4000], ['n10000', 3, 4000], ['n50000', 1, 7000], ['n50000', 1, 6000], ['n20000', 2, 6000], ['n10000', 3, 7000], ['n5000', 3, 2000], ['n20000', 2, 7000]]);
+        const paid = Array(c[1]).fill(c[0]);
+        return [chg({ items: [it('pensil', c[2])], qtyItem: { name: 'pensil', price: c[2], max: 12 }, bubble: [{ item: 'pensil', text: rp(c[2]) }, { text: 'Sebanyak mungkin, ya.', small: true }], paid, denoms: ['n1000', 'n2000', 'n5000'] })];
       }),
       // 7: mixed
       lv('Campuran! Dua pembeli datang.', () => {
@@ -1972,6 +1986,8 @@
     tier: () => TIER,
     speed(n) { SPEED = Math.max(1, +n || 1); },
     async solve() { if (S.busy || S.over || !S.solver) return; await S.solver(); },
+    /** The generated task of this build (numbers and names), for variety and seeding checks. */
+    task: () => JSON.stringify(S.rounds),
     get state() { return { level: run.current, round: S.round, rounds: S.rounds.length, busy: S.busy, tries: S.tries, money: !!S.money, tray: S.tray.map(p => p.v), goal: S.money && S.money.goal, start: S.money && S.money.start }; }
   };
 
