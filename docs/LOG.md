@@ -2,6 +2,16 @@
 
 Newest first. Every change adds an entry: date, what changed, why, and anything left open.
 
+## 2026-10-20: Petualangan Bab 1 "Festival Kampung" (story mode)
+
+The owner asked for a semi-adventure mode with a storyboard where obstacles on the way are solved with math. Advice given first: an obstacle opened by answering a question is exactly the quiz gate the pedagogy forbids (and integrated math beats bolted-on quizzes in the research, Habgood & Ainsworth 2011), so the obstacles are the existing games. The owner agreed and asked for a playable Bab 1 to judge before more chapters.
+- `cerita.html`: chapter route (6 landmarks on a winding road, zigzag down on portrait, along the width on landscape; done stops show stars, the current one a pulsing ring and "!", later ones a lock), the mascot walks between stops, a comic viewer (scene + landmark + villagers + the child's mascot, speech box with speaker, narrated, Lanjut/back/Lewati), start card, closing comic, badge "Penolong Festival", "Bab 2 segera hadir".
+- `shared/cerita.js`: chapter data (cast from `GS.art.person`, panels, per step the game, landmark, scene and a level per kelas chosen to match the story text) and the game-side hook (`?story=festival&step=n`): plays that level, hides the level picker, HUD "n/6", Home to the chapter, outcome card with the world's reaction; a story win counts as a normal level win. Loaded on every game page after race.js; inert without `?story`.
+- Hub dock: new "Cerita" item (5 items); "Pengaturan" reads "Atur" on narrow docks and the landscape rail (it overflowed there, the rail already clipped it before).
+- `sw.js` precaches the new files, `scripts/build.sh` deploys `cerita.html`, smoke covers it, new `tests/cerita.js`.
+- Verified: tests/cerita.js (k1 and k2 and k3 full chapter), the chapter solved in every kelas through the games, smoke (repo and dist), hub-tiers, journey, race.
+- Open: narration is device TTS (recordings later); the villagers have no moods (only the mascot does); later chapters and the subscription split wait for the owner's verdict on Bab 1 and a backend.
+
 ## 2026-10-15: Jam, Kembalian, Ketapel and Wayang levels vary every time
 
 Same reason as Kebun Bibit (races repeat levels; fixed numbers get memorised). Done by four sub-agents, each in its own game.js, verified again by the lead.

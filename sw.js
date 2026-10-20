@@ -7,7 +7,7 @@ const FONT_CACHE = 'matsains-fonts-v1';
 const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang'];
 const PRECACHE = [
   './', 'index.html', 'welcome.html', 'landing.html', 'manifest.webmanifest',
-  'shared/core.css', 'shared/core.js', 'shared/art.js', 'shared/auth.js', 'shared/curriculum.js', 'shared/profile.js', 'shared/config.js', 'shared/pwa.js', 'shared/voice.js', 'shared/net.js', 'shared/race.js',
+  'shared/core.css', 'shared/core.js', 'shared/art.js', 'shared/auth.js', 'shared/curriculum.js', 'shared/profile.js', 'shared/config.js', 'shared/pwa.js', 'shared/voice.js', 'shared/net.js', 'shared/race.js', 'shared/cerita.js', 'cerita.html',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'
 ].concat(...GAMES.map(g => ['games/' + g + '/index.html', 'games/' + g + '/game.js']));
 

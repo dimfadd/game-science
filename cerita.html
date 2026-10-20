@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Petualangan Mat Sains</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="shared/core.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#9ED8EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<style>
+  /* Petualangan: one chapter = a route of stops. Each stop is a villager who needs help (a
+     short comic panel), solved by playing one real level of a game. Opening and closing comics
+     frame the chapter. Data and the game-side hook: shared/cerita.js. */
+  html, body { height: 100%; }
+  body { margin: 0; overflow: hidden; background: #BFE6F2; color: var(--ink); font-family: var(--font-body); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* top bar */
+  .bar { position: fixed; z-index: 30; top: calc(10px + env(safe-area-inset-top, 0px)); left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); display: flex; align-items: center; gap: 10px; pointer-events: none; }
+  .bar > * { pointer-events: auto; }
+  .rbtn { flex: none; width: 64px; height: 64px; display: grid; place-items: center; border: 3px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink); box-shadow: 0 4px 0 var(--line); cursor: pointer; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .rbtn svg { width: 30px; height: 30px; }
+  .rbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+  .rbtn:focus-visible, .btn:focus-visible, .node:focus-visible { outline: 4px solid var(--primary); outline-offset: 3px; }
+  .ttl { flex: 1 1 auto; min-width: 0; min-height: 64px; display: flex; flex-direction: column; justify-content: center; padding: 4px 20px; background: var(--card); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line); }
+  .ttl small { font-family: var(--font-display); font-weight: 800; font-size: 15px; line-height: 1.1; color: #8A5A2B; }
+  .ttl b { font-family: var(--font-display); font-weight: 800; font-size: 22px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stars { flex: none; display: flex; align-items: center; gap: 6px; min-height: 64px; padding: 0 16px 0 10px; background: var(--card); border: 3px solid var(--line); border-radius: 999px; box-shadow: 0 4px 0 var(--line); font-family: var(--font-num); font-weight: 600; font-size: 24px; }
+  .stars svg { width: 34px; height: 34px; }
+
+  /* the route */
+  #route { position: fixed; inset: 0; }
+  #route svg.map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .node { cursor: pointer; }
+  .node .lm-in { transition: transform 160ms var(--ease-pop); }
+  .node:active .lm-in { transform: scale(0.94); }
+  .node.locked { cursor: default; }
+  .node.locked .lm-art { filter: grayscale(0.8) brightness(1.08); }
+  .node .ring { fill: none; stroke: var(--sun); stroke-width: 7; opacity: 0; }
+  .node.now .ring { opacity: 1; animation: ring 1.4s ease-in-out infinite alternate; }
+  @keyframes ring { from { stroke-opacity: 0.35; } to { stroke-opacity: 1; } }
+  .node.now .help { animation: bob 0.9s cubic-bezier(.37,0,.63,1) infinite alternate; }
+  @keyframes bob { to { transform: translateY(-8px); } }
+  .buddy { position: absolute; z-index: 5; width: 96px; height: 96px; margin: -92px 0 0 -48px; pointer-events: none; transition: left 1.4s cubic-bezier(.45,0,.55,1), top 1.4s cubic-bezier(.45,0,.55,1); }
+  .buddy svg { width: 100%; height: 100%; display: block; }
+  .buddy.flip svg { transform: scaleX(-1); }
+
+  /* chapter card (start / finished) */
+  .card-ov { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 12px max(14px, env(safe-area-inset-right, 0px)) 12px max(14px, env(safe-area-inset-left, 0px)); background: rgba(43, 29, 20, 0.45); }
+  .card-ov[hidden] { display: none; }
+  .ccard { width: min(560px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 4px solid var(--line); border-radius: 28px; box-shadow: 0 6px 0 var(--line); padding: 18px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+  .ccard h1, .ccard h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 32px; line-height: 1.1; }
+  .ccard p { margin: 0; font-size: 19px; line-height: 1.4; }
+  .ccard .kick { font-family: var(--font-display); font-weight: 800; font-size: 17px; color: #8A5A2B; }
+  .ccard .hero { width: 170px; height: 170px; }
+  .ccard .hero svg { width: 100%; height: 100%; display: block; }
+  .badge { width: 150px; height: 150px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 62px; padding: 0 24px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: 0 4px 0 var(--line); font-family: var(--font-display); font-weight: 800; font-size: 21px; cursor: pointer; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .btn.blue { background: var(--primary); color: #fff; }
+  .btn.sun { background: var(--sun); }
+  .btn.small { min-height: 54px; font-size: 18px; padding: 0 18px; }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+  .btn svg { width: 26px; height: 26px; }
+
+  /* the comic viewer: one panel at a time, art + speech box */
+  .cm { position: fixed; z-index: 80; inset: 0; display: flex; flex-direction: column; background: #2B1D14; padding: calc(8px + env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); gap: 8px; }
+  .cm[hidden] { display: none; }
+  .cm-art { position: relative; flex: 1 1 auto; min-height: 0; display: grid; place-items: center; }
+  .cm-art svg.panel { display: block; border: 4px solid #FFF8EC; border-radius: 18px; background: #9ED8EC; box-sizing: border-box; }
+  .cm-art svg.panel.pop { animation: pop 380ms var(--ease-pop); }
+  @keyframes pop { from { transform: scale(0.96); opacity: 0.4; } }
+  .cm-tag { position: absolute; left: 14px; top: 12px; padding: 2px 14px; background: var(--sun); border: 3px solid var(--line); border-radius: 999px; font-family: var(--font-display); font-weight: 800; font-size: 17px; }
+  .cm-skip { position: absolute; right: 10px; top: 8px; z-index: 2; min-height: 52px; padding: 0 16px; border: 3px solid var(--line); border-radius: 999px; background: var(--card); box-shadow: 0 3px 0 var(--line); font-family: var(--font-display); font-weight: 800; font-size: 17px; color: var(--ink); cursor: pointer; }
+  .cm-box { flex: none; display: grid; grid-template-columns: auto 1fr; grid-template-areas: "who txt" "nav nav"; gap: 8px 14px; align-items: center; background: var(--panel); border: 4px solid var(--line); border-radius: 22px; padding: 12px 16px; }
+  .cm-who { grid-area: who; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 88px; }
+  .cm-av { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; border: 3px solid var(--line); background: var(--sky-low); }
+  .cm-av svg { width: 100%; height: 100%; display: block; }
+  .cm-nm { font-family: var(--font-display); font-weight: 800; font-size: 16px; line-height: 1.1; text-align: center; }
+  .cm-txt { grid-area: txt; margin: 0; font-size: 22px; line-height: 1.4; font-weight: 700; }
+  .cm-nav { grid-area: nav; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .cm-dots { display: flex; gap: 6px; }
+  .cm-dots i { width: 12px; height: 12px; border-radius: 50%; background: #E6D7C0; border: 2px solid var(--line); }
+  .cm-dots i.on { background: var(--sun); }
+  .cm-nav .btn[hidden] { display: none; }
+  .cm-prev { width: 58px; padding: 0; }
+  /* short landscape phones: art on the left, the speech box on the right */
+  @media (max-height: 520px) and (orientation: landscape) {
+    .bar { left: calc(10px + env(safe-area-inset-left, 0px)); }
+    .ttl b { font-size: 20px; }
+    .cm { flex-direction: row; }
+    .cm-box { width: 300px; grid-template-columns: 1fr; grid-template-areas: "who" "txt" "nav"; align-content: center; padding: 10px 14px; }
+    .cm-who { flex-direction: row; width: auto; gap: 10px; }
+    .cm-av { width: 58px; height: 58px; }
+    .cm-nm { font-size: 18px; }
+    .cm-txt { font-size: 20px; }
+    .ccard { padding: 12px 18px; gap: 7px; }
+    .ccard .hero { width: 120px; height: 120px; }
+    .ccard h1, .ccard h2 { font-size: 26px; }
+    .badge { width: 110px; height: 110px; }
+  }
+  @media (max-width: 420px) { .ttl { padding: 4px 14px; } .ttl b { font-size: 19px; } .stars { padding: 0 12px 0 8px; font-size: 21px; } .cm-txt { font-size: 20px; } }
+  @media (prefers-reduced-motion: reduce) { .node.now .ring, .node.now .help, .cm-art svg.panel.pop { animation: none; } .buddy { transition: none; } }
+</style>
+</head>
+<body>
+<h1 class="sr" id="pageTitle">Petualangan</h1>
+<div id="route" aria-label="Rute petualangan"></div>
+<div class="bar">
+  <a class="rbtn" id="home" href="index.html" aria-label="Kembali ke peta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.2 12 4l8.5 7.2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9.5h4.5v-5h3v5H18V10" fill="#FFC83D" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/></svg></a>
+  <div class="ttl"><small id="chNo">Bab 1</small><b id="chTitle">Festival Kampung</b></div>
+  <div class="stars" id="chStars" aria-label="Bintang"></div>
+</div>
+<div class="card-ov" id="cardOv" hidden><div class="ccard" id="card" role="dialog" aria-modal="true" aria-labelledby="cardTitle"></div></div>
+<div class="cm" id="cm" hidden role="dialog" aria-modal="true" aria-label="Cerita">
+  <div class="cm-art" id="cmArt"></div>
+  <div class="cm-box">
+    <div class="cm-who"><div class="cm-av" id="cmAv"></div><div class="cm-nm" id="cmNm"></div></div>
+    <p class="cm-txt" id="cmTxt" aria-live="polite"></p>
+    <div class="cm-nav">
+      <button type="button" class="btn small cm-prev" id="cmPrev" aria-label="Sebelumnya"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="cm-dots" id="cmDots" aria-hidden="true"></div>
+      <button type="button" class="btn blue" id="cmNext">Lanjut</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared/core.js"></script>
+<script src="shared/art.js"></script>
+<script src="shared/config.js"></script>
+<script src="shared/auth.js"></script>
+<script src="shared/curriculum.js"></script>
+<script src="shared/voice.js"></script>
+<script src="shared/pwa.js"></script>
+<script src="shared/cerita.js"></script>
+<script>
+(function () {
+  'use strict';
+  const GS = window.GS, MS = window.MS, art = GS.art, C = MS.cerita;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const QP = new URLSearchParams(location.search);
+  const CH = C.get(QP.get('bab') || 'festival') || C.chapters[0];
+  const TIER = GS.tier ? GS.tier() : 'k1';
+  const N = CH.steps.length;
+  const STAR = on => '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z" fill="' + (on ? '#FFC83D' : '#EADBC4') + '" stroke="#3B2A20" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+  let P = C.progress(CH.id);
+  const nextStep = () => { for (let i = 0; i < N; i++) if (P.done.indexOf(i) < 0) return i; return N; };
+  const myName = C.nickname();
+
+  $('chNo').textContent = 'Bab ' + CH.no + ', Petualangan';
+  $('chTitle').textContent = CH.title;
+  $('pageTitle').textContent = 'Bab ' + CH.no + ': ' + CH.title;
+  document.title = 'Bab ' + CH.no + ': ' + CH.title;
+  function drawStars() {
+    const n = Object.keys(P.stars).reduce((a, k) => a + (P.stars[k] || 0), 0);
+    $('chStars').innerHTML = STAR(true) + '<b>' + n + '</b>';
+    $('chStars').setAttribute('aria-label', n + ' bintang di bab ini');
+  }
+
+  /* ---------------- comic panels ---------------- */
+  const W = 1280, H = 720, GY = 600;
+  function personSvg(p, size) { return '<svg viewBox="-27 -106 54 54" width="' + size + '" height="' + size + '" aria-hidden="true"><rect x="-40" y="-120" width="80" height="80" fill="#BFE6F2"/>' + art.person(p, { shadow: false }) + '</svg>'; }
+  function lights() {
+    // festival string lights across the top
+    let s = '<path d="M-40 70Q320 150 640 80T1320 70" fill="none" stroke="#3B2A20" stroke-width="4"/>';
+    const cols = ['#FFC83D', '#E2453C', '#4DAA57', '#2F80C9', '#F28C28'];
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16, x = -40 + t * 1360, y = t < 0.5 ? 70 + 4 * t * (1 - t) * 2 * 80 * 0.95 : 80 + 4 * (t - 0.5) * (1 - t) * 2 * -10;
+      s += '<circle cx="' + x.toFixed(0) + '" cy="' + (y + 14).toFixed(0) + '" r="11" fill="' + cols[i % 5] + '" stroke="#3B2A20" stroke-width="3"/>';
+    }
+    return s;
+  }
+  function night() {
+    let s = '<rect x="-800" y="0" width="2880" height="720" fill="#1B2350" opacity=".42"/>';
+    [[120, 60], [300, 130], [520, 40], [760, 110], [980, 50], [1180, 140], [420, 200], [1080, 210]].forEach(([x, y]) => { s += '<circle cx="' + x + '" cy="' + y + '" r="4" fill="#FFF3C4"/>'; });
+    s += '<circle cx="1120" cy="90" r="38" fill="#FFF3C4" stroke="#3B2A20" stroke-width="3"/><circle cx="1136" cy="80" r="34" fill="#3A4170" opacity=".55"/>';
+    return s;
+  }
+  function panelSvg(pn, ctx, tall) {
+    const cast = pn.cast || [ctx.who];
+    const VW = tall ? 640 : W;
+    let s = art.scene(pn.scene || ctx.scene || 'kampung', W, H);
+    if (pn.night || ctx.night) s += night();
+    if (pn.night || ctx.night || /festival/.test(CH.id) && pn.lights) s += lights();
+    const lm = pn.lm || ctx.lm;
+    if (lm) s += tall ? '<g transform="translate(560 ' + (GY - 8) + ') scale(1.6)">' + art.landmark(lm) + '</g>' : '<g transform="translate(1010 ' + (GY - 8) + ') scale(2.05)">' + art.landmark(lm) + '</g>';
+    // villagers stand right of the mascot, the speaker a little forward
+    const xs = tall ? (cast.length === 1 ? [470] : cast.length === 2 ? [400, 560] : [360, 480, 600]) : (cast.length === 1 ? [640] : cast.length === 2 ? [560, 760] : [500, 680, 860]);
+    cast.forEach((id, i) => {
+      const who = C.cast[id];
+      if (!who) return;
+      const speaking = (pn.s === 'w' && (pn.who || ctx.who) === id) || (pn.s === id);
+      s += '<g transform="translate(' + xs[i] + ' ' + GY + ') scale(' + (speaking ? 2.75 : 2.45) + ')">' + art.person(who.p) + '</g>';
+      if (speaking) s += '<path d="M' + (xs[i] - 18) + ' ' + (GY - 330) + 'h36l-18 26z" fill="#FFC83D" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/>';
+    });
+    const mx = tall ? -10 : 90;
+    s += '<svg x="' + mx + '" y="' + (GY - 300) + '" width="320" height="320" viewBox="0 0 200 200" overflow="visible">' + art.mascot({ mood: pn.mood || 'idle', size: 200, name: myName }).replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '') + '</svg>';
+    if (pn.s === 'm') s += '<path d="M' + (mx + 142) + ' ' + (GY - 330) + 'h36l-18 26z" fill="#FFC83D" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/>';
+    return '<svg class="panel pop" viewBox="0 0 ' + VW + ' ' + H + '" data-ar="' + (VW / H).toFixed(4) + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="' + esc(C.fill(pn.t)) + '">' + s + '</svg>';
+  }
+
+  let comic = null; // { panels, i, ctx, tag, done }
+  function openComic(panels, ctx, tag, done, lastLabel) {
+    comic = { panels, i: 0, ctx: ctx || {}, tag, done, lastLabel: lastLabel || 'Lanjut' };
+    $('cm').hidden = false;
+    $('cmDots').innerHTML = panels.map(() => '<i></i>').join('');
+    showPanel();
+    setTimeout(() => $('cmNext').focus(), 30);
+  }
+  function showPanel() {
+    const c = comic, pn = c.panels[c.i];
+    const sp = pn.s === 'm' ? null : C.cast[pn.s === 'w' ? (pn.who || c.ctx.who) : pn.s];
+    const box = $('cmArt'), tall = box.clientWidth < box.clientHeight * 1.2;
+    $('cmArt').innerHTML = panelSvg(pn, c.ctx, tall) + (c.tag ? '<span class="cm-tag">' + esc(c.tag) + '</span>' : '') +
+      '<button type="button" class="cm-skip" id="cmSkip">Lewati</button>';
+    // the mascot's own movement classes need the outer svg classes, so tag the inner one
+    const inner = $('cmArt').querySelector('svg.panel > svg');
+    if (inner) inner.setAttribute('class', 'gs-mascot gs-mood-' + (pn.mood || 'idle') + ' gs-char-' + (GS.mascotChar ? GS.mascotChar() : 'chuppy'));
+    $('cmAv').innerHTML = sp ? personSvg(sp.p, 72) : art.mascotHead(GS.mascotChar ? GS.mascotChar() : 'chuppy', 72, pn.mood === 'cheer' ? 'cheer' : 'happy');
+    $('cmNm').textContent = sp ? sp.name : myName;
+    const text = C.fill(pn.t);
+    $('cmTxt').textContent = text;
+    [...$('cmDots').children].forEach((d, k) => d.classList.toggle('on', k <= c.i));
+    $('cmPrev').hidden = c.i === 0;
+    $('cmNext').textContent = c.i === c.panels.length - 1 ? c.lastLabel : 'Lanjut';
+    $('cmSkip').addEventListener('click', () => { GS.sfx.click(); endComic(); });
+    fitPanel();
+    GS.say(text);
+  }
+  // the panel keeps its shape and fills the space it has (no cropping)
+  function fitPanel() {
+    const box = $('cmArt'), sv = box.querySelector('svg.panel');
+    if (!sv) return;
+    const ar = +sv.getAttribute('data-ar'), bw = box.clientWidth, bh = box.clientHeight;
+    const w = Math.min(bw, bh * ar);
+    sv.style.width = w.toFixed(0) + 'px'; sv.style.height = (w / ar).toFixed(0) + 'px';
+  }
+  addEventListener('resize', () => { if (comic) showPanelQuiet(); });
+  function showPanelQuiet() { const t = GS.say; GS.say = () => {}; try { showPanel(); } finally { GS.say = t; } }
+  function endComic() {
+    const c = comic; comic = null;
+    $('cm').hidden = true;
+    GS.stopSpeech && GS.stopSpeech();
+    if (c && c.done) c.done();
+  }
+  $('cmNext').addEventListener('click', () => {
+    if (!comic) return;
+    GS.sfx.click();
+    if (comic.i < comic.panels.length - 1) { comic.i++; showPanel(); return; }
+    // "Ayo bantu!" on the last panel of a villager's request opens the game; "Lewati" only closes
+    if (comic.go != null) { const i = comic.go; comic = null; $('cm').hidden = true; startGame(i); return; }
+    endComic();
+  });
+  $('cmPrev').addEventListener('click', () => { if (comic && comic.i > 0) { GS.sfx.click(); comic.i--; showPanel(); } });
+  addEventListener('keydown', e => { if (comic && e.key === 'Escape') endComic(); });
+
+  /* ---------------- the route ---------------- */
+  let pos = [], buddyAt = -1;
+  function layout() {
+    const w = innerWidth, h = innerHeight;
+    const short = h <= 520 && w > h;
+    const top = short ? 84 : 92, bottom = 18, side = 14;
+    const wide = w > h * 1.1;
+    const cell = wide ? Math.min((w - 2 * side) / N, (h - top) * 0.62) : Math.min(w * 0.5, (h - top - bottom) / N * 1.2);
+    const k = Math.max(0.42, Math.min(1.05, cell / 215));
+    const yTop = top + 212 * k + 6, yBot = h - bottom - 46 * k;
+    pos = [];
+    for (let i = 0; i < N; i++) {
+      if (wide) pos.push({ x: side + 105 * k + (i / (N - 1)) * (w - 2 * side - 210 * k), y: i % 2 ? yBot : Math.min(yBot, yTop) });
+      else pos.push({ x: w * (i % 2 ? 0.68 : 0.32), y: yTop + (i / (N - 1)) * (yBot - yTop) });
+    }
+    return { w, h, k, wide };
+  }
+  function drawRoute() {
+    const L = layout(), n = nextStep();
+    let d = 'M' + pos[0].x + ' ' + pos[0].y;
+    for (let i = 1; i < N; i++) { const a = pos[i - 1], b = pos[i]; d += L.wide ? 'C' + ((a.x + b.x) / 2) + ' ' + a.y + ' ' + ((a.x + b.x) / 2) + ' ' + b.y + ' ' + b.x + ' ' + b.y : 'C' + a.x + ' ' + ((a.y + b.y) / 2) + ' ' + b.x + ' ' + ((a.y + b.y) / 2) + ' ' + b.x + ' ' + b.y; }
+    let s = '<svg class="map" viewBox="0 0 ' + L.w + ' ' + L.h + '" aria-hidden="false">';
+    // ground: a soft field with a few trees and houses
+    s += '<rect width="' + L.w + '" height="' + L.h + '" fill="#BFE6F2"/><path d="M0 ' + (L.h * 0.22) + 'Q' + (L.w * 0.5) + ' ' + (L.h * 0.14) + ' ' + L.w + ' ' + (L.h * 0.22) + 'V' + L.h + 'H0Z" fill="#9FD38A"/>';
+    s += '<path d="M0 ' + (L.h * 0.3) + 'Q' + (L.w * 0.4) + ' ' + (L.h * 0.25) + ' ' + L.w + ' ' + (L.h * 0.34) + 'V' + L.h + 'H0Z" fill="#8CC97A"/>';
+    s += '<path d="' + d + '" fill="none" stroke="#3B2A20" stroke-width="' + (30 * L.k + 6) + '" stroke-linecap="round"/><path d="' + d + '" fill="none" stroke="#E9C98F" stroke-width="' + (30 * L.k) + '" stroke-linecap="round"/>';
+    s += '<path d="' + d + '" fill="none" stroke="#FFF3D6" stroke-width="' + (4 * L.k + 1) + '" stroke-dasharray="' + (14 * L.k) + ' ' + (16 * L.k) + '" stroke-linecap="round"/>';
+    for (let i = 0; i < N; i++) {
+      const st = CH.steps[i], p = pos[i], done = P.done.indexOf(i) >= 0, now = i === n, locked = i > n;
+      const stars = P.stars[i] || 0;
+      s += '<g class="node' + (done ? ' done' : '') + (now ? ' now' : '') + (locked ? ' locked' : '') + '" data-i="' + i + '" role="button" tabindex="0" data-hit aria-label="' + esc((i + 1) + '. ' + st.name + ', ' + C.cast[st.who].name + (done ? ', selesai, ' + stars + ' bintang' : now ? ', butuh bantuan' : ', belum terbuka')) + '" transform="translate(' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ')">';
+      s += '<g class="lm-in"><ellipse class="ring" cx="0" cy="-2" rx="' + (118 * L.k) + '" ry="' + (34 * L.k) + '"/>';
+      s += '<g class="lm-art" transform="scale(' + L.k.toFixed(3) + ')">' + art.landmark(st.lm) + '</g>';
+      // hit area covers the landmark
+      s += '<rect x="' + (-105 * L.k) + '" y="' + (-185 * L.k) + '" width="' + (210 * L.k) + '" height="' + (205 * L.k) + '" fill="transparent"/>';
+      // number badge
+      s += '<g transform="translate(' + (-88 * L.k) + ' ' + (-150 * L.k) + ')"><circle r="' + (24 * L.k + 6) + '" fill="' + (done ? '#4DAA57' : now ? '#FFC83D' : '#E6D7C0') + '" stroke="#3B2A20" stroke-width="3"/>' +
+        (done ? '<path d="M' + (-10 * L.k - 3) + ' 0l' + (7 * L.k + 2) + ' ' + (7 * L.k + 2) + 'l' + (14 * L.k + 4) + ' ' + (-15 * L.k - 4) + '" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' :
+          locked ? '<path d="M-7 -2v-5a7 7 0 0 1 14 0v5" fill="none" stroke="#3B2A20" stroke-width="3.4"/><rect x="-10" y="-2" width="20" height="15" rx="3" fill="#B9A68B" stroke="#3B2A20" stroke-width="3"/>' :
+            '<text y="' + (9 * L.k + 3) + '" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="600" font-size="' + (28 * L.k + 8) + '" fill="#3B2A20">' + (i + 1) + '</text>') + '</g>';
+      if (done) s += '<g transform="translate(0 ' + (36 * L.k + 4) + ')">' + [0, 1, 2].map(k => '<g transform="translate(' + ((k - 1) * (30 * L.k + 8)) + ' 0) scale(' + (1.1 * L.k + 0.35) + ') translate(-12 -12)">' + STAR(k < stars).replace(/<\/?svg[^>]*>/g, '') + '</g>').join('') + '</g>';
+      if (now) s += '<g class="help" transform="translate(' + (70 * L.k) + ' ' + (-190 * L.k) + ')"><g><circle r="' + (22 * L.k + 8) + '" fill="#FFF8EC" stroke="#3B2A20" stroke-width="3.4"/><text y="' + (12 * L.k + 4) + '" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="' + (36 * L.k + 10) + '" fill="#E2453C">!</text></g></g>';
+      s += '</g></g>';
+    }
+    s += '</svg>';
+    $('route').innerHTML = s + '<div class="buddy" id="buddy">' + art.mascot({ mood: 'idle', size: 96 }) + '</div>';
+    $('route').querySelectorAll('.node').forEach(g => {
+      const act = () => tapNode(+g.getAttribute('data-i'));
+      g.addEventListener('click', act);
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
+    });
+    placeBuddy(buddyAt < 0 ? Math.min(n, N - 1) : buddyAt, true);
+    drawStars();
+  }
+  function placeBuddy(i, instant) {
+    const b = $('buddy'); if (!b || !pos[i]) return;
+    const L = layout(), p = pos[i];
+    const k = L.k, bw = 96 * Math.max(0.75, k);
+    const x = Math.max(bw / 2 + 4, Math.min(L.w - bw / 2 - 4, p.x - 92 * k)), y = p.y + 14 * k;
+    if (instant) { b.style.transition = 'none'; requestAnimationFrame(() => { b.style.transition = ''; }); }
+    b.style.left = x.toFixed(0) + 'px'; b.style.top = y.toFixed(0) + 'px';
+    b.style.width = b.style.height = (96 * Math.max(0.75, k)).toFixed(0) + 'px';
+    b.style.marginTop = (-92 * Math.max(0.75, k)).toFixed(0) + 'px';
+    b.style.marginLeft = (-48 * Math.max(0.75, k)).toFixed(0) + 'px';
+    buddyAt = i;
+  }
+  function walkTo(i, then) {
+    const b = $('buddy');
+    if (!b || buddyAt === i || GS.reducedMotion) { placeBuddy(i, true); if (then) then(); return; }
+    const from = pos[buddyAt] || pos[i];
+    b.classList.toggle('flip', pos[i].x < from.x);
+    const m = b.querySelector('.gs-mascot'); if (m) m.classList.add('walk');
+    placeBuddy(i);
+    setTimeout(() => { if (m) m.classList.remove('walk'); b.classList.remove('flip'); if (then) then(); }, 1500);
+  }
+
+  function tapNode(i) {
+    const n = nextStep();
+    if (i > n) { GS.sfx.click(); GS.say('Bantu warga yang sebelumnya dulu, ya.'); return; }
+    GS.sfx.click();
+    walkTo(i, () => askStep(i));
+  }
+  function askStep(i) {
+    const st = CH.steps[i];
+    openComic(st.ask.map(a => Object.assign({ who: st.who }, a)), { scene: st.scene, lm: st.lm, who: st.who, night: st.night }, (i + 1) + '. ' + st.name, null, 'Ayo bantu!');
+    comic.go = i;
+  }
+  function startGame(i) {
+    location.href = 'games/' + CH.steps[i].game + '/index.html?story=' + CH.id + '&step=' + i;
+  }
+
+  /* ---------------- chapter cards ---------------- */
+  function card(html) { $('card').innerHTML = html; $('cardOv').hidden = false; const b = $('card').querySelector('.btn'); if (b) setTimeout(() => b.focus(), 30); }
+  function hideCard() { $('cardOv').hidden = true; }
+  const badgeSvg = () => '<svg class="badge" viewBox="0 0 120 120" aria-hidden="true"><path d="M38 70 26 112l18-8 10 14 8-40zM82 70l12 42-18-8-10 14-8-40z" fill="#E2453C" stroke="#3B2A20" stroke-width="4" stroke-linejoin="round"/><circle cx="60" cy="50" r="40" fill="#FFC83D" stroke="#3B2A20" stroke-width="5"/><circle cx="60" cy="50" r="29" fill="#FFE08A" stroke="#3B2A20" stroke-width="3"/>' +
+    '<path d="M60 30l6 12.5 13.5 2-9.8 9.5 2.3 13.5L60 61l-12 6.5 2.3-13.5-9.8-9.5 13.5-2z" fill="#F28C28" stroke="#3B2A20" stroke-width="3" stroke-linejoin="round"/></svg>';
+  function startCard() {
+    card('<span class="kick">Bab ' + CH.no + '</span><h1 id="cardTitle">' + esc(CH.title) + '</h1>' +
+      '<div class="hero">' + art.mascot({ mood: 'happy', size: 170 }) + '</div>' +
+      '<p>Warga kampung butuh bantuan ' + esc(myName) + ' untuk menyiapkan festival nanti malam.</p>' +
+      '<div class="row"><button type="button" class="btn blue" id="goIntro">Mulai cerita</button></div>');
+    $('goIntro').addEventListener('click', () => {
+      GS.sfx.click(); hideCard();
+      P.opened = true; C.save(CH.id, P);
+      openComic(CH.intro, { scene: 'kampung' }, 'Bab ' + CH.no, () => walkTo(0, () => askStep(0)), 'Ayo mulai!');
+    });
+  }
+  function finishCard() {
+    card('<span class="kick">Bab ' + CH.no + ' selesai</span><h2 id="cardTitle">Lencana ' + esc(CH.badge) + '</h2>' + badgeSvg() +
+      '<p>Hebat, ' + esc(myName) + '! Kamu sudah menolong semua warga kampung.</p>' +
+      '<p><b>Bab 2 segera hadir.</b></p>' +
+      '<div class="row"><button type="button" class="btn small" id="reOutro">Lihat cerita lagi</button><a class="btn blue" href="index.html">Ke peta</a></div>');
+    try { GS.confetti(innerWidth / 2, innerHeight * 0.35, 90); } catch (e) { /* ignore */ }
+    GS.sfx.win();
+    GS.say('Hebat! Kamu dapat lencana ' + CH.badge + '. Bab dua segera hadir.');
+    $('reOutro').addEventListener('click', () => { GS.sfx.click(); hideCard(); openComic(CH.outro, { scene: 'kampung' }, 'Bab ' + CH.no, finishCard, 'Selesai'); });
+  }
+  $('cardOv').addEventListener('click', e => { if (e.target === $('cardOv') && P.opened) hideCard(); });
+
+  /* ---------------- start ---------------- */
+  drawRoute();
+  addEventListener('resize', () => { const b = buddyAt; drawRoute(); placeBuddy(b, true); });
+  const dari = parseInt(QP.get('dari'), 10);
+  const n = nextStep();
+  if (!P.opened) startCard();
+  else if (n >= N && !P.closed) {
+    // the last obstacle is solved: the closing comic, then the badge
+    placeBuddy(N - 1, true);
+    P.closed = true; C.save(CH.id, P);
+    setTimeout(() => openComic(CH.outro, { scene: 'kampung' }, 'Bab ' + CH.no + ' selesai', finishCard, 'Selesai'), 500);
+  } else if (n >= N) {
+    placeBuddy(N - 1, true);
+    finishCard();
+  } else if (!isNaN(dari) && P.done.indexOf(dari) >= 0 && dari + 1 === n) {
+    // back from a solved obstacle: walk on to the next villager, who asks for help
+    placeBuddy(dari, true);
+    setTimeout(() => walkTo(n, () => askStep(n)), 600);
+  } else {
+    placeBuddy(n, true);
+    GS.say(C.cast[CH.steps[n].who].name + ' butuh bantuan. Ketuk tempatnya, ya!');
+  }
+
+  window.__cerita = { chapter: () => CH.id, next: nextStep, progress: () => C.progress(CH.id), comic: () => (comic ? { i: comic.i, n: comic.panels.length } : null), tier: () => TIER };
+})();
+</script>
+</body>
+</html>

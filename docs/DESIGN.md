@@ -11,6 +11,7 @@ Dokumen ini adalah sintesis dari empat brainstorming spesialis (didaktik matemat
 4. **Anti-tebak tanpa hukuman.** Ruang jawaban besar (anak membangun jumlah dengan menyeret, tidak memilih dari 3 opsi). Ada jeda pendek antara rencana dan hasil (animasi dunia). Kegagalan bersifat informatif (tunjukkan arah dan besar selisihnya). Tidak ada nyawa, tidak ada timer, tidak ada buzzer merah. Angka diacak setiap sesi.
 5. **Bintang untuk efisiensi, bukan kecepatan.** 3 bintang = berhasil pada percobaan pertama, 2 = dengan 1–2 percobaan ulang, 1 = berhasil.
 6. **Kebenaran fisika.** Lihat bagian 6. Simulasi tidak boleh "membantu" jawaban salah supaya berhasil.
+7. **Cerita membingkai, game yang menyelesaikan.** Di mode Petualangan (`cerita.html`), rintangan dalam cerita selalu satu level game asli (angkot harus pas, rakit tidak boleh tenggelam), tidak pernah "jawab soal supaya bisa lanjut". Komik pendek (1 sampai 2 panel per warga, 3 sampai 4 di awal dan akhir bab), selalu dibacakan dan bisa dilewati, gambarnya bisa dipahami tanpa membaca.
 
 ## 2. Gaya visual: "Kampung Chunky"
 
