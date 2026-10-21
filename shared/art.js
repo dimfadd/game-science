@@ -1297,6 +1297,188 @@
       s += limb('M0 -112L0 -136', 3.2, '#2F80C9', 1.6) + limb('M0 -112L14 -104', 4.2, '#F28C28', 1.6) + solid(C(0, -112, 4), '#D9A441', 1.6);
       s += ln('M-20 -64V-56', 2) + f3(R(-26, -56, 12, 34, 5), [-26, -56, 12, 34], PAL.bamboo, { hl: false, k: 0.2 }) + R(-22, -50, 4, 20, 2)(fl('#6B4A20'));
       return s;
+    },
+    /* landmark: bengkel (game Bengkel Kayu) */
+    bengkel() {
+      // open woodworking shed: plank wall with a ruler and a carpenter's square, a workbench with a plank and a saw, planks stacked outside
+      let s = shadow(88) + grassBase(90);
+      s += f3(R(-86, -128, 8, 124, 2), [-86, -128, 8, 124], PAL.wood, { hl: false, k: 0.3 }) + f3(R(38, -128, 8, 124, 2), [38, -128, 8, 124], PAL.wood, { hl: false, k: 0.3 });
+      s += f3(R(-78, -124, 116, 64, 2), [-78, -124, 116, 64], ['#D29A62', '#E6B888', '#A8703E'], { hl: false, k: 0.06, top: ln('M-52 -124V-60M-26 -124V-60M0 -124V-60M26 -124V-60', 1.4, '#A8703E', 0.7) });
+      // ruler with ticks and a carpenter's square hanging on the wall
+      let ticks = '';
+      for (let i = 0; i <= 10; i++) ticks += `M${-66 + i * 4.6} -116v${i % 5 ? 3 : 5.5}`;
+      s += solid(R(-68, -118, 50, 10, 2), '#FFC83D', 2.2) + ln(ticks, 1.2, '#7A5518');
+      s += f3(P('M2 -120H10V-100H34V-92H2Z'), [2, -120, 32, 28], PAL.steel, { hl: false, k: 0.2, sw: 2.2 }) + ln('M6 -115h2M6 -110h2M6 -105h2M17 -96v-2M23 -96v-2M29 -96v-2', 1, '#3B2A20', 0.8);
+      // roof
+      s += f3(P('M-100 -122L58 -122L46 -156L-90 -156Z'), [-100, -156, 158, 34], PAL.roof, { k: 0.1, hx: 0.3, hy: 0.4, inner: ln('M-80 -122l4 -34M-58 -122l4 -34M-36 -122l4 -34M-14 -122l4 -34M8 -122l4 -34M30 -122l4 -34', 1.4, '#963F22', 0.6) });
+      // workbench
+      s += f3(R(-68, -54, 7, 50, 2), [-68, -54, 7, 50], PAL.wood, { hl: false, k: 0.3, sw: 2.4 }) + f3(R(19, -54, 7, 50, 2), [19, -54, 7, 50], PAL.wood, { hl: false, k: 0.3, sw: 2.4 });
+      s += ln('M-61 -24H19', 3.4, '#7E4A27');
+      s += E(-22, -6, 18, 4)(fl('#F2DCAA'));
+      s += f3(R(-76, -62, 110, 10, 3), [-76, -62, 110, 10], PAL.wood, { hl: false, k: 0.25, sw: 2.6 });
+      s += f3(R(-66, -73, 78, 11, 2), [-66, -73, 78, 11], ['#E8C08A', '#F5DAB0', '#C49A62'], { hl: false, k: 0.2, sw: 2.4 }) + ln('M-30 -73V-62', 1.6, '#3B2A20', 0.6);
+      // saw resting on the plank
+      let teeth = 'M-40 -76';
+      for (let x = -37; x <= 2; x += 3) teeth += `L${x} ${x % 2 ? -73.5 : -76}`;
+      s += solid(P('M-42 -76L4 -76L4 -90L-40 -82Z'), '#D6DCE2', 2.2) + ln(teeth, 1.2, '#626A74') + ln('M-34 -80L-4 -86', 1.6, '#fff', 0.8);
+      s += f3(P('M2 -92H18Q22 -92 22 -88V-78Q22 -74 18 -74H2Z'), [2, -92, 20, 18], PAL.red, { hl: false, k: 0.15, sw: 2.2 }) + solid(R(8, -88, 8, 9, 3), '#6B4A36', 1.6);
+      // stacked planks outside, one leaning
+      s += f3(P('M50 -40L60 -42L54 -108L46 -106Z'), [46, -108, 14, 68], ['#E8C08A', '#F5DAB0', '#C49A62'], { hl: false, k: 0.25, sw: 2.2 });
+      [['#C98B55', 0], ['#E8C08A', 4], ['#D7A46E', -2], ['#E8C08A', 3]].forEach(([c, dx], i) => {
+        const y = -12 - i * 9;
+        s += f3(R(48 + dx, y, 46, 9, 2), [48 + dx, y, 46, 9], [c, null, null], { hl: false, k: 0.25, sw: 2.2 }) + solid(E(48 + dx + 46, y + 4.5, 2.6, 4.5), '#F5DAB0', 1.4);
+      });
+      return s;
+    },
+    /* landmark: denah (game Chuppy Jalan-jalan) */
+    denah() {
+      // a 3 x 3 tiled plaza seen slightly from above: arrow tiles lead from the start to the flag; a signpost with arrows
+      let s = shadow(92) + f3(E(0, -50, 100, 50), [-100, -100, 200, 100], PAL.grass, { hl: false, k: 0.08, sw: 2.6 });
+      const pt = (u, v) => { const y = -116 + 92 * (0.82 * v + 0.18 * v * v), hw = 58 + 28 * v; return [n1((u * 2 - 1) * hw), n1(y)]; };
+      const poly = list => 'M' + list.map(p => p.join(' ')).join('L') + 'Z';
+      const tileP = (c, r, a0, b0, a1, b1) => poly([pt((c + a0) / 3, (r + b0) / 3), pt((c + a1) / 3, (r + b0) / 3), pt((c + a1) / 3, (r + b1) / 3), pt((c + a0) / 3, (r + b1) / 3)]);
+      // front face of the slab
+      const fl0 = pt(0, 1), fr0 = pt(1, 1);
+      s += f3(P(`M${fl0[0]} ${fl0[1]}L${fr0[0]} ${fr0[1]}L${fr0[0] - 2} ${fr0[1] + 10}L${fl0[0] + 2} ${fl0[1] + 10}Z`), [fl0[0], fl0[1], fr0[0] - fl0[0], 10], PAL.stone, { hl: false, k: 0.2, sw: 2.6 });
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+        const goal = c === 2 && r === 0, col = goal ? '#BFE6B0' : (r + c) % 2 ? '#E6CF9C' : '#F6E6C2';
+        s += P(tileP(c, r, 0.05, 0.07, 0.95, 0.93))(`fill="${col}" stroke="#B89868" stroke-width="1.6" stroke-linejoin="round"`);
+      }
+      s += P(poly([pt(0, 0), pt(1, 0), pt(1, 1), pt(0, 1)]))(stk(2.8));
+      // arrows: start (0,2) up, (0,1) right, (1,1) right, (2,1) up
+      const up = [[0.5, 0.16], [0.84, 0.5], [0.63, 0.5], [0.63, 0.84], [0.37, 0.84], [0.37, 0.5], [0.16, 0.5]];
+      [[0, 2, 0, '#F28C28'], [0, 1, 1, '#2F80C9'], [1, 1, 1, '#2F80C9'], [2, 1, 0, '#F28C28']].forEach(([c, r, rot, colr]) => {
+        const p = up.map(([a, b]) => rot ? [1 - b, a] : [a, b]).map(([a, b]) => pt((c + a) / 3, (r + b) / 3));
+        s += solid(P(poly(p)), colr, 2);
+      });
+      // start ring on the first tile
+      const st = pt(0.5 / 3, 2.85 / 3);
+      s += E(st[0], st[1] - 2, 6, 2.6)(fl('#3B2A20', 0.25));
+      // goal flag
+      const gp = pt(2.5 / 3, 0.55 / 3);
+      s += E(gp[0], gp[1], 10, 3.5)(fl('#3B2A20', 0.2)) + limb(`M${gp[0]} ${gp[1]}V${gp[1] - 54}`, 3, '#8C8F94', 1.6) + dot(gp[0], gp[1] - 56, 3.2, '#FFC83D') + `<circle cx="${gp[0]}" cy="${gp[1] - 56}" r="3.2" ${stk(1.6)}/>`;
+      s += f3(P(`M${gp[0] + 1.5} ${gp[1] - 52}L${gp[0] + 30} ${gp[1] - 44}L${gp[0] + 1.5} ${gp[1] - 34}Z`), [gp[0], gp[1] - 52, 29, 18], PAL.red, { hl: false, k: 0.15, sw: 2.2 });
+      // signpost at the left
+      s += f3(R(-96, -150, 7, 92, 2), [-96, -150, 7, 92], PAL.wood, { hl: false, k: 0.3, sw: 2.4 }) + E(-92.5, -58, 9, 3)(fl('#3B2A20', 0.18));
+      s += f3(P('M-82 -146H-58L-46 -138L-58 -130H-82Z'), [-82, -146, 36, 16], PAL.yellow, { hl: false, k: 0.18, sw: 2.2 }) + ln('M-78 -138H-62M-66 -142L-62 -138L-66 -134', 1.8, '#7A5518');
+      s += f3(P('M-90 -124H-70V-108H-90L-104 -116Z'), [-104, -124, 34, 16], PAL.green, { hl: false, k: 0.18, sw: 2.2 }) + ln('M-80 -116H-96M-92 -120L-96 -116L-92 -112', 1.8, '#FFF8EC');
+      s += solid(C(-92.5, -152, 4), '#C68654', 2);
+      // a small bush at the back right
+      s += f3(P(scallop(84, -84, 16, 11, 7, 3, 9)), [66, -97, 36, 26], PAL.leaf, { hl: false, k: 0.14, sw: 2.2 });
+      return s;
+    },
+    /* landmark: dapur (game Dapur Bu Sari) */
+    dapur() {
+      // open kampung kitchen: clay tungku with a flame and a steaming pot, a shelf with a teapot, a table with a measuring jug and cups
+      let s = shadow(88) + grassBase(90);
+      s += f3(R(-84, -132, 8, 128, 2), [-84, -132, 8, 128], PAL.bamboo, { hl: false, k: 0.3 }) + f3(R(76, -132, 8, 128, 2), [76, -132, 8, 128], PAL.bamboo, { hl: false, k: 0.3 });
+      s += f3(R(-76, -128, 152, 74, 2), [-76, -128, 152, 74], PAL.bamboo, { hl: false, k: 0.05, inner: texture('weave', -76, -128, 152, 74, '#6B4A20', 0.14, 8) });
+      // shelf with jars and the teapot
+      s += f3(R(-8, -98, 80, 7, 2), [-8, -98, 80, 7], PAL.wood, { hl: false, k: 0.25, sw: 2.4 }) + ln('M0 -91l6 8M64 -91l-6 8', 2.6, '#7E4A27');
+      s += solid(R(-2, -116, 13, 18, 3), '#DDF3F8', 2) + R(0, -108, 9, 8, 1.5)(fl('#E2453C')) + solid(R(-3, -119, 15, 4, 1.5), '#A8673A', 1.6);
+      s += solid(R(14, -112, 11, 14, 3), '#DDF3F8', 2) + R(16, -105, 7, 5, 1.5)(fl('#FFC83D')) + solid(R(13, -115, 13, 4, 1.5), '#A8673A', 1.6);
+      s += limb('M58 -110Q70 -110 68 -100', 2.4, '#C68654', 1.6) + limb('M38 -106L28 -116', 3, '#2F80C9', 1.6);
+      s += f3(P('M36 -98C32 -106 36 -116 48 -116C60 -116 64 -106 60 -98Z'), [32, -116, 32, 18], PAL.blue, { k: 0.15, sw: 2.2 }) + solid(R(42, -121, 12, 5, 2), '#215F98', 1.6) + dot(48, -123, 2.2, '#FFC83D');
+      // thatch roof
+      s += f3(P('M-100 -124L100 -124L80 -164L-80 -164Z'), [-100, -164, 200, 40], PAL.rattan, { k: 0.1, hx: 0.3, hy: 0.4, inner: ln('M-90 -134H90M-84 -146H84M-80 -156H80', 1.6, '#9A6E36', 0.6) });
+      for (let x = -96; x < 100; x += 12) s += ln(`M${x} -124l2 6`, 2, '#9A6E36');
+      // tungku: clay stove with a fire mouth, burning sticks
+      s += f3(P('M-76 -6L-70 -48Q-46 -54 -16 -48L-10 -6Z'), [-76, -54, 66, 48], ['#C8643B', '#E08A62', '#963F22'], { k: 0.12, hx: 0.25, hy: 0.3 });
+      s += solid(P('M-56 -6V-20Q-56 -32 -43 -32Q-30 -32 -30 -20V-6Z'), '#3A2420', 2.2);
+      s += solid(P('M-43 -30C-36 -22 -35 -16 -38 -10C-40 -7 -46 -7 -48 -10C-51 -16 -50 -22 -43 -30Z'), '#F28C28', 1.6) + P('M-43 -22C-40 -18 -40 -14 -42 -12C-43 -11 -45 -11 -46 -12C-47 -15 -46 -18 -43 -22Z')(fl('#FFE08A'));
+      s += limb('M-60 -8L-36 -14M-26 -8L-48 -14', 3.2, '#A8673A', 1.6);
+      // pot on the stove with steam
+      s += f3(P('M-68 -48Q-70 -66 -60 -72H-26Q-16 -66 -18 -48Z'), [-70, -72, 54, 24], ['#4A4448', '#6E676B', '#2E2A2C'], { k: 0.12, hx: 0.25, hy: 0.3 }) + solid(R(-66, -76, 46, 6, 3), '#5A5356', 2.2) + spec(-58, -66, 1.4);
+      s += ln('M-72 -64h4M-18 -64h4', 3.2);
+      s += ln('M-52 -82Q-58 -90 -52 -98Q-46 -106 -52 -114M-34 -82Q-40 -92 -34 -100Q-28 -108 -34 -116', 3.4, '#FFFFFF', 0.85);
+      // table with a measuring jug (water at a level line) and three cups of different sizes
+      s += f3(R(6, -52, 76, 8, 3), [6, -52, 76, 8], PAL.wood, { hl: false, k: 0.25, sw: 2.4 }) + f3(R(12, -44, 6, 40, 2), [12, -44, 6, 40], PAL.wood, { hl: false, k: 0.3, sw: 2.2 }) + f3(R(70, -44, 6, 40, 2), [70, -44, 6, 40], PAL.wood, { hl: false, k: 0.3, sw: 2.2 });
+      s += P('M16 -66L18 -52H40L42 -66Z')(fl('#5FB6D6', 0.85));
+      s += P('M14 -86L18 -52H40L44 -86L48 -90H14Z')(`fill="#DDF3F8" fill-opacity=".5" stroke="${OL}" stroke-width="2.2" stroke-linejoin="round"`) + ln('M16 -66h8M15 -76h8M17 -58h6', 1.4) + ln('M44 -82Q54 -80 52 -68Q50 -60 42 -60', 2.6) + ln('M20 -82l2 18', 2, '#fff', 0.8);
+      s += f3(P('M52 -68L54 -52H66L68 -68Z'), [52, -68, 16, 16], PAL.red, { hl: false, k: 0.15, sw: 2 }) + f3(P('M70 -62L71.5 -52H79L80 -62Z'), [70, -62, 10, 10], PAL.yellow, { hl: false, k: 0.15, sw: 1.8 });
+      return s;
+    },
+    /* landmark: sanggar (game Angklung Ajaib) */
+    sanggar() {
+      // bamboo music hut (pendopo) with four angklung on a rack: the longer the tube, the taller the angklung
+      let s = shadow(88) + grassBase(90);
+      s += f3(R(-88, -146, 8, 142, 2), [-88, -146, 8, 142], PAL.bamboo, { hl: false, k: 0.3 }) + f3(R(80, -146, 8, 142, 2), [80, -146, 8, 142], PAL.bamboo, { hl: false, k: 0.3 });
+      s += ln('M-84 -112v-1M-84 -78v-1M-84 -44v-1M84 -112v-1M84 -78v-1M84 -44v-1', 5, '#B8924F');
+      s += f3(R(-80, -136, 160, 56, 2), [-80, -136, 160, 56], ['#E9D3A4', '#F5E6C4', '#C9AE78'], { hl: false, k: 0.04, inner: texture('weave', -80, -136, 160, 56, '#6B4A20', 0.07, 8) });
+      s += f3(P('M-100 -138L-42 -170L42 -170L100 -138Z'), [-100, -170, 200, 32], PAL.rattan, { k: 0.1, hx: 0.3, hy: 0.4, inner: ln('M-78 -150H78M-60 -160H60', 1.6, '#9A6E36', 0.6) });
+      for (let x = -96; x <= 96; x += 12) s += ln(`M${x} -138l1 6`, 2, '#9A6E36');
+      s += f3(R(-48, -178, 96, 11, 5), [-48, -178, 96, 11], ['#B9794A', '#D49A68', '#8A5530'], { hl: false, k: 0.2, sw: 2.4 });
+      // rack
+      s += f3(R(-84, -20, 168, 10, 4), [-84, -20, 168, 10], PAL.bamboo, { hl: false, k: 0.25, sw: 2.4 }) + ln('M-76 -10V-4M76 -10V-4', 4, '#B8924F');
+      // four angklung, tallest at the left
+      [[-56, 112, '#E3C27F'], [-18, 94, '#E3C27F'], [20, 78, '#E3C27F'], [56, 62, '#E3C27F']].forEach(([x, H]) => {
+        const by = -22, top = by - H, w = 15;
+        // frame
+        s += limb(`M${x - w} ${by}V${top}M${x + w} ${by}V${top}`, 3.4, '#7FB548', 1.6);
+        s += limb(`M${x - w - 3} ${top + 2}H${x + w + 3}M${x - w} ${n1(by - H * 0.55)}H${x + w}`, 3.4, '#7FB548', 1.6);
+        // two tubes: long one and its octave (half as long)
+        const tube = (tx, th, tw) => f3(R(tx - tw, by - th, 2 * tw, th - 6, tw), [tx - tw, by - th, 2 * tw, th - 6], PAL.bamboo, { hl: false, k: 0.2, sw: 2 }) + R(tx - tw * 0.45, by - th * 0.92, tw * 0.9, th * 0.32, tw * 0.45)(fl('#9A6E36')) + ln(`M${tx - tw} ${n1(by - th * 0.5)}h${2 * tw}`, 1.4, '#B8924F');
+        s += tube(x - 6, H * 0.86, 5) + tube(x + 6, H * 0.5, 5);
+        // base tube
+        s += f3(R(x - w - 4, by - 8, 2 * w + 8, 9, 4), [x - w - 4, by - 8, 2 * w + 8, 9], PAL.bamboo, { hl: false, k: 0.25, sw: 2.2 });
+      });
+      return s;
+    },
+    /* landmark: layangan (game Layangan Pantai) */
+    layangan() {
+      // a sandy beach with a palm, waves at the right and a symmetric diamond kite on a string from a stake
+      let s = shadow(90);
+      s += f3(P('M-96 -8Q-100 -40 -60 -48Q0 -58 40 -46L96 -40L96 -6Q0 4 -96 -8Z'), [-100, -58, 196, 62], ['#F2D48F', '#F8E6B8', '#D6B36A'], { hl: false, k: 0.12, sw: 2.6 });
+      // sea at the right with foam lines
+      s += f3(P('M36 -46Q60 -54 96 -52L98 -6Q74 -4 58 -10Q72 -18 56 -24Q70 -30 50 -36Q62 -42 36 -46Z'), [36, -54, 62, 50], ['#3FA7C4', '#7CCBE0', '#2C85A3'], { hl: false, k: 0.1, sw: 2.6, inner: ln('M68 -44h14M74 -30h16M70 -16h18', 2.4, '#BCE7F0', 0.9) });
+      s += ln('M58 -10Q72 -18 56 -24Q70 -30 50 -36Q62 -42 36 -46', 3, '#FFFFFF', 0.9);
+      // palm
+      s += palmLm(-66, -26, 90);
+      // shells / starfish
+      s += star4(-26, -18, 6, '#F28C28') + solid(P('M-4 -30Q2 -38 8 -30Z'), '#F59AB0', 1.6);
+      // stake and string
+      s += E(14, -14, 8, 2.6)(fl('#3B2A20', 0.2)) + f3(R(11, -32, 6, 20, 2), [11, -32, 6, 20], PAL.wood, { hl: false, k: 0.3, sw: 2.2 });
+      s += ln('M14 -30Q2 -90 30 -142', 1.4, '#3B2A20', 0.9);
+      // kite: four mirrored panels, cross sticks, tail with bows
+      const K = [30, -184], Rg = [56, -146], B = [30, -104], Lf = [4, -146], M = [30, -146];
+      const tri = (a, b, c) => `M${a.join(' ')}L${b.join(' ')}L${c.join(' ')}Z`;
+      s += ln('M30 -104Q40 -92 32 -80Q24 -68 36 -56', 1.6, '#3B2A20');
+      [[34, -92], [30, -76], [34, -62]].forEach(([x, y], i) => { s += solid(P(`M${x} ${y}L${x - 6} ${y - 4}L${x - 6} ${y + 4}ZM${x} ${y}L${x + 6} ${y - 4}L${x + 6} ${y + 4}Z`), i % 2 ? '#FFC83D' : '#E2453C', 1.4); });
+      s += P(tri(K, M, Lf))(fl('#E2453C')) + P(tri(K, Rg, M))(fl('#E2453C')) + P(tri(Lf, M, B))(fl('#FFC83D')) + P(tri(M, Rg, B))(fl('#FFC83D'));
+      s += P('M30 -184L17 -165L30 -160L43 -165Z')(fl('#F27A6E')) + P('M30 -146L17 -125L30 -118L43 -125Z')(fl('#E09A00', 0.5));
+      s += ln(`M${K.join(' ')}L${B.join(' ')}M${Lf.join(' ')}L${Rg.join(' ')}`, 2, '#7E4A27');
+      s += P(`M${K.join(' ')}L${Rg.join(' ')}L${B.join(' ')}L${Lf.join(' ')}Z`)(stk(2.6));
+      return s;
+    },
+    /* landmark: gardu (game Lampu Hias) */
+    gardu() {
+      // festival gate: two bamboo poles, red-white pennants, a string of coloured bulbs, a battery box with a switch on the left pole
+      let s = shadow(88) + grassBase(90);
+      const pole = x => f3(R(x - 5, -168, 10, 164, 4), [x - 5, -168, 10, 164], PAL.bamboo, { hl: false, k: 0.3 }) + ln(`M${x - 5} -136h10M${x - 5} -100h10M${x - 5} -64h10M${x - 5} -30h10`, 1.8, '#B8924F');
+      s += pole(-72) + pole(72);
+      // pole tips (janur-like curls) and the top bar with pennants
+      s += f3(R(-86, -158, 172, 8, 4), [-86, -158, 172, 8], PAL.bamboo, { hl: false, k: 0.25, sw: 2.4 });
+      for (let i = 0; i < 10; i++) { const x = -66 + i * 14.6; s += solid(P(`M${n1(x - 6)} -150H${n1(x + 6)}L${n1(x)} -138Z`), i % 2 ? '#FBF6EC' : '#E2453C', 1.8); }
+      s += solid(P('M-72 -168Q-80 -182 -66 -186Q-72 -178 -68 -170Z'), '#5BAE4E', 1.8) + solid(P('M72 -168Q80 -182 66 -186Q72 -178 68 -170Z'), '#5BAE4E', 1.8);
+      // wire: a sagging string between the poles, then down the left pole to the battery box
+      const sag = x => -126 + 34 * (1 - (x / 68) ** 2);
+      let wd = 'M-68 -126';
+      for (let x = -60; x <= 68; x += 8) wd += `L${x} ${n1(sag(x))}`;
+      s += ln(wd, 2, '#3B2A20') + ln('M-68 -126Q-80 -110 -78 -70', 2, '#3B2A20');
+      const cols = [['#E2453C', '#F27A6E'], ['#FFC83D', '#FFE08A'], ['#4DAA57', '#86CC8C'], ['#2F80C9', '#6FAEE3'], ['#F28C28', '#F8B26A'], ['#F59AB0', '#FBC6D3']];
+      [-52, -34, -17, 0, 17, 34, 52].forEach((x, i) => {
+        const y = n1(sag(x)), c = cols[i % cols.length];
+        s += dot(x, y + 13, 11, c[1], 0.35);
+        s += solid(R(x - 3.5, y - 1, 7, 6, 1.5), '#959EA8', 1.6);
+        s += f3(P(`M${x} ${y + 5}C${x + 7} ${y + 5} ${x + 8} ${y + 16} ${x + 4} ${y + 20}C${x + 2} ${y + 23} ${x - 2} ${y + 23} ${x - 4} ${y + 20}C${x - 8} ${y + 16} ${x - 7} ${y + 5} ${x} ${y + 5}Z`), [x - 8, y + 5, 16, 18], [c[0], c[1], null], { k: 0.12, sw: 2, hl: false }) + dot(x - 2.5, y + 11, 1.6, '#fff');
+      });
+      // battery box with a switch
+      s += f3(R(-96, -72, 36, 30, 4), [-96, -72, 36, 30], ['#2E9C8A', '#62C2B2', '#1D7466'], { hl: false, k: 0.15, sw: 2.4 });
+      s += solid(R(-91, -66, 18, 10, 2), '#FFC83D', 1.6) + solid(R(-73, -63, 3, 4, 1), '#FFC83D', 1.2) + ln('M-88 -61h4M-86 -63v4', 1.2) + ln('M-79 -61h4', 1.2);
+      s += solid(R(-89, -52, 22, 7, 3.5), '#3A3238', 1.6) + solid(C(-73, -48.5, 4), '#E2453C', 1.6);
+      // a lantern-lit kid-height post sign is skipped: grass tufts at the pole feet
+      s += ln('M-82 -4l-2 -8M-78 -4l2 -9M62 -4l-2 -8M66 -4l2 -9', 1.8, '#3E8A3A');
+      return s;
     }
   };
   function palmLm(x, by, H) {
