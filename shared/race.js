@@ -24,10 +24,10 @@
 
   const MS = window.MS || {};
   const ROUNDS = 5, MAXP = 4, LIMIT_MS = 10 * 60 * 1000, SKIP_AFTER = 25000;
-  const BASE = { timbangan: 28, angkot: 32, katak: 24, ketapel: 26, perahu: 32, martabak: 28, bibit: 34, kembalian: 38, jam: 30, wayang: 32 };
+  const BASE = { timbangan: 28, angkot: 32, katak: 24, ketapel: 26, perahu: 32, martabak: 28, bibit: 34, kembalian: 38, jam: 30, wayang: 32, tukang: 34, robot: 32, dapur: 34, angklung: 30, layangan: 32, lampu: 34 };
   const TIERF = { tk: 1.15, k1: 1, k2: 1.05, k3: 1.15, k4: 1.25 };
   const PROFILES = [{ acc: 0.5, speed: 1.25 }, { acc: 0.62, speed: 1.05 }, { acc: 0.74, speed: 0.95 }];
-  const NAMES = { timbangan: 'Timbangan Pasar', angkot: 'Angkot Penuh!', katak: 'Lompat Katak', ketapel: 'Ketapel Mangga', perahu: 'Rakit Terapung', martabak: 'Bagi Martabak', bibit: 'Kebun Bibit', kembalian: 'Warung Kembalian', jam: 'Jam Kampung', wayang: 'Wayang Bayangan' };
+  const NAMES = { timbangan: 'Timbangan Pasar', angkot: 'Angkot Penuh!', katak: 'Lompat Katak', ketapel: 'Ketapel Mangga', perahu: 'Rakit Terapung', martabak: 'Bagi Martabak', bibit: 'Kebun Bibit', kembalian: 'Warung Kembalian', jam: 'Jam Kampung', wayang: 'Wayang Bayangan', tukang: 'Bengkel Kayu', robot: 'Chuppy Jalan-jalan', dapur: 'Dapur Bu Sari', angklung: 'Angklung Ajaib', layangan: 'Layangan Pantai', lampu: 'Lampu Hias' };
   const realRandom = GS.fxRandom || Math.random.bind(Math);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const mmss = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };

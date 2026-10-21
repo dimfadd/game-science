@@ -3,7 +3,7 @@
  * Also checks that the child's level is rebuilt afterwards and that "Lewati" works.
  * Usage: node tests/demos.js [gameId] [tier] */
 const { serve, launch, VIEWPORTS, watch } = require('./lib');
-const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang'];
+const GAMES = ['timbangan', 'angkot', 'katak', 'ketapel', 'perahu', 'martabak', 'bibit', 'kembalian', 'jam', 'wayang', 'tukang', 'robot', 'dapur', 'angklung', 'layangan', 'lampu'];
 const TIERS = { tk: 6, k1: 8, k2: 8, k3: 8, k4: 8 };
 const only = process.argv[2], onlyTier = process.argv[3];
 
