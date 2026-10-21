@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bengkel Kayu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<link rel="manifest" href="../../manifest.webmanifest">
+<meta name="theme-color" content="#9ED8EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icons/favicon-32.png">
+<style>
+  /* Bengkel Kayu: game-specific styles only. Animations only on inner groups without a transform attribute. */
+  .tk-breathe { animation: tk-breathe 2.4s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes tk-breathe { 50% { transform: translateY(-3px); } }
+  .tk-hint { transform-box: fill-box; transform-origin: center; animation: tk-hint 1.1s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+  @keyframes tk-hint { 50% { transform: scale(1.1); } }
+  .tk-glow { animation: tk-glow 900ms ease-in-out infinite; }
+  @keyframes tk-glow { 50% { opacity: 0.35; } }
+  .gs-stage .tk-hit { cursor: pointer; }
+  .gs-stage .tk-grab { cursor: grab; }
+  .gs-action[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .tk-breathe, .tk-hint, .tk-glow { animation: none; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Bengkel kayu: ukur, potong, dan susun kayu"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="../../shared/config.js"></script>
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/curriculum.js"></script>
+<script src="../../shared/voice.js"></script>
+<script src="../../shared/pwa.js"></script>
+<script src="../../shared/net.js"></script>
+<script src="../../shared/race.js"></script>
+<script src="../../shared/cerita.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

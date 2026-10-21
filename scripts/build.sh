@@ -12,6 +12,7 @@ mkdir -p dist/games
 for g in games/*/; do
   name=$(basename "$g")
   [ "$name" = "_template" ] && continue
+  [ -f "$g/.wip" ] && continue   # a game still being built is not deployed
   cp -r "$g" dist/games/
 done
 BUILD_ID="${VERCEL_GIT_COMMIT_SHA:-$(date +%s)}"

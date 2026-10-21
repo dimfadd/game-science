@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chuppy Jalan-jalan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@800&family=Fredoka:wght@600&display=swap">
+<link rel="stylesheet" href="../../shared/core.css">
+<link rel="manifest" href="../../manifest.webmanifest">
+<meta name="theme-color" content="#9ED8EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mat Sains">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icons/favicon-32.png">
+<style>
+  /* Chuppy Jalan-jalan: game-specific styles only. Animations only on inner groups or on
+     elements without a transform attribute (SVG animation rule, CLAUDE.md). */
+  .gs-stage .rb-hit { cursor: pointer; }
+  .gs-stage .rb-hit:focus { outline: none; }
+  .gs-stage .rb-hit:focus-visible .rb-face { stroke: #1F6FD1; stroke-width: 6; }
+  .rb-caret { animation: rb-blink 1s steps(2, start) infinite; }
+  @keyframes rb-blink { to { visibility: hidden; } }
+  .rb-glow { animation: rb-glow 700ms ease-in-out infinite alternate; }
+  @keyframes rb-glow { from { opacity: 0.55; } to { opacity: 1; } }
+  .rb-pulse { animation: rb-pulse 1.4s ease-in-out infinite; }
+  @keyframes rb-pulse { 50% { opacity: 0.45; } }
+  .rb-dim { opacity: 0.42; }
+  .gs-action[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .rb-caret, .rb-glow, .rb-pulse { animation: none; }
+  }
+</style>
+</head>
+<body class="gs-game landscape-only">
+<svg class="gs-stage" id="stage" viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid meet" aria-label="Chuppy jalan-jalan: susun kartu panah supaya robot Chuppy sampai tujuan"></svg>
+<div class="gs-dock" id="dock"></div>
+<script src="../../shared/core.js"></script>
+<script src="../../shared/art.js"></script>
+<script src="../../shared/config.js"></script>
+<script src="../../shared/auth.js"></script>
+<script src="../../shared/curriculum.js"></script>
+<script src="../../shared/voice.js"></script>
+<script src="../../shared/pwa.js"></script>
+<script src="../../shared/net.js"></script>
+<script src="../../shared/race.js"></script>
+<script src="../../shared/cerita.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
